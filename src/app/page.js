@@ -1,9 +1,22 @@
 import Image from "next/image";
+import FindBooking from "./components/FindBooking";
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 pb-20 gap-16 sm:p-20">
+async function getProviders() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/providers`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
 
-    </div>
-  );
+async function getEvents() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/events`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
+
+export default async function Home() {
+  const providers = await getProviders();
+  const events = await getEvents();
+  return <FindBooking providers={providers} events={events} />;
 }

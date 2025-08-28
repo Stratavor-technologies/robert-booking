@@ -1,11 +1,11 @@
-import { getProviders } from "../../utils/simplybook";
+import { getEvents } from "../../utils/simplybook";
 
 export async function GET() {
   try {
-    const providers = await getProviders();
+    const events = await getEvents(); 
     // console.log("providers: ", providers);
 
-    return new Response(JSON.stringify(providers), {
+    return new Response(JSON.stringify(events), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
