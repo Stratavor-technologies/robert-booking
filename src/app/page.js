@@ -1,5 +1,7 @@
 import Image from "next/image";
 import FindBooking from "./components/FindBooking";
+import Header from "./components/Header";
+import Banner from "./components/HomeBanner";
 
 async function getProviders() {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/providers`, {
@@ -15,8 +17,22 @@ async function getEvents() {
   return res.json();
 }
 
+async function getLocations() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/locations`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
+
 export default async function Home() {
   const providers = await getProviders();
   const events = await getEvents();
-  return <FindBooking providers={providers} events={events} />;
+  const locations = await getLocations();
+
+  return (
+    <>
+      <Banner />
+      <FindBooking providers={providers} events={events} locations={locations} />
+    </>
+  )
 }

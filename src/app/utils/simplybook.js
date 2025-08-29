@@ -1,8 +1,5 @@
 const API_URL = "https://user-api.simplybook.me";
 
-/**
- * Step 1: Get session token
- */
 export async function getToken() {
   const res = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -27,10 +24,13 @@ export async function getToken() {
   return data.result; // session token
 }
 
-/**
- * Step 2: Generic call to SimplyBook API
- */
 async function callSimplyBook(method, params = {}, token) {
+  console.log("params: ", {
+      jsonrpc: "2.0",
+      method,
+      params,
+      id: 1,
+    });
   const res = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -55,15 +55,28 @@ async function callSimplyBook(method, params = {}, token) {
   return data.result;
 }
 
-/**
- * Step 3: Get list of providers
- */
 export async function getProviders() {
   const token = await getToken();
   return callSimplyBook("getUnitList", {}, token);
 }
 
+export async function getLocations() {
+  const token = await getToken();
+  return callSimplyBook("getLocationsList", {}, token);
+}
+
 export async function getEvents() {
   const token = await getToken();
   return callSimplyBook("getEventList", {}, token);
+}
+
+export async function getWorkCalendar(year, month, performerId) {
+  const token = await getToken();
+  // SimplyBook expects params as an array [year, month, performerId]
+  return callSimplyBook("getWorkCalendar", [year, month, performerId], token);
+}
+
+export async function getFirstWorkingDay(performerId) {
+  const token = await getToken();
+  return callSimplyBook("getFirstWorkingDay", [performerId], token);
 }
