@@ -33,7 +33,40 @@ export default function FindBooking({ providers, events, locations }) {
   const [slots, setSlots] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
 
-  console.log("userLocation: ", userLocation);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    privacy: false,
+  });
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formData.privacy) {
+      alert("You must agree to the Privacy Policy before booking.");
+      return;
+    }
+
+    console.log("Booking Data:", {
+      ...formData,
+      selectedEvent,
+      selectedProvider,
+      selectedDate,
+      selectedTime,
+    });
+
+    // 👉 Call API here (replace with actual booking request)
+    alert("Booking submitted successfully!");
+  };
 
   useEffect(() => {
     if (!selectedProvider) return;
@@ -124,12 +157,61 @@ export default function FindBooking({ providers, events, locations }) {
     ? 1
     : 0;
 
+  const requestLocation = () => {
+    navigator.permissions.query({ name: "geolocation" }).then((result) => {
+      if (result.state === "granted" || result.state === "prompt") {
+        // Try to get location again
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+          },
+          (err) => {
+            console.error("Location error:", err);
+          }
+        );
+      } else if (result.state === "denied") {
+        alert("Location access is blocked. Please enable it to find the nearest providers.");
+      }
+    });
+  };
+
+
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-      (err) => console.error("Location error:", err)
-    );
+    async function getIpLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        return [data.latitude, data.longitude];
+      } catch (err) {
+        console.error("IP location error:", err);
+        return null;
+      }
+    }
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+        },
+        async (err) => {
+          console.warn("Geolocation failed, falling back to IP:", err);
+          const ipLoc = await getIpLocation();
+          if (ipLoc) setUserLocation(ipLoc);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      // geolocation not supported → fallback
+      getIpLocation().then((ipLoc) => {
+        if (ipLoc) setUserLocation(ipLoc);
+      });
+    }
   }, []);
+
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
@@ -208,6 +290,14 @@ export default function FindBooking({ providers, events, locations }) {
                     return loc ? loc : null;
                   })
                   .filter(Boolean);
+
+                if(!userLocation){
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  );
+                }
 
                 const [userLat, userLng] = userLocation;
 
@@ -311,16 +401,120 @@ export default function FindBooking({ providers, events, locations }) {
       )}
 
       {/* Summary */}
-      {/* {selectedTime && (
-        <div className="mt-6 p-5 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-700 shadow-inner">
-          ✅ You selected: <br />
-          <strong>{selectedEvent}</strong> with <strong>{selectedProvider}</strong> on{" "}
-          <strong>
-            {dayMap[selectedDate.getDay()]}, {selectedDate.toLocaleDateString()}
-          </strong>{" "}
-          at <strong>{selectedTime}</strong>
+      {selectedTime && (
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left: Booking Summary */}
+          <div className="p-5 bg-white border border-gray-200 rounded-2xl shadow-md">
+            <h3 className="text-lg font-semibold text-indigo-700 mb-4">
+              Booking Summary
+            </h3>
+            <table className="w-full border-collapse">
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-2 font-medium text-gray-700">Event</td>
+                  <td className="py-2 text-gray-900">
+                    {eventArray.find((event) => selectedEvent == event.id)?.name || "N/A"}
+                  </td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 font-medium text-gray-700">Provider</td>
+                  <td className="py-2 text-gray-900">
+                    {providerArray.find((provider) => selectedProvider == provider.id)?.name || "N/A"}
+                  </td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="py-2 font-medium text-gray-700">Date</td>
+                  <td className="py-2 text-gray-900">
+                    {dayMap[selectedDate.getDay()]},{" "}
+                    {selectedDate.toLocaleDateString()}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 font-medium text-gray-700">Time</td>
+                  <td className="py-2 text-gray-900">{selectedTime}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Right: Booking Form */}
+          <div className="p-5 bg-white border border-gray-200 rounded-2xl shadow-md">
+            <h3 className="text-lg font-semibold text-indigo-700 mb-4">
+              Confirm Your Booking
+            </h3>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Enter your name"
+                  className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter your phone number"
+                  className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div className="flex items-start">
+                <input
+                  id="privacy"
+                  name="privacy"
+                  type="checkbox"
+                  checked={formData.privacy}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="privacy"
+                  className="ml-2 text-sm text-gray-600"
+                >
+                  I agree to the{" "}
+                  <a href="/privacy-policy" className="text-indigo-600 underline">
+                    Privacy Policy
+                  </a>
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition"
+              >
+                Confirm Booking
+              </button>
+            </form>
+          </div>
         </div>
-      )} */}
+      )}
     </div>
   );
 }

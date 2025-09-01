@@ -19,7 +19,32 @@ function getDistance(lat1, lon1, lat2, lon2) {
 
 export default function NearbyProvidersMap({ locations, userLocation }) {
   useEffect(() => {
-    if (!userLocation) return; // wait until userLocation is available
+    if (!userLocation) {
+      // console.log("locations: ", locations)
+      import("leaflet").then((L) => {
+        const map = L.map("map").setView([locations[1].lat, locations[1].lng], 12);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        const providerIcon = L.icon({
+          iconUrl: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+        });
+
+        Object.values(locations).forEach((loc) => {
+          L.marker([parseFloat(loc.lat), parseFloat(loc.lng)], { icon: providerIcon })
+            .addTo(map)
+            .bindPopup(
+              `<b>${loc.name}</b><br/>${loc.address1 || ""}, ${loc.city || ""}`
+            );
+        });
+
+      });
+      return; // wait until userLocation is available
+    }
 
     const [userLat, userLng] = userLocation;
 
