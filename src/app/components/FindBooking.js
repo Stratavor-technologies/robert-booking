@@ -98,6 +98,22 @@ export default function FindBooking({ providers, events, locations }) {
     setSlots(slotsArr);
   }, [selectedDate, workCalandar]);
 
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   const currentStep = selectedTime
     ? 4
     : selectedDate
@@ -189,14 +205,25 @@ export default function FindBooking({ providers, events, locations }) {
                 const providerLocations = p.locations
                   ?.map((locId) => {
                     const loc = locationArray.find((l) => l.id === locId);
-                    return loc ? loc.name : null;
+                    return loc ? loc : null;
                   })
                   .filter(Boolean);
+
+                const [userLat, userLng] = userLocation;
+
+                if(providerLocations.length < 1){
+                  return;
+                }
+
+                const dist = getDistance(userLat, userLng, parseFloat(providerLocations[0].lat), parseFloat(providerLocations[0].lng));
+
+                if(dist > 20){
+                  return;
+                }
 
                 return (
                   <option key={p.id} value={p.id}>
                     {p.name}
-                    {providerLocations.length > 0 ? ` (${providerLocations.join(", ")})` : ""}
                   </option>
                 );
               })}
