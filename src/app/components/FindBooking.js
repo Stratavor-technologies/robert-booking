@@ -243,7 +243,7 @@ export default function FindBooking({ providers, events, locations }) {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within?</h2>
+        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (KM)</h2>
         <input
           value={searchWithin}
           type="number"
