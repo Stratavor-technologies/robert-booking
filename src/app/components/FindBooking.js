@@ -32,6 +32,7 @@ export default function FindBooking({ providers, events, locations }) {
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [slots, setSlots] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
+  const [searchWithin, setSearchWithin] = useState(20);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -241,6 +242,18 @@ export default function FindBooking({ providers, events, locations }) {
         ))}
       </div>
 
+      <div>
+        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within?</h2>
+        <input
+          value={searchWithin}
+          type="number"
+          onChange={(e) => {
+            setSearchWithin(e.target.value);
+          }}
+          className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
+        />
+      </div>
+
       {/* Step 1: Event */}
       <div>
         <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 1: Event</h2>
@@ -266,7 +279,7 @@ export default function FindBooking({ providers, events, locations }) {
       {/* Step 2: Provider */}
       {selectedEvent && (
         <>
-          <ProvidersMap locations={locations} userLocation={userLocation} />
+          <ProvidersMap locations={locations} userLocation={userLocation} searchWithin={searchWithin} />
           <div>
             <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 2: Provider</h2>
             <select
@@ -307,7 +320,7 @@ export default function FindBooking({ providers, events, locations }) {
 
                 const dist = getDistance(userLat, userLng, parseFloat(providerLocations[0].lat), parseFloat(providerLocations[0].lng));
 
-                if(dist > 20){
+                if(dist > searchWithin){
                   return;
                 }
 
