@@ -15,13 +15,17 @@ const dayMap = {
   6: "Saturday",
 };
 
-export default function FindBooking({ providers, events, locations }) {
+export default function FindBooking({ providers, events, locations, clients }) {
   const providerArray = Array.isArray(providers)
     ? providers
     : Object.values(providers || {});
   const eventArray = Array.isArray(events)
     ? events
     : Object.values(events || {});
+
+  const clientsArray = Array.isArray(clients)
+    ? clients
+    : Object.values(clients || {});
 
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("");
@@ -31,8 +35,10 @@ export default function FindBooking({ providers, events, locations }) {
   const [firstDay, setFirstDay] = useState(null);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [slots, setSlots] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
+  // const [userLocation, setUserLocation] = useState(null);
+  const [clientLocation, setClientLocation] = useState(null);
   const [searchWithin, setSearchWithin] = useState(20);
+  const [selectedClient, setSelectedClient] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -158,60 +164,113 @@ export default function FindBooking({ providers, events, locations }) {
     ? 1
     : 0;
 
-  const requestLocation = () => {
-    navigator.permissions.query({ name: "geolocation" }).then((result) => {
-      if (result.state === "granted" || result.state === "prompt") {
-        // Try to get location again
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-          },
-          (err) => {
-            console.error("Location error:", err);
-          }
-        );
-      } else if (result.state === "denied") {
-        alert("Location access is blocked. Please enable it to find the nearest providers.");
-      }
-    });
+  // const requestLocation = () => {
+  //   navigator.permissions.query({ name: "geolocation" }).then((result) => {
+  //     if (result.state === "granted" || result.state === "prompt") {
+  //       // Try to get location again
+  //       navigator.geolocation.getCurrentPosition(
+  //         (pos) => {
+  //           setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+  //         },
+  //         (err) => {
+  //           console.error("Location error:", err);
+  //         }
+  //       );
+  //     } else if (result.state === "denied") {
+  //       alert("Location access is blocked. Please enable it to find the nearest providers.");
+  //     }
+  //   });
+  // };
+
+
+  // useEffect(() => {
+  //   async function getIpLocation() {
+  //     try {
+  //       const res = await fetch("https://ipapi.co/json/");
+  //       const data = await res.json();
+  //       return [data.latitude, data.longitude];
+  //     } catch (err) {
+  //       console.error("IP location error:", err);
+  //       return null;
+  //     }
+  //   }
+
+  //   if ("geolocation" in navigator) {
+  //     navigator.geolocation.getCurrentPosition(
+  //       (pos) => {
+  //         setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+  //       },
+  //       async (err) => {
+  //         console.warn("Geolocation failed, falling back to IP:", err);
+  //         const ipLoc = await getIpLocation();
+  //         if (ipLoc) setUserLocation(ipLoc);
+  //       },
+  //       {
+  //         enableHighAccuracy: true,
+  //         timeout: 10000,
+  //         maximumAge: 0,
+  //       }
+  //     );
+  //   } else {
+  //     // geolocation not supported → fallback
+  //     getIpLocation().then((ipLoc) => {
+  //       if (ipLoc) setUserLocation(ipLoc);
+  //     });
+  //   }
+  // }, []);
+
+
+  const LOCATIONIQ_API = "https://us1.locationiq.com/v1/search";
+
+  async function getLatLngFromAddress(client) {
+    const fullAddress = [
+      client.address1,
+      client.city,
+      client.country_id,
+    ].filter(Boolean).join(", ");
+
+    const res = await fetch(
+      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
+    );
+
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("No location found");
+    }
+
+    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  }
+
+  const handleClientChange = async (e) => {
+    const clientId = e.target.value;
+
+    
+    setSelectedEvent("");
+    setSelectedProvider("");
+    setSelectedDate(null);
+    setSelectedTime("");
+
+    try {
+      // 1. Fetch client details from your Next.js API
+      const res = await fetch(`/api/single-client?clientId=${clientId}`);
+      if (!res.ok) throw new Error("Failed to fetch client details");
+
+      const client = await res.json();
+
+      // 2. Get lat/lng from client’s address
+      const coords = await getLatLngFromAddress(client);
+
+      // console.log("Client details:", client);
+      console.log("Client coordinates:", coords);
+
+      // You can store lat/lng in state if needed
+      setClientLocation(coords);
+      setSelectedClient(clientId);
+
+    } catch (err) {
+      console.error("Error fetching client location:", err);
+    }
   };
-
-
-  useEffect(() => {
-    async function getIpLocation() {
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
-        return [data.latitude, data.longitude];
-      } catch (err) {
-        console.error("IP location error:", err);
-        return null;
-      }
-    }
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-        },
-        async (err) => {
-          console.warn("Geolocation failed, falling back to IP:", err);
-          const ipLoc = await getIpLocation();
-          if (ipLoc) setUserLocation(ipLoc);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        }
-      );
-    } else {
-      // geolocation not supported → fallback
-      getIpLocation().then((ipLoc) => {
-        if (ipLoc) setUserLocation(ipLoc);
-      });
-    }
-  }, []);
 
 
   return (
@@ -254,21 +313,15 @@ export default function FindBooking({ providers, events, locations }) {
         />
       </div>
 
-      {/* Step 1: Event */}
       <div>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 1: Event</h2>
+        <h2 className="text-xl font-semibold mb-2 text-gray-800">Client</h2>
         <select
-          value={selectedEvent}
-          onChange={(e) => {
-            setSelectedEvent(e.target.value);
-            setSelectedProvider("");
-            setSelectedDate(null);
-            setSelectedTime("");
-          }}
+          value={selectedClient}
+          onChange={handleClientChange}
           className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
         >
-          <option value="">-- Select an event --</option>
-          {eventArray.map((e) => (
+          <option value="">-- Select an client --</option>
+          {clientsArray.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
             </option>
@@ -276,10 +329,34 @@ export default function FindBooking({ providers, events, locations }) {
         </select>
       </div>
 
+      {/* Step 1: Event */}
+      {selectedClient && (
+        <div>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 1: Event</h2>
+          <select
+            value={selectedEvent}
+            onChange={(e) => {
+              setSelectedEvent(e.target.value);
+              setSelectedProvider("");
+              setSelectedDate(null);
+              setSelectedTime("");
+            }}
+            className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
+          >
+            <option value="">-- Select an event --</option>
+            {eventArray.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Step 2: Provider */}
       {selectedEvent && (
         <>
-          <ProvidersMap locations={locations} userLocation={userLocation} searchWithin={searchWithin} />
+          <ProvidersMap locations={locations} userLocation={clientLocation} searchWithin={searchWithin} />
           <div>
             <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 2: Provider</h2>
             <select
@@ -304,7 +381,7 @@ export default function FindBooking({ providers, events, locations }) {
                   })
                   .filter(Boolean);
 
-                if(!userLocation){
+                if(!clientLocation){
                   return (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -312,7 +389,7 @@ export default function FindBooking({ providers, events, locations }) {
                   );
                 }
 
-                const [userLat, userLng] = userLocation;
+                const [userLat, userLng] = clientLocation;
 
                 if(providerLocations.length < 1){
                   return;

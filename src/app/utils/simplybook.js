@@ -24,6 +24,68 @@ export async function getToken() {
   return data.result; // session token
 }
 
+const LOGIN_URL = "https://user-api.simplybook.me/login";
+const ADMIN_URL = "https://user-api.simplybook.me/admin";
+
+export async function getAdminToken() {
+  const res = await fetch(LOGIN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "getUserToken",
+      params: [
+        process.env.SIMPLYBOOK_COMPANY,   // subdomain (company login)
+        process.env.SIMPLYBOOK_ADMIN_USER, // admin username
+        process.env.SIMPLYBOOK_ADMIN_PASS, // admin password
+      ],
+      id: 1,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message || "Failed to fetch admin token");
+  }
+  return data.result;
+}
+
+// Step 2: Call Admin API
+async function callAdmin(method, params = [], token) {
+  const res = await fetch(ADMIN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Company-Login": process.env.SIMPLYBOOK_COMPANY,
+      "X-User-Token": token, // notice: X-User-Token, not X-Token
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method,
+      params,
+      id: 1,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message || JSON.stringify(data));
+  }
+  return data.result;
+}
+
+// Step 3: Get Clients
+export async function getClients(limit = 50, start = 0) {
+  const token = await getAdminToken();
+  return callAdmin("getClientList", ["", limit], token);
+}
+
+export async function getClient(clientId) {
+  const token = await getAdminToken();
+  return callAdmin("getClientInfo", [clientId], token);
+}
+
+
 async function callSimplyBook(method, params = {}, token) {
   console.log("params: ", {
       jsonrpc: "2.0",
@@ -59,6 +121,11 @@ export async function getProviders() {
   const token = await getToken();
   return callSimplyBook("getUnitList", {}, token);
 }
+
+// export async function getClients() {
+//   const token = await getToken();
+//   return callSimplyBook("getClientList", {}, token);
+// }
 
 export async function getLocations() {
   const token = await getToken();

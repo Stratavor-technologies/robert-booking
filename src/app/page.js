@@ -17,6 +17,13 @@ async function getEvents() {
   return res.json();
 }
 
+async function getClients() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/clients`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
+
 async function getLocations() {
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/locations`, {
     cache: "no-store",
@@ -28,11 +35,12 @@ export default async function Home() {
   const providers = await getProviders();
   const events = await getEvents();
   const locations = await getLocations();
+  const clients = await getClients();
 
   return (
     <>
       <Banner />
-      <FindBooking providers={providers} events={events} locations={locations} />
+      <FindBooking providers={providers} events={events} locations={locations} clients={clients} />
     </>
   )
 }
