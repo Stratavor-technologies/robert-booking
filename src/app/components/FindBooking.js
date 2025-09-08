@@ -4,6 +4,7 @@ import DatePicker from "react-datepicker";
 import { Loader2 } from "lucide-react";
 
 import ProvidersMap from "./ProvidersMap";
+const LOCATIONIQ_AUTOCOMPLETE = "https://us1.locationiq.com/v1/autocomplete.php";
 
 const dayMap = {
   0: "Sunday",
@@ -39,6 +40,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [clientLocation, setClientLocation] = useState(null);
   const [searchWithin, setSearchWithin] = useState(20);
   const [selectedClient, setSelectedClient] = useState("");
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -73,6 +76,42 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
     // 👉 Call API here (replace with actual booking request)
     alert("Booking submitted successfully!");
+  };
+
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    setQuery(value);
+
+    if (value.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${LOCATIONIQ_AUTOCOMPLETE}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(
+          value
+        )}&limit=5&format=json`
+      );
+      const data = await res.json();
+      setSuggestions(data);
+    } catch (err) {
+      console.error("Autocomplete error:", err);
+    }
+  };
+
+  const handleSearchSelect = (place) => {
+    setQuery(place.display_name);
+    setSuggestions([]);
+    // if (onSelect) {
+      // onSelect({
+      //   lat: parseFloat(place.lat),
+      //   lng: parseFloat(place.lon),
+      //   displayName: place.display_name,
+      // });
+      console.log("here it is", place);
+      setClientLocation([place.lat, place.lon ]);
+    // }
   };
 
   useEffect(() => {
@@ -139,7 +178,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   }, [selectedDate, workCalandar]);
 
   function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // km
+    const R = 3958.8;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
@@ -265,13 +304,14 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
       // You can store lat/lng in state if needed
       setClientLocation(coords);
-      setSelectedClient(clientId);
+      // setSelectedClient(clientId);
 
     } catch (err) {
       console.error("Error fetching client location:", err);
     }
   };
 
+  console.log("clientLocation: ", clientLocation)
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
@@ -302,7 +342,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (KM)</h2>
+        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (Miles)</h2>
         <input
           value={searchWithin}
           type="number"
@@ -313,7 +353,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         />
       </div>
 
-      <div>
+      {/* <div>
         <h2 className="text-xl font-semibold mb-2 text-gray-800">Client</h2>
         <select
           value={selectedClient}
@@ -327,10 +367,33 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </option>
           ))}
         </select>
+      </div> */}
+
+      <div className="relative w-full">
+        <input
+          type="text"
+          value={query}
+          onChange={handleSearchChange}
+          placeholder="Search address..."
+          className="w-full border rounded px-3 py-2"
+        />
+        {suggestions.length > 0 && (
+          <ul className="absolute bg-white border w-full mt-1 rounded shadow" style={{zIndex: 999999}}>
+            {suggestions.map((s) => (
+              <li
+                key={s.place_id}
+                onClick={() => handleSearchSelect(s)}
+                className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+              >
+                {s.display_name}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Step 1: Event */}
-      {selectedClient && (
+      {clientLocation && (
         <div>
           <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 1: Event</h2>
           <select
