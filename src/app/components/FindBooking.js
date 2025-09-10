@@ -42,12 +42,21 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [selectedClient, setSelectedClient] = useState("");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
+  const [isSearchedAddress, setIsSearchedAddress] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     privacy: false,
+  });
+
+  const [address, setAddress] = useState({
+    street1: "",
+    street2: "",
+    city: "",
+    state: "",
+    country: "US",
   });
 
   const handleChange = (e) => {
@@ -76,6 +85,11 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
     // 👉 Call API here (replace with actual booking request)
     alert("Booking submitted successfully!");
+  };
+
+  const handleFieldChange = (e) => {
+    const { name, value } = e.target;
+    setAddress((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSearchChange = async (e) => {
@@ -203,73 +217,42 @@ export default function FindBooking({ providers, events, locations, clients }) {
     ? 1
     : 0;
 
-  // const requestLocation = () => {
-  //   navigator.permissions.query({ name: "geolocation" }).then((result) => {
-  //     if (result.state === "granted" || result.state === "prompt") {
-  //       // Try to get location again
-  //       navigator.geolocation.getCurrentPosition(
-  //         (pos) => {
-  //           setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-  //         },
-  //         (err) => {
-  //           console.error("Location error:", err);
-  //         }
-  //       );
-  //     } else if (result.state === "denied") {
-  //       alert("Location access is blocked. Please enable it to find the nearest providers.");
-  //     }
-  //   });
-  // };
-
-
-  // useEffect(() => {
-  //   async function getIpLocation() {
-  //     try {
-  //       const res = await fetch("https://ipapi.co/json/");
-  //       const data = await res.json();
-  //       return [data.latitude, data.longitude];
-  //     } catch (err) {
-  //       console.error("IP location error:", err);
-  //       return null;
-  //     }
-  //   }
-
-  //   if ("geolocation" in navigator) {
-  //     navigator.geolocation.getCurrentPosition(
-  //       (pos) => {
-  //         setUserLocation([pos.coords.latitude, pos.coords.longitude]);
-  //       },
-  //       async (err) => {
-  //         console.warn("Geolocation failed, falling back to IP:", err);
-  //         const ipLoc = await getIpLocation();
-  //         if (ipLoc) setUserLocation(ipLoc);
-  //       },
-  //       {
-  //         enableHighAccuracy: true,
-  //         timeout: 10000,
-  //         maximumAge: 0,
-  //       }
-  //     );
-  //   } else {
-  //     // geolocation not supported → fallback
-  //     getIpLocation().then((ipLoc) => {
-  //       if (ipLoc) setUserLocation(ipLoc);
-  //     });
-  //   }
-  // }, []);
-
-
   const LOCATIONIQ_API = "https://us1.locationiq.com/v1/search";
+
+  // async function getLatLngFromAddress(client) {
+  //   const fullAddress = [
+  //     client.address1,
+  //     client.city,
+  //     client.country_id,
+  //   ].filter(Boolean).join(", ");
+
+  //   const res = await fetch(
+  //     `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
+  //   );
+
+  //   const data = await res.json();
+  //   if (!Array.isArray(data) || data.length === 0) {
+  //     throw new Error("No location found");
+  //   }
+
+  //   return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  // }
 
   async function getLatLngFromAddress(client) {
     const fullAddress = [
       client.address1,
+      client.address2,
       client.city,
-      client.country_id,
-    ].filter(Boolean).join(", ");
+      client.state,
+      client.country,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     const res = await fetch(
-      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
+      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(
+        fullAddress
+      )}&format=json&limit=1`
     );
 
     const data = await res.json();
@@ -277,41 +260,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
       throw new Error("No location found");
     }
 
-    return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    setIsSearchedAddress(true);
+    setClientLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
   }
 
-  const handleClientChange = async (e) => {
-    const clientId = e.target.value;
-
-    
-    setSelectedEvent("");
-    setSelectedProvider("");
-    setSelectedDate(null);
-    setSelectedTime("");
-
-    try {
-      // 1. Fetch client details from your Next.js API
-      const res = await fetch(`/api/single-client?clientId=${clientId}`);
-      if (!res.ok) throw new Error("Failed to fetch client details");
-
-      const client = await res.json();
-
-      // 2. Get lat/lng from client’s address
-      const coords = await getLatLngFromAddress(client);
-
-      // console.log("Client details:", client);
-      console.log("Client coordinates:", coords);
-
-      // You can store lat/lng in state if needed
-      setClientLocation(coords);
-      // setSelectedClient(clientId);
-
-    } catch (err) {
-      console.error("Error fetching client location:", err);
-    }
-  };
-
-  console.log("clientLocation: ", clientLocation)
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
@@ -341,18 +293,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
         ))}
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (Miles)</h2>
-        <input
-          value={searchWithin}
-          type="number"
-          onChange={(e) => {
-            setSearchWithin(e.target.value);
-          }}
-          className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
-        />
-      </div>
-
       {/* <div>
         <h2 className="text-xl font-semibold mb-2 text-gray-800">Client</h2>
         <select
@@ -369,7 +309,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </select>
       </div> */}
 
-      <div className="relative w-full">
+      {/*<div className="relative w-full">
         <input
           type="text"
           value={query}
@@ -390,7 +330,71 @@ export default function FindBooking({ providers, events, locations, clients }) {
             ))}
           </ul>
         )}
+      </div>*/}
+
+      <div className="space-y-3">
+        <input
+          type="text"
+          name="street1"
+          value={address.street1}
+          onChange={handleFieldChange}
+          placeholder="Street Address 1"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
+          type="text"
+          name="street2"
+          value={address.street2}
+          onChange={handleFieldChange}
+          placeholder="Street Address 2"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
+          type="text"
+          name="city"
+          value={address.city}
+          onChange={handleFieldChange}
+          placeholder="City"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
+          type="text"
+          name="state"
+          value={address.state}
+          onChange={handleFieldChange}
+          placeholder="State"
+          className="w-full border rounded px-3 py-2"
+        />
+        <select
+          name="country"
+          value={address.country}
+          onChange={handleFieldChange}
+          className="w-full border rounded px-3 py-2"
+        >
+          <option value="US">United States</option>
+          <option value="CA">Canada</option>
+          <option value="IN">India</option>
+          <option value="UK">United Kingdom</option>
+          <option value="AU">Australia</option>
+          {/* Add more as needed */}
+        </select>
+
+        <button className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition" onClick={() => getLatLngFromAddress(address)}>Search client address</button>
       </div>
+
+      {isSearchedAddress && (
+        <div>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (Miles)</h2>
+          <input
+            value={searchWithin}
+            type="number"
+            onChange={(e) => {
+              setSearchWithin(e.target.value);
+            }}
+            className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
+          />
+        </div>
+      )}
 
       {/* Step 1: Event */}
       {clientLocation && (

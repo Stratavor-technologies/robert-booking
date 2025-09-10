@@ -29,7 +29,7 @@ export default function NearbyProvidersMap({ locations, userLocation, searchWith
           ? [userLocation[0], userLocation[1]]
           : [locations[1].lat, locations[1].lng];
 
-        mapRef.current = L.map("map").setView(center, 12);
+        mapRef.current = L.map("map").setView(center, 10);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap contributors",
@@ -61,7 +61,7 @@ export default function NearbyProvidersMap({ locations, userLocation, searchWith
           .addTo(map)
           .bindPopup("<b>You are here</b>");
         markersRef.current.push(userMarker);
-        map.setView([userLocation[0], userLocation[1]], 12);
+        map.setView([userLocation[0], userLocation[1]], 10);
       }
 
       // Filter nearby providers (or show all if no userLocation)
