@@ -4,7 +4,8 @@ import DatePicker from "react-datepicker";
 import { Loader2 } from "lucide-react";
 
 import ProvidersMap from "./ProvidersMap";
-const LOCATIONIQ_AUTOCOMPLETE = "https://us1.locationiq.com/v1/autocomplete.php";
+const LOCATIONIQ_AUTOCOMPLETE =
+  "https://us1.locationiq.com/v1/autocomplete.php";
 
 const dayMap = {
   0: "Sunday",
@@ -20,6 +21,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const providerArray = Array.isArray(providers)
     ? providers
     : Object.values(providers || {});
+  console.log(providerArray, "providerarray");
   const eventArray = Array.isArray(events)
     ? events
     : Object.values(events || {});
@@ -52,9 +54,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
   });
 
   const [address, setAddress] = useState({
+    email: "",
+    phone: "",
     street1: "",
     street2: "",
     city: "",
+    zip: "",
     state: "",
     country: "US",
   });
@@ -65,6 +70,22 @@ export default function FindBooking({ providers, events, locations, clients }) {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const [services, setServices] = useState({
+    manicure: false,
+    manicureGel: false,
+    pedicure: false,
+    pedicureGel: false,
+    eyelashFull: false,
+    eyelashRefill: false,
+    waxEyebrows: false,
+    waxLips: false,
+  });
+
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setServices((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleSubmit = (e) => {
@@ -118,13 +139,13 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setQuery(place.display_name);
     setSuggestions([]);
     // if (onSelect) {
-      // onSelect({
-      //   lat: parseFloat(place.lat),
-      //   lng: parseFloat(place.lon),
-      //   displayName: place.display_name,
-      // });
-      console.log("here it is", place);
-      setClientLocation([place.lat, place.lon ]);
+    // onSelect({
+    //   lat: parseFloat(place.lat),
+    //   lng: parseFloat(place.lon),
+    //   displayName: place.display_name,
+    // });
+    console.log("here it is", place);
+    setClientLocation([place.lat, place.lon]);
     // }
   };
 
@@ -137,8 +158,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
         const performerId = selectedProvider;
 
         const [calRes, dayRes] = await Promise.all([
-          fetch(`/api/work-calendar?year=${year}&month=${month}&performerId=${performerId}`),
-          fetch(`/api/first-day?year=${year}&month=${month}&performerId=${performerId}`),
+          fetch(
+            `/api/work-calendar?year=${year}&month=${month}&performerId=${performerId}`
+          ),
+          fetch(
+            `/api/first-day?year=${year}&month=${month}&performerId=${performerId}`
+          ),
         ]);
 
         const calData = await calRes.json();
@@ -243,6 +268,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       client.address1,
       client.address2,
       client.city,
+      client.zip,
       client.state,
       client.country,
     ]
@@ -263,7 +289,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setIsSearchedAddress(true);
     setClientLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
   }
-
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
@@ -334,6 +359,23 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
       <div className="space-y-3">
         <input
+          type="email"
+          name="email"
+          value={address.email}
+          onChange={handleFieldChange}
+          placeholder="Email Address"
+          className="w-full border rounded px-3 py-2"
+        />
+
+        <input
+          type="tel"
+          name="phone"
+          value={address.phone}
+          onChange={handleFieldChange}
+          placeholder="Phone Number"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
           type="text"
           name="street1"
           value={address.street1}
@@ -341,14 +383,14 @@ export default function FindBooking({ providers, events, locations, clients }) {
           placeholder="Street Address 1"
           className="w-full border rounded px-3 py-2"
         />
-        <input
+        {/* <input
           type="text"
           name="street2"
           value={address.street2}
           onChange={handleFieldChange}
           placeholder="Street Address 2"
           className="w-full border rounded px-3 py-2"
-        />
+        /> */}
         <input
           type="text"
           name="city"
@@ -359,13 +401,21 @@ export default function FindBooking({ providers, events, locations, clients }) {
         />
         <input
           type="text"
+          name="zip"
+          value={address.zip}
+          onChange={handleFieldChange}
+          placeholder="ZIP Code"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
+          type="text"
           name="state"
           value={address.state}
           onChange={handleFieldChange}
           placeholder="State"
           className="w-full border rounded px-3 py-2"
         />
-        <select
+        {/* <select
           name="country"
           value={address.country}
           onChange={handleFieldChange}
@@ -376,30 +426,149 @@ export default function FindBooking({ providers, events, locations, clients }) {
           <option value="IN">India</option>
           <option value="UK">United Kingdom</option>
           <option value="AU">Australia</option>
-          {/* Add more as needed */}
-        </select>
+        </select> */}
+        <input
+          type="text"
+          name="country"
+          value="US" // static value
+          readOnly // user cannot edit
+          className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+        />
 
-        <button className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition" onClick={() => getLatLngFromAddress(address)}>Search client address</button>
+        <button
+          className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition"
+          onClick={() => getLatLngFromAddress(address)}
+        >
+          Search client address
+        </button>
       </div>
 
       {isSearchedAddress && (
-        <div>
-          <h2 className="text-xl font-semibold mb-2 text-gray-800">Search within (Miles)</h2>
-          <input
-            value={searchWithin}
-            type="number"
-            onChange={(e) => {
-              setSearchWithin(e.target.value);
-            }}
-            className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
-          />
+        <div className="my-6">
+          <h2 className="text-lg font-semibold mb-4">Services Needed</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Side */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="manicure"
+                  checked={services.manicure}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Manicure</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="manicureGel"
+                  checked={services.manicureGel}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Manicure-Gel</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="pedicure"
+                  checked={services.pedicure}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Pedicure</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="pedicureGel"
+                  checked={services.pedicureGel}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Pedicure-Gel</span>
+              </label>
+            </div>
+
+            {/* Right Side */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="eyelashFull"
+                  checked={services.eyelashFull}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>EyeLash-Full set</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="eyelashRefill"
+                  checked={services.eyelashRefill}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>EyeLash-Refill</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="waxEyebrows"
+                  checked={services.waxEyebrows}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Wax-Eye Brows</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="waxLips"
+                  checked={services.waxLips}
+                  onChange={handleCheckboxChange}
+                  className="form-checkbox"
+                />
+                <span>Wax-Lips</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSearchedAddress && (
+        <div className="my-6 max-w-md">
+          <h2 className="text-xl font-semibold mb-3 text-gray-900">
+            Find Service Provider
+          </h2>
+
+          <div className="flex items-center bg-white/80 backdrop-blur-md border border-gray-200 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            {/* Left label */}
+            <span className="px-5 py-3 text-gray-600 font-medium">Within</span>
+
+            {/* Input */}
+            <input
+              value={searchWithin}
+              type="number"
+              onChange={(e) => setSearchWithin(e.target.value)}
+              className="flex-1 p-3 text-gray-900 placeholder-gray-400 outline-none text-center font-semibold"
+              placeholder="Enter number"
+            />
+
+            {/* Right label */}
+            <span className="px-5 py-3 text-gray-600 font-medium">Miles</span>
+          </div>
         </div>
       )}
 
       {/* Step 1: Event */}
       {clientLocation && (
         <div>
-          <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 1: Event</h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800">
+            Step 1: Event
+          </h2>
           <select
             value={selectedEvent}
             onChange={(e) => {
@@ -423,9 +592,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
       {/* Step 2: Provider */}
       {selectedEvent && (
         <>
-          <ProvidersMap locations={locations} userLocation={clientLocation} searchWithin={searchWithin} />
+          <ProvidersMap
+            locations={locations}
+            userLocation={clientLocation}
+            searchWithin={searchWithin}
+          />
           <div>
-            <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 2: Provider</h2>
+            <h2 className="text-xl font-semibold mb-2 text-gray-800">
+              Step 2: Provider
+            </h2>
             <select
               value={selectedProvider}
               onChange={(e) => {
@@ -436,7 +611,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
               className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
             >
               <option value="">-- Select a provider --</option>
-              {providerArray.map((p) => {
+              {/* {providerArray.map((p) => {
                 const locationArray = Array.isArray(locations)
                   ? locations
                   : Object.values(locations || {});
@@ -444,11 +619,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
                 const providerLocations = p.locations
                   ?.map((locId) => {
                     const loc = locationArray.find((l) => l.id === locId);
+                    console.log(loc,"locc")
                     return loc ? loc : null;
                   })
                   .filter(Boolean);
 
-                if(!clientLocation){
+                if (!clientLocation) {
                   return (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -458,13 +634,18 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
                 const [userLat, userLng] = clientLocation;
 
-                if(providerLocations.length < 1){
+                if (providerLocations.length < 1) {
                   return;
                 }
 
-                const dist = getDistance(userLat, userLng, parseFloat(providerLocations[0].lat), parseFloat(providerLocations[0].lng));
+                const dist = getDistance(
+                  userLat,
+                  userLng,
+                  parseFloat(providerLocations[0].lat),
+                  parseFloat(providerLocations[0].lng)
+                );
 
-                if(dist > searchWithin){
+                if (dist > searchWithin) {
                   return;
                 }
 
@@ -473,7 +654,69 @@ export default function FindBooking({ providers, events, locations, clients }) {
                     {p.name}
                   </option>
                 );
-              })}
+              })} */}
+
+              {(() => {
+                if (!clientLocation) {
+                  // If no client location, just return all providers normally
+                  return providerArray.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ));
+                }
+
+                const [userLat, userLng] = clientLocation;
+
+                // Convert locations into array
+                const locationArray = Array.isArray(locations)
+                  ? locations
+                  : Object.values(locations || {});
+
+                // Step 1: Build a list of providers with their nearest distance
+                const providersWithDistance = providerArray
+                  .map((p) => {
+                    const providerLocations = p.locations
+                      ?.map((locId) =>
+                        locationArray.find((l) => l.id === locId)
+                      )
+                      .filter(Boolean);
+
+
+                    if (!providerLocations || providerLocations.length === 0) {
+                      return null; // no valid locations
+                    }
+
+                    // Find closest location for this provider
+                    let minDist = Infinity;
+                    providerLocations.forEach((loc) => {
+                      const dist = getDistance(
+                        userLat,
+                        userLng,
+                        parseFloat(loc.lat),
+                        parseFloat(loc.lng)
+                      );
+                      if (dist < minDist) minDist = dist;
+                    });
+
+                    return {
+                      ...p,
+                      distance: minDist,
+                    };
+                  })
+                  .filter(Boolean) // remove nulls
+                  .filter((p) => p.distance <= searchWithin); // Step 2: filter by searchWithin
+
+                // Step 3: Sort by distance ascending
+                providersWithDistance.sort((a, b) => a.distance - b.distance);
+
+                // Step 4: Render options
+                return providersWithDistance.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.distance.toFixed(1)} mi)
+                  </option>
+                ));
+              })()}
             </select>
           </div>
         </>
@@ -482,7 +725,9 @@ export default function FindBooking({ providers, events, locations, clients }) {
       {/* Step 3: Date Picker */}
       {selectedProvider && workCalandar && (
         <div>
-          <h2 className="text-xl font-semibold mb-2 text-gray-800">Step 3: Pick a Date</h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800">
+            Step 3: Pick a Date
+          </h2>
           <div className="relative border rounded-2xl overflow-hidden shadow-md">
             {loadingCalendar && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
@@ -503,7 +748,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
                 const m = String(date.getMonth() + 1).padStart(2, "0");
                 const d = String(date.getDate()).padStart(2, "0");
                 const key = `${y}-${m}-${d}`;
-                return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
+                return (
+                  workCalandar?.[key] &&
+                  parseInt(workCalandar[key].is_day_off) === 0
+                );
               }}
               onMonthChange={async (date) => {
                 setLoadingCalendar(true);
@@ -533,7 +781,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
       {selectedDate && (
         <div>
           <h2 className="text-xl font-semibold mb-2 text-gray-800">
-            Step 4: Select Time ({dayMap[selectedDate.getDay()]}, {selectedDate.toLocaleDateString()})
+            Step 4: Select Time ({dayMap[selectedDate.getDay()]},{" "}
+            {selectedDate.toLocaleDateString()})
           </h2>
           <div className="flex flex-wrap gap-3">
             {slots.length > 0 ? (
@@ -570,13 +819,16 @@ export default function FindBooking({ providers, events, locations, clients }) {
                 <tr className="border-b">
                   <td className="py-2 font-medium text-gray-700">Event</td>
                   <td className="py-2 text-gray-900">
-                    {eventArray.find((event) => selectedEvent == event.id)?.name || "N/A"}
+                    {eventArray.find((event) => selectedEvent == event.id)
+                      ?.name || "N/A"}
                   </td>
                 </tr>
                 <tr className="border-b">
                   <td className="py-2 font-medium text-gray-700">Provider</td>
                   <td className="py-2 text-gray-900">
-                    {providerArray.find((provider) => selectedProvider == provider.id)?.name || "N/A"}
+                    {providerArray.find(
+                      (provider) => selectedProvider == provider.id
+                    )?.name || "N/A"}
                   </td>
                 </tr>
 
@@ -652,12 +904,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
                   onChange={handleChange}
                   className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
                 />
-                <label
-                  htmlFor="privacy"
-                  className="ml-2 text-sm text-gray-600"
-                >
+                <label htmlFor="privacy" className="ml-2 text-sm text-gray-600">
                   I agree to the{" "}
-                  <a href="/privacy-policy" className="text-indigo-600 underline">
+                  <a
+                    href="/privacy-policy"
+                    className="text-indigo-600 underline"
+                  >
                     Privacy Policy
                   </a>
                 </label>
