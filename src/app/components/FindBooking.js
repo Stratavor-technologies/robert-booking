@@ -57,7 +57,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
     email: "",
     phone: "",
     street1: "",
-    street2: "",
     city: "",
     zip: "",
     state: "",
@@ -363,7 +362,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
           name="email"
           value={address.email}
           onChange={handleFieldChange}
-          placeholder="Email Address"
+          placeholder="Email"
           className="w-full border rounded px-3 py-2"
         />
 
@@ -372,7 +371,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
           name="phone"
           value={address.phone}
           onChange={handleFieldChange}
-          placeholder="Phone Number"
+          placeholder="Phone"
           className="w-full border rounded px-3 py-2"
         />
         <input
@@ -380,7 +379,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
           name="street1"
           value={address.street1}
           onChange={handleFieldChange}
-          placeholder="Street Address 1"
+          placeholder="Street Address"
           className="w-full border rounded px-3 py-2"
         />
         {/* <input
@@ -401,18 +400,18 @@ export default function FindBooking({ providers, events, locations, clients }) {
         />
         <input
           type="text"
-          name="zip"
-          value={address.zip}
-          onChange={handleFieldChange}
-          placeholder="ZIP Code"
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="text"
           name="state"
           value={address.state}
           onChange={handleFieldChange}
           placeholder="State"
+          className="w-full border rounded px-3 py-2"
+        />
+        <input
+          type="text"
+          name="zip"
+          value={address.zip}
+          onChange={handleFieldChange}
+          placeholder="ZIP Code"
           className="w-full border rounded px-3 py-2"
         />
         {/* <select
@@ -427,13 +426,13 @@ export default function FindBooking({ providers, events, locations, clients }) {
           <option value="UK">United Kingdom</option>
           <option value="AU">Australia</option>
         </select> */}
-        <input
+        {/* <input
           type="text"
           name="country"
           value="US" // static value
           readOnly // user cannot edit
           className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
-        />
+        /> */}
 
         <button
           className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition"
@@ -564,7 +563,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       )}
 
       {/* Step 1: Event */}
-      {clientLocation && (
+      {/* {clientLocation && (
         <div>
           <h2 className="text-xl font-semibold mb-2 text-gray-800">
             Step 1: Event
@@ -587,140 +586,143 @@ export default function FindBooking({ providers, events, locations, clients }) {
             ))}
           </select>
         </div>
-      )}
+      )} */}
 
       {/* Step 2: Provider */}
-      {selectedEvent && (
-        <>
-          <ProvidersMap
-            locations={locations}
-            userLocation={clientLocation}
-            searchWithin={searchWithin}
-          />
-          <div>
-            <h2 className="text-xl font-semibold mb-2 text-gray-800">
-              Step 2: Provider
-            </h2>
-            <select
-              value={selectedProvider}
-              onChange={(e) => {
-                setSelectedProvider(e.target.value);
-                setSelectedDate(null);
-                setSelectedTime("");
-              }}
-              className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
-            >
-              <option value="">-- Select a provider --</option>
-              {/* {providerArray.map((p) => {
-                const locationArray = Array.isArray(locations)
-                  ? locations
-                  : Object.values(locations || {});
+      {clientLocation && (
+  <>
+    <ProvidersMap
+      locations={locations}
+      userLocation={clientLocation}
+      searchWithin={searchWithin}
+    />
 
-                const providerLocations = p.locations
-                  ?.map((locId) => {
-                    const loc = locationArray.find((l) => l.id === locId);
-                    console.log(loc,"locc")
-                    return loc ? loc : null;
-                  })
-                  .filter(Boolean);
+    <div>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800">
+        Step 2: Provider
+      </h2>
 
-                if (!clientLocation) {
-                  return (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  );
-                }
+      <div className="space-y-4">
+        {(() => {
+          if (!clientLocation) {
+            // No location → show all providers
+            return providerArray.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => {
+                  setSelectedProvider(p.id);
+                  setSelectedDate(null);
+                  setSelectedTime("");
+                }}
+                className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
+                  ${
+                    selectedProvider === p.id
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200 bg-white hover:shadow-md"
+                  }
+                `}
+              >
+                {/* Image (use first location if available, else placeholder) */}
+                <div className="w-28 h-24 flex-shrink-0">
+                  <img
+                    src={p.image || "/images/placeholder.jpg"}
+                    alt={p.name}
+                    className="w-full h-full object-cover rounded-md"
+                  />
+                </div>
 
-                const [userLat, userLng] = clientLocation;
+                {/* Content */}
+                <div className="flex flex-col justify-center">
+                  <p className="text-base font-bold">{p.name}</p>
+                  <p className="text-sm text-gray-600">Provider</p>
+                </div>
+              </div>
+            ));
+          }
 
-                if (providerLocations.length < 1) {
-                  return;
-                }
+          const [userLat, userLng] = clientLocation;
 
+          const locationArray = Array.isArray(locations)
+            ? locations
+            : Object.values(locations || {});
+
+          const providersWithDistance = providerArray
+            .map((p) => {
+              const providerLocations = p.locations
+                ?.map((locId) => locationArray.find((l) => l.id === locId))
+                .filter(Boolean);
+
+              if (!providerLocations || providerLocations.length === 0) {
+                return null;
+              }
+
+              let minDist = Infinity;
+              providerLocations.forEach((loc) => {
                 const dist = getDistance(
                   userLat,
                   userLng,
-                  parseFloat(providerLocations[0].lat),
-                  parseFloat(providerLocations[0].lng)
+                  parseFloat(loc.lat),
+                  parseFloat(loc.lng)
                 );
+                if (dist < minDist) minDist = dist;
+              });
 
-                if (dist > searchWithin) {
-                  return;
+              return {
+                ...p,
+                distance: minDist,
+                nearestLocation: providerLocations[0], // first location for display
+              };
+            })
+            .filter(Boolean)
+            .filter((p) => p.distance <= searchWithin);
+
+          providersWithDistance.sort((a, b) => a.distance - b.distance);
+
+          return providersWithDistance.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => {
+                setSelectedProvider(p.id);
+                setSelectedDate(null);
+                setSelectedTime("");
+              }}
+              className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
+                ${
+                  selectedProvider === p.id
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200 bg-white hover:shadow-md"
                 }
+              `}
+            >
+              {/* Image (provider or location image) */}
+              <div className="w-28 h-24 flex-shrink-0">
+                <img
+                  src={p.picture_path ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path : ""}
+                  alt={p.name}
+                  className="w-full h-full object-cover rounded-md"
+                />
+              </div>
 
-                return (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                );
-              })} */}
+              {/* Content */}
+              <div className="flex flex-col justify-center">
+                <p className="text-base font-bold">{p.name}</p>
+                {p.nearestLocation && (
+                  <p className="text-sm text-gray-600">
+                    {p.nearestLocation.address}
+                  </p>
+                )}
+                <p className="text-sm text-gray-600">
+                  {p.distance.toFixed(1)} mi away
+                </p>
+              </div>
+            </div>
+          ));
+        })()}
+      </div>
+    </div>
+  </>
+)}
 
-              {(() => {
-                if (!clientLocation) {
-                  // If no client location, just return all providers normally
-                  return providerArray.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ));
-                }
-
-                const [userLat, userLng] = clientLocation;
-
-                // Convert locations into array
-                const locationArray = Array.isArray(locations)
-                  ? locations
-                  : Object.values(locations || {});
-
-                // Step 1: Build a list of providers with their nearest distance
-                const providersWithDistance = providerArray
-                  .map((p) => {
-                    const providerLocations = p.locations
-                      ?.map((locId) =>
-                        locationArray.find((l) => l.id === locId)
-                      )
-                      .filter(Boolean);
-
-
-                    if (!providerLocations || providerLocations.length === 0) {
-                      return null; // no valid locations
-                    }
-
-                    // Find closest location for this provider
-                    let minDist = Infinity;
-                    providerLocations.forEach((loc) => {
-                      const dist = getDistance(
-                        userLat,
-                        userLng,
-                        parseFloat(loc.lat),
-                        parseFloat(loc.lng)
-                      );
-                      if (dist < minDist) minDist = dist;
-                    });
-
-                    return {
-                      ...p,
-                      distance: minDist,
-                    };
-                  })
-                  .filter(Boolean) // remove nulls
-                  .filter((p) => p.distance <= searchWithin); // Step 2: filter by searchWithin
-
-                // Step 3: Sort by distance ascending
-                providersWithDistance.sort((a, b) => a.distance - b.distance);
-
-                // Step 4: Render options
-                return providersWithDistance.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.distance.toFixed(1)} mi)
-                  </option>
-                ));
-              })()}
-            </select>
-          </div>
-        </>
-      )}
 
       {/* Step 3: Date Picker */}
       {selectedProvider && workCalandar && (
