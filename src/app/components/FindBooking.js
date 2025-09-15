@@ -591,7 +591,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       {clientLocation && (
         <>
           <ProvidersMap
-            limitedLocations={locations}
+            locations={locations}
             userLocation={clientLocation}
             searchWithin={searchWithin}
           />

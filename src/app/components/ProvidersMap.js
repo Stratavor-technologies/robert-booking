@@ -17,25 +17,11 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export default function NearbyProvidersMap({ limitedLocations, userLocation, searchWithin }) {
+export default function NearbyProvidersMap({ locations, userLocation, searchWithin }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
   useEffect(() => {
-    const locationArray = Array.isArray(limitedLocations)
-      ? limitedLocations
-      : Object.values(limitedLocations || {});
-
-    // Step 2: Limit to 4
-    const limitedArray =
-      locationArray.length > 4 ? locationArray.slice(0, 4) : locationArray;
-
-    // Step 3: Convert back to JSON (object with ids as keys)
-    const locations = limitedArray.reduce((acc, loc) => {
-      acc[loc.id] = loc;
-      return acc;
-    }, {});
-
     import("leaflet").then((L) => {
       // Initialize map only once
       if (!mapRef.current) {
@@ -92,7 +78,9 @@ export default function NearbyProvidersMap({ limitedLocations, userLocation, sea
           })
         : Object.values(locations);
 
-      nearbyLocs.forEach((loc) => {
+      const limitedNearby = nearbyLocs.length > 4 ? nearbyLocs.slice(0, 4) : nearbyLocs;
+
+      limitedNearby.forEach((loc) => {
         const marker = L.marker([parseFloat(loc.lat), parseFloat(loc.lng)], { icon: providerIcon })
           .addTo(map)
           .bindPopup(`<b>${loc.name}</b><br/>${loc.address1 || ""}, ${loc.city || ""}`);
@@ -107,7 +95,7 @@ export default function NearbyProvidersMap({ limitedLocations, userLocation, sea
         mapRef.current = null;
       }
     };
-  }, [limitedLocations, userLocation, searchWithin]);
+  }, [locations, userLocation, searchWithin]);
 
   return (
     <div className="w-full h-[500px] rounded-lg shadow-md">
