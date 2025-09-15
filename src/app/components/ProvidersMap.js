@@ -17,11 +17,25 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export default function NearbyProvidersMap({ locations, userLocation, searchWithin }) {
-  const mapRef = useRef(null); // store the map instance
-  const markersRef = useRef([]); // store markers so we can clear/update them
+export default function NearbyProvidersMap({ limitedLocations, userLocation, searchWithin }) {
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
 
   useEffect(() => {
+    const locationArray = Array.isArray(limitedLocations)
+      ? limitedLocations
+      : Object.values(limitedLocations || {});
+
+    // Step 2: Limit to 4
+    const limitedArray =
+      locationArray.length > 4 ? locationArray.slice(0, 4) : locationArray;
+
+    // Step 3: Convert back to JSON (object with ids as keys)
+    const locations = limitedArray.reduce((acc, loc) => {
+      acc[loc.id] = loc;
+      return acc;
+    }, {});
+
     import("leaflet").then((L) => {
       // Initialize map only once
       if (!mapRef.current) {
@@ -93,7 +107,7 @@ export default function NearbyProvidersMap({ locations, userLocation, searchWith
         mapRef.current = null;
       }
     };
-  }, [locations, userLocation, searchWithin]);
+  }, [limitedLocations, userLocation, searchWithin]);
 
   return (
     <div className="w-full h-[500px] rounded-lg shadow-md">

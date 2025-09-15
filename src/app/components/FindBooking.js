@@ -45,6 +45,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [isSearchedAddress, setIsSearchedAddress] = useState(false);
+  const [limitedLocations, setLimitedLocations] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -223,9 +224,9 @@ export default function FindBooking({ providers, events, locations, clients }) {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
@@ -234,12 +235,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const currentStep = selectedTime
     ? 4
     : selectedDate
-    ? 3
-    : selectedProvider
-    ? 2
-    : selectedEvent
-    ? 1
-    : 0;
+      ? 3
+      : selectedProvider
+        ? 2
+        : selectedEvent
+          ? 1
+          : 0;
 
   const LOCATIONIQ_API = "https://us1.locationiq.com/v1/search";
 
@@ -300,17 +301,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
         {[1, 2, 3, 4].map((step) => (
           <div key={step} className="flex-1 relative">
             <div
-              className={`w-10 h-10 relative z-[999999] mx-auto rounded-full flex items-center justify-center text-white font-bold ${
-                currentStep >= step ? "bg-indigo-600" : "bg-gray-300"
-              }`}
+              className={`w-10 h-10 relative z-[999999] mx-auto rounded-full flex items-center justify-center text-white font-bold ${currentStep >= step ? "bg-indigo-600" : "bg-gray-300"
+                }`}
             >
               {step}
             </div>
             {step < 4 && (
               <div
-                className={`absolute top-5 left-1/2 w-full h-1 -translate-x-1/2 ${
-                  currentStep > step ? "bg-indigo-500" : "bg-gray-200"
-                }`}
+                className={`absolute top-5 left-1/2 w-full h-1 -translate-x-1/2 ${currentStep > step ? "bg-indigo-500" : "bg-gray-200"
+                  }`}
               />
             )}
           </div>
@@ -590,138 +589,147 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
       {/* Step 2: Provider */}
       {clientLocation && (
-  <>
-    <ProvidersMap
-      locations={locations}
-      userLocation={clientLocation}
-      searchWithin={searchWithin}
-    />
+        <>
+          <ProvidersMap
+            limitedLocations={locations}
+            userLocation={clientLocation}
+            searchWithin={searchWithin}
+          />
 
-    <div>
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">
-        Step 2: Provider
-      </h2>
+          <div>
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              Step 2: Provider
+            </h2>
 
-      <div className="space-y-4">
-        {(() => {
-          if (!clientLocation) {
-            // No location → show all providers
-            return providerArray.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => {
-                  setSelectedProvider(p.id);
-                  setSelectedDate(null);
-                  setSelectedTime("");
-                }}
-                className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
-                  ${
-                    selectedProvider === p.id
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 bg-white hover:shadow-md"
-                  }
+            <div className="space-y-4">
+              {(() => {
+                if (!clientLocation) {
+                  // No location → show all providers
+                  return providerArray.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setSelectedProvider(p.id);
+                        setSelectedDate(null);
+                        setSelectedTime("");
+                      }}
+                      className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
+                  ${selectedProvider === p.id
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-gray-200 bg-white hover:shadow-md"
+                        }
                 `}
-              >
-                {/* Image (use first location if available, else placeholder) */}
-                <div className="w-28 h-24 flex-shrink-0">
-                  <img
-                    src={p.image || "/images/placeholder.jpg"}
-                    alt={p.name}
-                    className="w-full h-full object-cover rounded-md"
-                  />
-                </div>
+                    >
+                      {/* Image (use first location if available, else placeholder) */}
+                      <div className="w-28 h-24 flex-shrink-0">
+                        <img
+                          src={p.image || "/images/placeholder.jpg"}
+                          alt={p.name}
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                      </div>
 
-                {/* Content */}
-                <div className="flex flex-col justify-center">
-                  <p className="text-base font-bold">{p.name}</p>
-                  <p className="text-sm text-gray-600">Provider</p>
-                </div>
-              </div>
-            ));
-          }
-
-          const [userLat, userLng] = clientLocation;
-
-          const locationArray = Array.isArray(locations)
-            ? locations
-            : Object.values(locations || {});
-
-          const providersWithDistance = providerArray
-            .map((p) => {
-              const providerLocations = p.locations
-                ?.map((locId) => locationArray.find((l) => l.id === locId))
-                .filter(Boolean);
-
-              if (!providerLocations || providerLocations.length === 0) {
-                return null;
-              }
-
-              let minDist = Infinity;
-              providerLocations.forEach((loc) => {
-                const dist = getDistance(
-                  userLat,
-                  userLng,
-                  parseFloat(loc.lat),
-                  parseFloat(loc.lng)
-                );
-                if (dist < minDist) minDist = dist;
-              });
-
-              return {
-                ...p,
-                distance: minDist,
-                nearestLocation: providerLocations[0], // first location for display
-              };
-            })
-            .filter(Boolean)
-            .filter((p) => p.distance <= searchWithin);
-
-          providersWithDistance.sort((a, b) => a.distance - b.distance);
-
-          return providersWithDistance.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => {
-                setSelectedProvider(p.id);
-                setSelectedDate(null);
-                setSelectedTime("");
-              }}
-              className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
-                ${
-                  selectedProvider === p.id
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200 bg-white hover:shadow-md"
+                      {/* Content */}
+                      <div className="flex flex-col justify-center">
+                        <p className="text-base font-bold">{p.name}</p>
+                        <p className="text-sm text-gray-600">Provider</p>
+                      </div>
+                    </div>
+                  ));
                 }
-              `}
-            >
-              {/* Image (provider or location image) */}
-              <div className="w-28 h-24 flex-shrink-0">
-                <img
-                  src={p.picture_path ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path : ""}
-                  alt={p.name}
-                  className="w-full h-full object-cover rounded-md"
-                />
-              </div>
 
-              {/* Content */}
-              <div className="flex flex-col justify-center">
-                <p className="text-base font-bold">{p.name}</p>
-                {p.nearestLocation && (
-                  <p className="text-sm text-gray-600">
-                    {p.nearestLocation.address}
-                  </p>
-                )}
-                <p className="text-sm text-gray-600">
-                  {p.distance.toFixed(1)} mi away
-                </p>
-              </div>
+                const [userLat, userLng] = clientLocation;
+
+                const locationArray = Array.isArray(locations)
+                  ? locations
+                  : Object.values(locations || {});
+
+                const providersWithDistance = providerArray
+                  .map((p) => {
+                    const providerLocations = p.locations
+                      ?.map((locId) => locationArray.find((l) => l.id === locId))
+                      .filter(Boolean);
+
+                    if (!providerLocations || providerLocations.length === 0) {
+                      return null;
+                    }
+
+                    let minDist = Infinity;
+                    providerLocations.forEach((loc) => {
+                      const dist = getDistance(
+                        userLat,
+                        userLng,
+                        parseFloat(loc.lat),
+                        parseFloat(loc.lng)
+                      );
+                      if (dist < minDist) minDist = dist;
+                    });
+
+                    return {
+                      ...p,
+                      distance: minDist,
+                      nearestLocation: providerLocations[0], // first location for display
+                    };
+                  })
+                  .filter(Boolean)
+                  .filter((p) => p.distance <= searchWithin);
+
+                providersWithDistance.sort((a, b) => a.distance - b.distance);
+
+                // Show only 4 providers if there are more than 4
+                const limitedProviders =
+                  providersWithDistance.length > 4
+                    ? providersWithDistance.slice(0, 4)
+                    : providersWithDistance;
+
+                return limitedProviders.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedProvider(p.id);
+                      setSelectedDate(null);
+                      setSelectedTime("");
+                    }}
+                    className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
+                ${selectedProvider === p.id
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 bg-white hover:shadow-md"
+                      }
+              `}
+                  >
+                    {/* Image (provider or location image) */}
+                    <div className="w-28 h-24 flex-shrink-0">
+                      <img
+                        src={
+                          p.picture_path
+                            ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path
+                            : "/images/placeholder.jpg"
+                        }
+                        alt={p.name}
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex flex-col justify-center">
+                      <p className="text-base font-bold">{p.name}</p>
+                      {p.nearestLocation && (
+                        <p className="text-sm text-gray-600">
+                          {p.nearestLocation.address}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-600">
+                        {p.distance.toFixed(1)} mi away
+                      </p>
+                    </div>
+                  </div>
+                ));
+
+              })()}
             </div>
-          ));
-        })()}
-      </div>
-    </div>
-  </>
-)}
+          </div>
+        </>
+      )}
 
 
       {/* Step 3: Date Picker */}
@@ -792,11 +800,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
                 <button
                   key={slot}
                   onClick={() => setSelectedTime(slot)}
-                  className={`px-5 py-2 rounded-2xl border text-sm font-medium transition-all duration-200 ${
-                    selectedTime === slot
+                  className={`px-5 py-2 rounded-2xl border text-sm font-medium transition-all duration-200 ${selectedTime === slot
                       ? "bg-indigo-600 text-white border-indigo-600 shadow-lg"
                       : "bg-white text-gray-700 border-gray-300 hover:bg-indigo-50"
-                  }`}
+                    }`}
                 >
                   {slot}
                 </button>
