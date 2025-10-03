@@ -384,7 +384,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       </h1>
       <div className="max-w-xl mx-auto bg-white shadow-xl rounded-2xl p-10 space-y-6">
         <h2 className="text-2xl font-semibold text-center text-gray-700">
-          Find Door-to-Door Services Quickly
+          Find Door-to-Door Services
         </h2>
         <p className="text-center text-gray-500 text-base">
           Let's see what services are near you. Enter the details:
