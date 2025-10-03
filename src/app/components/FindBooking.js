@@ -480,7 +480,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             {filteredProviders.length} Service Providers Found Near You
           </h2>
 
-          {filteredProviders.length > 0 && (
+          {/* {filteredProviders.length > 0 && ( */}
             <>
               {/* Sub heading */}
               <h3 className="text-lg font-medium text-center text-gray-600">
@@ -508,7 +508,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
                   Miles
                 </span>
               </div>
-            </>)}
+            </>
+            {/* )} */}
         </div>
       )}
 
