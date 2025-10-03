@@ -317,6 +317,27 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setClientLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
   }
 
+  const handleNotFoundSubmit = async () => {
+    if(address.email === "" || address.phone === ""){
+      alert("Email and Phone is required...");
+      return;      
+    }
+
+    setAddress({
+      email: "",
+      phone: "",
+      street1: "",
+      city: "",
+      zip: "",
+      state: "",
+      country: "US",
+    });
+    setIsSearchedAddress(false);
+    setFilteredProviders([]);
+    alert("We have received your request. We will contact you once we are available in your area.");
+    return;
+  }
+
   useEffect(() => {
     if (!providerArray || providerArray.length === 0) {
       setFilteredProviders([]);
@@ -377,6 +398,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setFilteredProviders(limitedProviders);
   }, [clientLocation, searchWithin, providerArray, locations]);
 
+  console.log("isSearchedAddress: ", isSearchedAddress)
+
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
       <h1 className="text-4xl font-extrabold text-center text-indigo-700">
@@ -391,7 +414,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </p>
 
         <div className="space-y-5">
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
             <input
               type="email"
@@ -425,7 +448,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
               placeholder="123 Main St"
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
             />
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -464,6 +487,27 @@ export default function FindBooking({ providers, events, locations, clients }) {
             />
           </div>
 
+          <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+            {/* Left label */}
+            <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
+              Within
+            </span>
+
+            {/* Input */}
+            <input
+              value={searchWithin}
+              type="number"
+              onChange={(e) => setSearchWithin(e.target.value)}
+              className="flex-1 p-3 text-gray-900 placeholder-gray-400 text-center font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Enter number"
+            />
+
+            {/* Right label */}
+            <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
+              Miles
+            </span>
+          </div>
+
           <button
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
             onClick={() => getLatLngFromAddress(address)}
@@ -473,7 +517,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </div>
       </div>
 
-      {isSearchedAddress && (
+      {isSearchedAddress == true && (
         <div className="my-10 max-w-xl mx-auto space-y-6">
           {/* Main heading */}
           <h2 className="text-3xl font-extrabold text-center text-indigo-700">
@@ -482,19 +526,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
           {/* {filteredProviders.length > 0 && ( */}
             <>
-              {/* Sub heading */}
-              <h3 className="text-lg font-medium text-center text-gray-600">
+              {/* <h3 className="text-lg font-medium text-center text-gray-600">
                 Adjust your search range
               </h3>
 
-              {/* Range box */}
               <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
-                {/* Left label */}
                 <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
                   Within
                 </span>
 
-                {/* Input */}
                 <input
                   value={searchWithin}
                   type="number"
@@ -503,20 +543,63 @@ export default function FindBooking({ providers, events, locations, clients }) {
                   placeholder="Enter number"
                 />
 
-                {/* Right label */}
                 <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
                   Miles
                 </span>
-              </div>
+              </div> */}
             </>
             {/* )} */}
         </div>
       )}
 
-      {filteredProviders.length === 0 && (
-        <h3 className="text-lg font-medium text-center text-gray-600">
-          Door-To-Door does not currently have service providers. If you provide an email, we will send a notification when services become available. 
-        </h3>
+      {isSearchedAddress == true  && filteredProviders.length === 0 && (
+        <>
+          <h3 className="text-lg font-medium text-center text-gray-600">
+            Door-To-Door does not currently have service providers. If you provide an email, we will send a notification when services become available. 
+          </h3>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={address.email}
+              onChange={handleFieldChange}
+              placeholder="Enter your email"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
+            <input
+              type="tel"
+              name="phone"
+              value={address.phone}
+              onChange={handleFieldChange}
+              placeholder="Enter your phone number"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div>
+
+          {/* <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Street Address</label>
+            <input
+              type="text"
+              name="street1"
+              value={address.street1}
+              onChange={handleFieldChange}
+              placeholder="123 Main St"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div> */}
+
+          <button 
+            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
+           onClick={handleNotFoundSubmit}>Submit</button>
+        </>
+
+        
       )}
 
       {/* Step 2: Provider */}
