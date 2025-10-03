@@ -46,6 +46,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [suggestions, setSuggestions] = useState([]);
   const [isSearchedAddress, setIsSearchedAddress] = useState(false);
   const [limitedLocations, setLimitedLocations] = useState([]);
+  const [filteredProviders, setFilteredProviders] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -88,7 +89,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setServices((prev) => ({ ...prev, [name]: checked }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.privacy) {
@@ -96,16 +97,42 @@ export default function FindBooking({ providers, events, locations, clients }) {
       return;
     }
 
-    console.log("Booking Data:", {
-      ...formData,
-      selectedEvent,
-      selectedProvider,
-      selectedDate,
-      selectedTime,
-    });
+    const bookingData = {
+      provider: selectedProvider,
+      date: selectedDate,
+      time: selectedTime,
+      fullname: formData.name,
+      email: formData.email,
+      phonenumber: formData.phone,
+      clientaddress: {
+        streetaddress: address.street1,
+        city: address.city,
+        state: address.state,
+        zip: address.zip,
+      },
+    };
 
-    // 👉 Call API here (replace with actual booking request)
-    alert("Booking submitted successfully!");
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingData),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create booking");
+      }
+
+      const data = await res.json();
+      console.log("✅ Booking created:", data);
+
+      // Clear form or show success message
+      setFormData({ name: "", email: "", phone: "", privacy: false });
+      setAddress({ email: "", phone: "", street1: "", city: "", zip: "", state: "", country: "US" });
+
+    } catch (err) {
+      console.error("❌ Error creating booking:", err);
+    }
   };
 
   const handleFieldChange = (e) => {
@@ -290,158 +317,269 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setClientLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
   }
 
+  useEffect(() => {
+    if (!providerArray || providerArray.length === 0) {
+      setFilteredProviders([]);
+      return;
+    }
+
+    // If no client location → show all providers
+    if (!clientLocation) {
+      setFilteredProviders(providerArray);
+      return;
+    }
+
+    const [userLat, userLng] = clientLocation;
+
+    const locationArray = Array.isArray(locations)
+      ? locations
+      : Object.values(locations || {});
+
+    const providersWithDistance = providerArray
+      .map((p) => {
+        const providerLocations = p.locations
+          ?.map((locId) => locationArray.find((l) => l.id === locId))
+          .filter(Boolean);
+
+        if (!providerLocations || providerLocations.length === 0) {
+          return null;
+        }
+
+        let minDist = Infinity;
+        providerLocations.forEach((loc) => {
+          const dist = getDistance(
+            userLat,
+            userLng,
+            parseFloat(loc.lat),
+            parseFloat(loc.lng)
+          );
+          if (dist < minDist) minDist = dist;
+        });
+
+        return {
+          ...p,
+          distance: minDist,
+          nearestLocation: providerLocations[0], // use first location for display
+        };
+      })
+      .filter(Boolean)
+      .filter((p) => p.distance <= searchWithin);
+
+    // Sort by nearest
+    providersWithDistance.sort((a, b) => a.distance - b.distance);
+
+    // Limit to 4 providers
+    const limitedProviders =
+      providersWithDistance.length > 4
+        ? providersWithDistance.slice(0, 4)
+        : providersWithDistance;
+
+    setFilteredProviders(limitedProviders);
+  }, [clientLocation, searchWithin, providerArray, locations]);
+
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
-      <h1 className="text-3xl font-extrabold text-center text-indigo-700 mb-6">
+      <h1 className="text-4xl font-extrabold text-center text-indigo-700">
         Book Your Appointment
       </h1>
+      <div className="max-w-xl mx-auto bg-white shadow-xl rounded-2xl p-10 space-y-6">
+        <h2 className="text-2xl font-semibold text-center text-gray-700">
+          Find Door-to-Door Services Quickly
+        </h2>
+        <p className="text-center text-gray-500 text-base">
+          Let's see what services are near you. Enter the details:
+        </p>
 
-      {/* Step Progress Bar */}
-      <div className="flex justify-between items-center mb-8">
-        {[1, 2, 3, 4].map((step) => (
-          <div key={step} className="flex-1 relative">
-            <div
-              className={`w-10 h-10 relative z-[999999] mx-auto rounded-full flex items-center justify-center text-white font-bold ${currentStep >= step ? "bg-indigo-600" : "bg-gray-300"
-                }`}
-            >
-              {step}
-            </div>
-            {step < 4 && (
-              <div
-                className={`absolute top-5 left-1/2 w-full h-1 -translate-x-1/2 ${currentStep > step ? "bg-indigo-500" : "bg-gray-200"
-                  }`}
-              />
-            )}
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={address.email}
+              onChange={handleFieldChange}
+              placeholder="Enter your email"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
           </div>
-        ))}
-      </div>
 
-      {/* <div>
-        <h2 className="text-xl font-semibold mb-2 text-gray-800">Client</h2>
-        <select
-          value={selectedClient}
-          onChange={handleClientChange}
-          className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
-        >
-          <option value="">-- Select an client --</option>
-          {clientsArray.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </div> */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
+            <input
+              type="tel"
+              name="phone"
+              value={address.phone}
+              onChange={handleFieldChange}
+              placeholder="Enter your phone number"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div>
 
-      {/*<div className="relative w-full">
-        <input
-          type="text"
-          value={query}
-          onChange={handleSearchChange}
-          placeholder="Search address..."
-          className="w-full border rounded px-3 py-2"
-        />
-        {suggestions.length > 0 && (
-          <ul className="absolute bg-white border w-full mt-1 rounded shadow" style={{zIndex: 999999}}>
-            {suggestions.map((s) => (
-              <li
-                key={s.place_id}
-                onClick={() => handleSearchSelect(s)}
-                className="px-3 py-2 cursor-pointer hover:bg-gray-100"
-              >
-                {s.display_name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>*/}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Street Address</label>
+            <input
+              type="text"
+              name="street1"
+              value={address.street1}
+              onChange={handleFieldChange}
+              placeholder="123 Main St"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div>
 
-      <div className="space-y-3">
-        <input
-          type="email"
-          name="email"
-          value={address.email}
-          onChange={handleFieldChange}
-          placeholder="Email"
-          className="w-full border rounded px-3 py-2"
-        />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">City</label>
+              <input
+                type="text"
+                name="city"
+                value={address.city}
+                onChange={handleFieldChange}
+                placeholder="City"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">State</label>
+              <input
+                type="text"
+                name="state"
+                value={address.state}
+                onChange={handleFieldChange}
+                placeholder="State"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              />
+            </div>
+          </div>
 
-        <input
-          type="tel"
-          name="phone"
-          value={address.phone}
-          onChange={handleFieldChange}
-          placeholder="Phone"
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="text"
-          name="street1"
-          value={address.street1}
-          onChange={handleFieldChange}
-          placeholder="Street Address"
-          className="w-full border rounded px-3 py-2"
-        />
-        {/* <input
-          type="text"
-          name="street2"
-          value={address.street2}
-          onChange={handleFieldChange}
-          placeholder="Street Address 2"
-          className="w-full border rounded px-3 py-2"
-        /> */}
-        <input
-          type="text"
-          name="city"
-          value={address.city}
-          onChange={handleFieldChange}
-          placeholder="City"
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="text"
-          name="state"
-          value={address.state}
-          onChange={handleFieldChange}
-          placeholder="State"
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="text"
-          name="zip"
-          value={address.zip}
-          onChange={handleFieldChange}
-          placeholder="ZIP Code"
-          className="w-full border rounded px-3 py-2"
-        />
-        {/* <select
-          name="country"
-          value={address.country}
-          onChange={handleFieldChange}
-          className="w-full border rounded px-3 py-2"
-        >
-          <option value="US">United States</option>
-          <option value="CA">Canada</option>
-          <option value="IN">India</option>
-          <option value="UK">United Kingdom</option>
-          <option value="AU">Australia</option>
-        </select> */}
-        {/* <input
-          type="text"
-          name="country"
-          value="US" // static value
-          readOnly // user cannot edit
-          className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
-        /> */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">ZIP Code</label>
+            <input
+              type="text"
+              name="zip"
+              value={address.zip}
+              onChange={handleFieldChange}
+              placeholder="123456"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            />
+          </div>
 
-        <button
-          className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition"
-          onClick={() => getLatLngFromAddress(address)}
-        >
-          Search client address
-        </button>
+          <button
+            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
+            onClick={() => getLatLngFromAddress(address)}
+          >
+            🔍 Search Client Address
+          </button>
+        </div>
       </div>
 
       {isSearchedAddress && (
+        <div className="my-10 max-w-xl mx-auto space-y-6">
+          {/* Main heading */}
+          <h2 className="text-3xl font-extrabold text-center text-indigo-700">
+            {filteredProviders.length} Service Providers Found Near You
+          </h2>
+
+          {filteredProviders.length > 0 && (
+            <>
+              {/* Sub heading */}
+              <h3 className="text-lg font-medium text-center text-gray-600">
+                Adjust your search range
+              </h3>
+
+              {/* Range box */}
+              <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
+                {/* Left label */}
+                <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
+                  Within
+                </span>
+
+                {/* Input */}
+                <input
+                  value={searchWithin}
+                  type="number"
+                  onChange={(e) => setSearchWithin(e.target.value)}
+                  className="flex-1 p-3 text-gray-900 placeholder-gray-400 text-center font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  placeholder="Enter number"
+                />
+
+                {/* Right label */}
+                <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
+                  Miles
+                </span>
+              </div>
+            </>)}
+        </div>
+      )}
+
+      {filteredProviders.length === 0 && (
+        <h3 className="text-lg font-medium text-center text-gray-600">
+          Door-To-Door does not currently have service providers. If you provide an email, we will send a notification when services become available. 
+        </h3>
+      )}
+
+      {/* Step 2: Provider */}
+      {filteredProviders.length > 0 && clientLocation && (
+        <>
+          <ProvidersMap
+            locations={locations}
+            userLocation={clientLocation}
+            searchWithin={searchWithin}
+          />
+
+          <div>
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              Step 2: Provider
+            </h2>
+
+            <div className="space-y-4">
+              {filteredProviders.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedProvider(p.id);
+                    setSelectedDate(null);
+                    setSelectedTime("");
+                  }}
+                  className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
+            ${selectedProvider === p.id
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200 bg-white hover:shadow-md"
+                    }`}
+                >
+                  {/* Image */}
+                  <div className="w-28 h-24 flex-shrink-0">
+                    <img
+                      src={
+                        p.picture_path
+                          ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path
+                          : "/images/placeholder.jpg"
+                      }
+                      alt={p.name}
+                      className="w-full h-full object-cover rounded-md"
+                    />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex flex-col justify-center">
+                    <p className="text-base font-bold">{p.name}</p>
+                    {p.nearestLocation && (
+                      <p className="text-sm text-gray-600">{p.nearestLocation.address}</p>
+                    )}
+                    {p.distance && (
+                      <p className="text-sm text-gray-600">
+                        {p.distance.toFixed(1)} mi away
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {filteredProviders.length > 0 && selectedProvider && workCalandar && (
         <div className="my-6">
           <h2 className="text-lg font-semibold mb-4">Services Needed</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -536,204 +674,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </div>
       )}
 
-      {isSearchedAddress && (
-        <div className="my-6 max-w-md">
-          <h2 className="text-xl font-semibold mb-3 text-gray-900">
-            Find Service Provider
-          </h2>
-
-          <div className="flex items-center bg-white/80 backdrop-blur-md border border-gray-200 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-            {/* Left label */}
-            <span className="px-5 py-3 text-gray-600 font-medium">Within</span>
-
-            {/* Input */}
-            <input
-              value={searchWithin}
-              type="number"
-              onChange={(e) => setSearchWithin(e.target.value)}
-              className="flex-1 p-3 text-gray-900 placeholder-gray-400 outline-none text-center font-semibold"
-              placeholder="Enter number"
-            />
-
-            {/* Right label */}
-            <span className="px-5 py-3 text-gray-600 font-medium">Miles</span>
-          </div>
-        </div>
-      )}
-
-      {/* Step 1: Event */}
-      {/* {clientLocation && (
-        <div>
-          <h2 className="text-xl font-semibold mb-2 text-gray-800">
-            Step 1: Event
-          </h2>
-          <select
-            value={selectedEvent}
-            onChange={(e) => {
-              setSelectedEvent(e.target.value);
-              setSelectedProvider("");
-              setSelectedDate(null);
-              setSelectedTime("");
-            }}
-            className="w-full p-4 border border-gray-300 rounded-2xl bg-white shadow-md focus:ring-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-lg"
-          >
-            <option value="">-- Select an event --</option>
-            {eventArray.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )} */}
-
-      {/* Step 2: Provider */}
-      {clientLocation && (
-        <>
-          <ProvidersMap
-            locations={locations}
-            userLocation={clientLocation}
-            searchWithin={searchWithin}
-          />
-
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">
-              Step 2: Provider
-            </h2>
-
-            <div className="space-y-4">
-              {(() => {
-                if (!clientLocation) {
-                  // No location → show all providers
-                  return providerArray.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        setSelectedProvider(p.id);
-                        setSelectedDate(null);
-                        setSelectedTime("");
-                      }}
-                      className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
-                  ${selectedProvider === p.id
-                          ? "border-blue-600 bg-blue-50"
-                          : "border-gray-200 bg-white hover:shadow-md"
-                        }
-                `}
-                    >
-                      {/* Image (use first location if available, else placeholder) */}
-                      <div className="w-28 h-24 flex-shrink-0">
-                        <img
-                          src={p.image || "/images/placeholder.jpg"}
-                          alt={p.name}
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex flex-col justify-center">
-                        <p className="text-base font-bold">{p.name}</p>
-                        <p className="text-sm text-gray-600">Provider</p>
-                      </div>
-                    </div>
-                  ));
-                }
-
-                const [userLat, userLng] = clientLocation;
-
-                const locationArray = Array.isArray(locations)
-                  ? locations
-                  : Object.values(locations || {});
-
-                const providersWithDistance = providerArray
-                  .map((p) => {
-                    const providerLocations = p.locations
-                      ?.map((locId) => locationArray.find((l) => l.id === locId))
-                      .filter(Boolean);
-
-                    if (!providerLocations || providerLocations.length === 0) {
-                      return null;
-                    }
-
-                    let minDist = Infinity;
-                    providerLocations.forEach((loc) => {
-                      const dist = getDistance(
-                        userLat,
-                        userLng,
-                        parseFloat(loc.lat),
-                        parseFloat(loc.lng)
-                      );
-                      if (dist < minDist) minDist = dist;
-                    });
-
-                    return {
-                      ...p,
-                      distance: minDist,
-                      nearestLocation: providerLocations[0], // first location for display
-                    };
-                  })
-                  .filter(Boolean)
-                  .filter((p) => p.distance <= searchWithin);
-
-                providersWithDistance.sort((a, b) => a.distance - b.distance);
-
-                // Show only 4 providers if there are more than 4
-                const limitedProviders =
-                  providersWithDistance.length > 4
-                    ? providersWithDistance.slice(0, 4)
-                    : providersWithDistance;
-
-                return limitedProviders.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => {
-                      setSelectedProvider(p.id);
-                      setSelectedDate(null);
-                      setSelectedTime("");
-                    }}
-                    className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
-                ${selectedProvider === p.id
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-200 bg-white hover:shadow-md"
-                      }
-              `}
-                  >
-                    {/* Image (provider or location image) */}
-                    <div className="w-28 h-24 flex-shrink-0">
-                      <img
-                        src={
-                          p.picture_path
-                            ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path
-                            : "/images/placeholder.jpg"
-                        }
-                        alt={p.name}
-                        className="w-full h-full object-cover rounded-md"
-                      />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex flex-col justify-center">
-                      <p className="text-base font-bold">{p.name}</p>
-                      {p.nearestLocation && (
-                        <p className="text-sm text-gray-600">
-                          {p.nearestLocation.address}
-                        </p>
-                      )}
-                      <p className="text-sm text-gray-600">
-                        {p.distance.toFixed(1)} mi away
-                      </p>
-                    </div>
-                  </div>
-                ));
-
-              })()}
-            </div>
-          </div>
-        </>
-      )}
-
-
       {/* Step 3: Date Picker */}
-      {selectedProvider && workCalandar && (
+      {filteredProviders.length > 0 && selectedProvider && workCalandar && (
         <div>
           <h2 className="text-xl font-semibold mb-2 text-gray-800">
             Step 3: Pick a Date
@@ -788,7 +730,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       )}
 
       {/* Step 4: Times */}
-      {selectedDate && (
+      {filteredProviders.length > 0 && selectedDate && (
         <div>
           <h2 className="text-xl font-semibold mb-2 text-gray-800">
             Step 4: Select Time ({dayMap[selectedDate.getDay()]},{" "}
@@ -801,8 +743,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
                   key={slot}
                   onClick={() => setSelectedTime(slot)}
                   className={`px-5 py-2 rounded-2xl border text-sm font-medium transition-all duration-200 ${selectedTime === slot
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-lg"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-indigo-50"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-lg"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-indigo-50"
                     }`}
                 >
                   {slot}
@@ -816,7 +758,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       )}
 
       {/* Summary */}
-      {selectedTime && (
+      {filteredProviders.length > 0 && selectedTime && (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left: Booking Summary */}
           <div className="p-5 bg-white border border-gray-200 rounded-2xl shadow-md">
