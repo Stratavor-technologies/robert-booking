@@ -475,7 +475,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">ZIP Code</label>
             <input
               type="text"
@@ -485,7 +485,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
               placeholder="123456"
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
             />
-          </div>
+          </div> */}
 
           <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
             {/* Left label */}
