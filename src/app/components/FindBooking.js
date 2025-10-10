@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import { Loader2 } from "lucide-react";
-
 import ProvidersMap from "./ProvidersMap";
 const LOCATIONIQ_AUTOCOMPLETE =
   "https://us1.locationiq.com/v1/autocomplete.php";
@@ -18,10 +17,11 @@ const dayMap = {
 };
 
 export default function FindBooking({ providers, events, locations, clients }) {
+
   const providerArray = Array.isArray(providers)
     ? providers
     : Object.values(providers || {});
-  console.log(providerArray, "providerarray");
+  /*   console.log(providerArray, "providerarray"); */
   const eventArray = Array.isArray(events)
     ? events
     : Object.values(events || {});
@@ -47,6 +47,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [isSearchedAddress, setIsSearchedAddress] = useState(false);
   const [limitedLocations, setLimitedLocations] = useState([]);
   const [filteredProviders, setFilteredProviders] = useState([]);
+  const [userEmail, setUserEmail] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -56,13 +57,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
   });
 
   const [address, setAddress] = useState({
-    email: "",
-    phone: "",
-    street1: "",
+    fullAddress: "", // example: "Trinity Church Boyertown, 250 Swinehart Road, Gilbertsville, PA, USA"
+    lat: "",
+    lon: "",
     city: "",
-    zip: "",
     state: "",
-    country: "US",
+
   });
 
   const handleChange = (e) => {
@@ -97,6 +97,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
       return;
     }
 
+    if (!address.fullAddress || !address.lat || !address.lon) {
+      alert("Please provide a valid address with latitude and longitude.");
+      return;
+    }
+
+    // ✅ Include services here
     const bookingData = {
       provider: selectedProvider,
       date: selectedDate,
@@ -105,11 +111,11 @@ export default function FindBooking({ providers, events, locations, clients }) {
       email: formData.email,
       phonenumber: formData.phone,
       clientaddress: {
-        streetaddress: address.street1,
-        city: address.city,
-        state: address.state,
-        zip: address.zip,
+        fullAddress: address.fullAddress,
+        lat: address.lat,
+        lon: address.lon,
       },
+      services, // 👈 include services state here
     };
 
     try {
@@ -126,14 +132,53 @@ export default function FindBooking({ providers, events, locations, clients }) {
       const data = await res.json();
       console.log("✅ Booking created:", data);
 
-      // Clear form or show success message
+      // Clear form
       setFormData({ name: "", email: "", phone: "", privacy: false });
-      setAddress({ email: "", phone: "", street1: "", city: "", zip: "", state: "", country: "US" });
-
+      setAddress({ fullAddress: "", lat: "", lon: "" });
+      setServices({
+        manicure: false,
+        manicureGel: false,
+        pedicure: false,
+        pedicureGel: false,
+        eyelashFull: false,
+        eyelashRefill: false,
+        waxEyebrows: false,
+        waxLips: false,
+      });
     } catch (err) {
       console.error("❌ Error creating booking:", err);
     }
   };
+
+
+async function handleBlacklist(providerId) {
+  if (!userEmail) {
+    alert("Please enter your email before blacklisting a provider.");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/blacklist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userEmail, providerId }),
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      // instantly remove blacklisted provider
+      setFilteredProviders((prev) => prev.filter((p) => p.id !== providerId));
+      alert("Provider has been blacklisted successfully!");
+    } else {
+      alert(result.message || "Failed to blacklist provider.");
+    }
+  } catch (error) {
+    console.error("Blacklist error:", error);
+    alert("Something went wrong while blacklisting the provider.");
+  }
+}
+
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -290,37 +335,55 @@ export default function FindBooking({ providers, events, locations, clients }) {
   //   return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
   // }
 
+
+
   async function getLatLngFromAddress(client) {
-    const fullAddress = [
-      client.address1,
-      client.address2,
-      client.city,
-      client.zip,
-      client.state,
-      client.country,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    try {
+      const fullAddress = [
+        client.address1,
+        client.address2,
+        client.city,
+        client.zip,
+        client.state,
+        client.country,
+      ]
+        .filter(Boolean)
+        .join(", ");
 
-    const res = await fetch(
-      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(
-        fullAddress
-      )}&format=json&limit=1`
-    );
+      const res = await fetch(
+        `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(
+          fullAddress
+        )}&format=json&limit=1`
+      );
 
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("No location found");
+      const data = await res.json();
+      console.log("data:", data);
+
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("No location found");
+      }
+
+      const location = data[0];
+
+      // ✅ Update the address state with the fetched data
+      setAddress({
+        fullAddress: location.display_name,
+        lat: location.lat,
+        lon: location.lon,
+      });
+
+      setIsSearchedAddress(true);
+      setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
+    } catch (error) {
+      console.error("Error fetching location:", error);
     }
-
-    setIsSearchedAddress(true);
-    setClientLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
   }
 
+
   const handleNotFoundSubmit = async () => {
-    if(address.email === "" || address.phone === ""){
+    if (address.email === "" || address.phone === "") {
       alert("Email and Phone is required...");
-      return;      
+      return;
     }
 
     setAddress({
@@ -338,67 +401,87 @@ export default function FindBooking({ providers, events, locations, clients }) {
     return;
   }
 
-  useEffect(() => {
-    if (!providerArray || providerArray.length === 0) {
-      setFilteredProviders([]);
+ useEffect(() => {
+  if (!providerArray || providerArray.length === 0) {
+    setFilteredProviders([]);
+    return;
+  }
+
+  if (!clientLocation) {
+    setFilteredProviders(providerArray);
+    return;
+  }
+
+  const [userLat, userLng] = clientLocation;
+
+  const locationArray = Array.isArray(locations)
+    ? locations
+    : Object.values(locations || {});
+
+  // STEP 1: distance logic
+  const providersWithDistance = providerArray
+    .map((p) => {
+      const providerLocations = p.locations
+        ?.map((locId) => locationArray.find((l) => l.id === locId))
+        .filter(Boolean);
+
+      if (!providerLocations?.length) return null;
+
+      let minDist = Infinity;
+      providerLocations.forEach((loc) => {
+        const dist = getDistance(
+          userLat,
+          userLng,
+          parseFloat(loc.lat),
+          parseFloat(loc.lng)
+        );
+        if (dist < minDist) minDist = dist;
+      });
+
+      return {
+        ...p,
+        distance: minDist,
+        nearestLocation: providerLocations[0],
+      };
+    })
+    .filter(Boolean)
+    .filter((p) => p.distance <= searchWithin)
+    .sort((a, b) => a.distance - b.distance);
+
+  const limitedProviders =
+    providersWithDistance.length > 4
+      ? providersWithDistance.slice(0, 4)
+      : providersWithDistance;
+
+  // STEP 2: Filter out blacklisted ones
+  async function filterProviders() {
+    if (!userEmail) {
+      setFilteredProviders(limitedProviders);
       return;
     }
 
-    // If no client location → show all providers
-    if (!clientLocation) {
-      setFilteredProviders(providerArray);
-      return;
+    try {
+      const res = await fetch(`/api/blacklist?email=${userEmail}`);
+      const data = await res.json();
+
+      // your GET API returns { success, blockedProviderIds: [...] }
+      const blockedIds = data?.blockedProviderIds || [];
+
+      const finalList = limitedProviders.filter(
+        (p) => !blockedIds.includes(p.id)
+      );
+
+      setFilteredProviders(finalList);
+    } catch (err) {
+      console.error("Blacklist filter error:", err);
+      setFilteredProviders(limitedProviders);
     }
+  }
 
-    const [userLat, userLng] = clientLocation;
+  filterProviders();
+}, [clientLocation, searchWithin, providerArray, locations, userEmail]);
 
-    const locationArray = Array.isArray(locations)
-      ? locations
-      : Object.values(locations || {});
-
-    const providersWithDistance = providerArray
-      .map((p) => {
-        const providerLocations = p.locations
-          ?.map((locId) => locationArray.find((l) => l.id === locId))
-          .filter(Boolean);
-
-        if (!providerLocations || providerLocations.length === 0) {
-          return null;
-        }
-
-        let minDist = Infinity;
-        providerLocations.forEach((loc) => {
-          const dist = getDistance(
-            userLat,
-            userLng,
-            parseFloat(loc.lat),
-            parseFloat(loc.lng)
-          );
-          if (dist < minDist) minDist = dist;
-        });
-
-        return {
-          ...p,
-          distance: minDist,
-          nearestLocation: providerLocations[0], // use first location for display
-        };
-      })
-      .filter(Boolean)
-      .filter((p) => p.distance <= searchWithin);
-
-    // Sort by nearest
-    providersWithDistance.sort((a, b) => a.distance - b.distance);
-
-    // Limit to 4 providers
-    const limitedProviders =
-      providersWithDistance.length > 4
-        ? providersWithDistance.slice(0, 4)
-        : providersWithDistance;
-
-    setFilteredProviders(limitedProviders);
-  }, [clientLocation, searchWithin, providerArray, locations]);
-
-  console.log("isSearchedAddress: ", isSearchedAddress)
+  /*   console.log("isSearchedAddress: ", isSearchedAddress) */
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-10 mb-20 p-6 space-y-8 bg-gradient-to-br from-indigo-50 to-white shadow-2xl rounded-3xl border border-gray-200">
@@ -414,41 +497,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </p>
 
         <div className="space-y-5">
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={address.email}
-              onChange={handleFieldChange}
-              placeholder="Enter your email"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-            <input
-              type="tel"
-              name="phone"
-              value={address.phone}
-              onChange={handleFieldChange}
-              placeholder="Enter your phone number"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Street Address</label>
-            <input
-              type="text"
-              name="street1"
-              value={address.street1}
-              onChange={handleFieldChange}
-              placeholder="123 Main St"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            />
-          </div> */}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -475,17 +524,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </div>
           </div>
 
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">ZIP Code</label>
-            <input
-              type="text"
-              name="zip"
-              value={address.zip}
-              onChange={handleFieldChange}
-              placeholder="123456"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            />
-          </div> */}
+
 
           <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
             {/* Left label */}
@@ -495,17 +534,51 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
             {/* Input */}
             <input
-              value={searchWithin}
               type="number"
-              onChange={(e) => setSearchWithin(e.target.value)}
+              value={searchWithin}
+              min={1}
+              max={20}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (value <= 20 && value >= 1) {
+                  setSearchWithin(value);
+                }
+              }}
               className="flex-1 p-3 text-gray-900 placeholder-gray-400 text-center font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              placeholder="Enter number"
+              placeholder="Enter number (1–20)"
             />
 
             {/* Right label */}
             <span className="px-5 py-3 text-gray-600 font-medium bg-gray-50">
               Miles
             </span>
+          </div>
+          <div>
+          {/*   <label className="block text-sm font-medium text-gray-600 mb-1">
+              Email (for personalized experience)
+            </label>
+            <input
+              type="email"
+              name="userEmail"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            /> */}
+            <div>
+  <label className="block text-sm font-medium text-gray-600 mb-1">
+    Email (for personalized experience)
+  </label>
+  <input
+    type="email"
+    name="userEmail"
+    value={userEmail}
+    onChange={(e) => setUserEmail(e.target.value)}
+    placeholder="Enter your email"
+    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+  />
+</div>
+
           </div>
 
           <button
@@ -514,6 +587,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
           >
             🔍 Search Client Address
           </button>
+
         </div>
       </div>
 
@@ -525,8 +599,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
           </h2>
 
           {/* {filteredProviders.length > 0 && ( */}
-            <>
-              {/* <h3 className="text-lg font-medium text-center text-gray-600">
+          <>
+            {/* <h3 className="text-lg font-medium text-center text-gray-600">
                 Adjust your search range
               </h3>
 
@@ -547,15 +621,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
                   Miles
                 </span>
               </div> */}
-            </>
-            {/* )} */}
+          </>
+          {/* )} */}
         </div>
       )}
 
-      {isSearchedAddress == true  && filteredProviders.length === 0 && (
+      {isSearchedAddress == true && filteredProviders.length === 0 && (
         <>
           <h3 className="text-lg font-medium text-center text-gray-600">
-            Door-To-Door does not currently have service providers. If you provide an email, we will send a notification when services become available. 
+            Door-To-Door does not currently have service providers. If you provide an email, we will send a notification when services become available.
           </h3>
 
           <div>
@@ -594,12 +668,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
             />
           </div> */}
 
-          <button 
+          <button
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:opacity-90 transition"
-           onClick={handleNotFoundSubmit}>Submit</button>
+            onClick={handleNotFoundSubmit}>Submit</button>
         </>
 
-        
+
       )}
 
       {/* Step 2: Provider */}
@@ -616,45 +690,69 @@ export default function FindBooking({ providers, events, locations, clients }) {
               Step 2: Provider
             </h2>
 
+            {/* Email input (optional) */}
+           {/*  <div className="mb-4">
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="Enter your email to manage blacklist"
+                className="w-full md:w-1/2 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div> */}
+
             <div className="space-y-4">
               {filteredProviders.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => {
-                    setSelectedProvider(p.id);
-                    setSelectedDate(null);
-                    setSelectedTime("");
-                  }}
-                  className={`flex gap-4 p-4 rounded-lg border cursor-pointer transition-all
-            ${selectedProvider === p.id
+                  className={`flex flex-col md:flex-row justify-between gap-4 p-4 rounded-lg border transition-all
+              ${selectedProvider === p.id
                       ? "border-blue-600 bg-blue-50"
                       : "border-gray-200 bg-white hover:shadow-md"
                     }`}
                 >
-                  {/* Image */}
-                  <div className="w-28 h-24 flex-shrink-0">
-                    <img
-                      src={
-                        p.picture_path
-                          ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path
-                          : "/images/placeholder.jpg"
-                      }
-                      alt={p.name}
-                      className="w-full h-full object-cover rounded-md"
-                    />
+                  {/* Left: Provider info */}
+                  <div
+                    onClick={() => {
+                      setSelectedProvider(p.id);
+                      setSelectedDate(null);
+                      setSelectedTime("");
+                    }}
+                    className="flex gap-4 cursor-pointer"
+                  >
+                    <div className="w-28 h-24 flex-shrink-0">
+                      <img
+                        src={
+                          p.picture_path
+                            ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + p.picture_path
+                            : "/images/placeholder.jpg"
+                        }
+                        alt={p.name}
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                    </div>
+
+                    <div className="flex flex-col justify-center">
+                      <p className="text-base font-bold">{p.name}</p>
+                      {p.nearestLocation && (
+                        <p className="text-sm text-gray-600">{p.nearestLocation.address}</p>
+                      )}
+                      {p.distance && (
+                        <p className="text-sm text-gray-600">
+                          {p.distance.toFixed(1)} mi away
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex flex-col justify-center">
-                    <p className="text-base font-bold">{p.name}</p>
-                    {p.nearestLocation && (
-                      <p className="text-sm text-gray-600">{p.nearestLocation.address}</p>
-                    )}
-                    {p.distance && (
-                      <p className="text-sm text-gray-600">
-                        {p.distance.toFixed(1)} mi away
-                      </p>
-                    )}
+                  {/* Right: Blacklist button */}
+                  <div className="flex items-center justify-end">
+                    <button
+                      onClick={() => handleBlacklist(p.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-md transition-all"
+                    >
+                      Blacklist
+                    </button>
                   </div>
                 </div>
               ))}

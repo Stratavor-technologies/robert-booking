@@ -1,23 +1,36 @@
 import mongoose from "mongoose";
 
+if (mongoose.models.Booking) {
+  delete mongoose.models.Booking;
+}
+
 const BookingSchema = new mongoose.Schema(
   {
     fullname: { type: String, required: true },
     email: { type: String, required: true },
     phonenumber: { type: String, required: true },
-    provider: { type: String, required: true },   // Service provider name or ID
-    date: { type: String, required: true },       // Could also use Date type if you want
-    time: { type: String, required: true },       // e.g. "10:30 AM"
+    provider: { type: String, required: true },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
     clientaddress: {
-      streetaddress: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      zip: { type: String, required: true },
+      fullAddress: { type: String, required: true, trim: true },
+      lat: { type: String, required: true },
+      lon: { type: String, required: true },
+    },
+
+    // 👇 NEW FIELD
+    services: {
+      manicure: { type: Boolean, default: false },
+      manicureGel: { type: Boolean, default: false },
+      pedicure: { type: Boolean, default: false },
+      pedicureGel: { type: Boolean, default: false },
+      eyelashFull: { type: Boolean, default: false },
+      eyelashRefill: { type: Boolean, default: false },
+      waxEyebrows: { type: Boolean, default: false },
+      waxLips: { type: Boolean, default: false },
     },
   },
-  { timestamps: true } // adds createdAt & updatedAt automatically
+  { timestamps: true }
 );
 
-// prevent model overwrite in dev
-export default mongoose.models.Booking ||
-  mongoose.model("Booking", BookingSchema);
+export default mongoose.model("Booking", BookingSchema);

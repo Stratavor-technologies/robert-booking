@@ -17,18 +17,62 @@ export async function POST(request) {
     await connectDB();
     const body = await request.json();
 
+    const {
+      fullname,
+      email,
+      phonenumber,
+      provider,
+      date,
+      time,
+      clientaddress,
+      services, // 👈 include services
+    } = body;
+
+    // Validation
+    if (
+      !fullname ||
+      !email ||
+      !phonenumber ||
+      !provider ||
+      !date ||
+      !time ||
+      !clientaddress?.fullAddress ||
+      !clientaddress?.lat ||
+      !clientaddress?.lon
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Create booking and save services
     const newBooking = await Booking.create({
-      provider: body.provider,
-      date: body.date,
-      time: body.time,
-      fullname: body.fullname,
-      email: body.email,
-      phonenumber: body.phonenumber,
-      clientaddress: body.clientaddress,
+      fullname,
+      email,
+      phonenumber,
+      provider,
+      date,
+      time,
+      clientaddress,
+      services: services || {}, // ensure empty object if not provided
     });
 
-    return NextResponse.json(newBooking, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Booking created successfully",
+        booking: newBooking,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error creating booking:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
+
+
