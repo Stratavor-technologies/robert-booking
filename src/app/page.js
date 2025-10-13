@@ -35,7 +35,7 @@ async function getProviders() {
   const filteredProviders = data.filter((p) => {
     const isActiveVisible = p.is_active === "1" && p.is_visible === "1";
 
-    if (!hasGoodStandingKey) {
+    if (!Object.prototype.hasOwnProperty.call(p, "good_standing")) {
       // current logic — only active + visible
       return isActiveVisible;
     }
@@ -94,7 +94,7 @@ export default async function Home() {
 
   return (
     <>
-      <Banner />
+    <Banner />
    <FindBooking providers={providers} events={events} locations={locations} clients={clients} />/
     </>
   )

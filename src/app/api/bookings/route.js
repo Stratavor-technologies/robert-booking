@@ -2,15 +2,39 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 
-export async function GET() {
+export async function GET(request) {
   try {
     await connectDB();
-    const bookings = await Booking.find();
-    return NextResponse.json(bookings, { status: 200 });
+
+    // Get search params from URL
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get("email"); // optional
+
+    let filter = {};
+    if (email) {
+      filter.email = email; // filter by email if provided
+    }
+
+    // Find and sort by most recent first
+    const bookings = await Booking.find(filter).sort({ createdAt: -1 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        count: bookings.length,
+        data: bookings,
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error fetching bookings:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
+
 
 export async function POST(request) {
   try {
