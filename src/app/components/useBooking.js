@@ -92,7 +92,6 @@ function normalizeState(state) {
   return stateNameToCode(state);
 }
 
-// Helper function to extract state from location title
 // Helper function to extract state from location
 function getStateFromLocation(location) {
   if (!location) return '';
@@ -704,37 +703,93 @@ export function useBooking({ providers, events, locations, clients }) {
         return;
       }
 
-      try {
-        const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
-        const blacklistData = await blacklistRes.json();
-        const blockedIds = blacklistData?.blockedProviderIds || [];
+    try {
+  // Fetch blacklist data
+  const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
+  const blacklistData = await blacklistRes.json();
+  const blockedIds = blacklistData?.blockedProviderIds || [];
 
-        const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
-        const bookingData = await bookingRes.json();
-        const bookedProviderIds = bookingData?.data?.map((b) => b.provider) || [];
-
-        // Remove blacklisted providers
-        let finalList = limitedProviders.filter(
-          (p) => !blockedIds.includes(p.id)
-        );
-
-        // Reorder: previously booked providers appear first
-        finalList = finalList.sort((a, b) => {
-          const aBooked = bookedProviderIds.includes(a.id);
-          const bBooked = bookedProviderIds.includes(b.id);
-
-          if (aBooked && !bBooked) return -1;
-          if (!aBooked && bBooked) return 1;
-          return 0;
-        });
-
-        setFilteredProviders(finalList);
-      } catch (err) {
-        console.error("Provider filtering error:", err);
-        setFilteredProviders(limitedProviders);
-      } finally {
-        setLoadingProviders(false);
+  // Fetch booking history
+  const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
+  const bookingData = await bookingRes.json();
+  
+  console.log("📊 Full booking response:", bookingData);
+  
+  // Extract provider IDs with their most recent booking date
+  const providerLastBookingMap = new Map();
+  
+  bookingData?.data?.forEach((booking) => {
+    const providerId = booking.provider ? booking.provider.toString() : null;
+    const bookingDate = new Date(booking.createdAt || booking.date);
+    
+    if (providerId) {
+      // If we already have this provider, check if this booking is more recent
+      if (providerLastBookingMap.has(providerId)) {
+        const existingDate = providerLastBookingMap.get(providerId);
+        if (bookingDate > existingDate) {
+          providerLastBookingMap.set(providerId, bookingDate);
+        }
+      } else {
+        // First time seeing this provider
+        providerLastBookingMap.set(providerId, bookingDate);
       }
+    }
+  });
+
+  console.log("📋 Provider last booking dates:", Object.fromEntries(providerLastBookingMap));
+
+  // Remove blacklisted providers
+  let finalList = limitedProviders.filter(
+    (p) => !blockedIds.includes(p.id.toString())
+  );
+
+  console.log("After blacklist filtering:", finalList.length);
+
+  // Enhanced sorting: Most recently booked providers first, then by distance
+  finalList = finalList.sort((a, b) => {
+    const aId = a.id.toString();
+    const bId = b.id.toString();
+    
+    const aLastBooking = providerLastBookingMap.get(aId);
+    const bLastBooking = providerLastBookingMap.get(bId);
+
+    console.log(`Sorting: Provider ${aId} last booking: ${aLastBooking}, Provider ${bId} last booking: ${bLastBooking}`);
+
+    // Both providers have booking history - sort by most recent booking
+    if (aLastBooking && bLastBooking) {
+      return bLastBooking - aLastBooking; // Most recent first (descending order)
+    }
+    // Only provider A has booking history
+    else if (aLastBooking && !bLastBooking) {
+      return -1; // a comes first (has booking history)
+    }
+    // Only provider B has booking history
+    else if (!aLastBooking && bLastBooking) {
+      return 1; // b comes first (has booking history)
+    }
+    // Neither provider has booking history - sort by distance
+    else {
+      return a.distance - b.distance;
+    }
+  });
+
+  console.log("🎯 Final sorted providers:", finalList.map(p => {
+    const lastBooking = providerLastBookingMap.get(p.id.toString());
+    return {
+      id: p.id, 
+      name: p.name,
+      lastBooking: lastBooking ? lastBooking.toISOString() : 'Never',
+      distance: p.distance
+    };
+  }));
+
+  setFilteredProviders(finalList);
+} catch (err) {
+  console.error("Provider filtering error:", err);
+  setFilteredProviders(limitedProviders);
+} finally {
+  setLoadingProviders(false);
+}
     }
 
     filterProviders();
