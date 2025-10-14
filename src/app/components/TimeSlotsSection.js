@@ -1,4 +1,3 @@
-// components/TimeSlotsSection.jsx
 import { Clock, Loader2, CheckCircle, X } from "lucide-react";
 
 export default function TimeSlotsSection({

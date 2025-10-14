@@ -37,13 +37,33 @@ export default function DatePickerSection({
     onMonthChange(date);
   };
 
+  // const getDayAvailability = (date) => {
+  //   const y = date.getFullYear();
+  //   const m = String(date.getMonth() + 1).padStart(2, "0");
+  //   const d = String(date.getDate()).padStart(2, "0");
+  //   const key = `${y}-${m}-${d}`;
+    
+  //   // Check if the date exists in workCalendar and is not a day off
+  //   return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
+  // };
+
   const getDayAvailability = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const key = `${y}-${m}-${d}`;
-    return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
-  };
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const key = `${y}-${m}-${d}`;
+
+  // Disable all past dates
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isPast = date < today;
+
+  if (isPast) return false; // ❌ past days disabled
+
+  // Check if the date exists in workCalendar and is not a day off
+  return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
+};
+
 
   return (
     <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100">

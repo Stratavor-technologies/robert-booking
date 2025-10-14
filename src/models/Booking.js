@@ -16,6 +16,8 @@ const BookingSchema = new mongoose.Schema(
       fullAddress: { type: String, required: true, trim: true },
       lat: { type: String, required: true },
       lon: { type: String, required: true },
+       city: { type: String },
+      state: { type: String},
     },
 
     // 👇 NEW FIELD

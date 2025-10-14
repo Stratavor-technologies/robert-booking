@@ -20,6 +20,23 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Helper function to extract state from location title
+function getStateFromLocation(location) {
+  if (!location || !location.title) return '';
+  
+  console.log("Extracting state from location title:", location.title);
+  
+  // Extract state from title (e.g., "729 Stryker Avenue, Doylestown, PA" -> "PA")
+  const parts = location.title.split(',');
+  if (parts.length >= 3) {
+    const statePart = parts[parts.length - 1].trim();
+    console.log("Extracted state:", statePart);
+    return statePart;
+  }
+  
+  return '';
+}
+
 export function useBooking({ providers, events, locations, clients }) {
   // Convert props to arrays
   const providerArray = Array.isArray(providers) ? providers : Object.values(providers || {});
@@ -94,95 +111,96 @@ export function useBooking({ providers, events, locations, clients }) {
   };
 
   const resetBooking = () => {
-  setSelectedEvent("");
-  setSelectedProvider("");
-  setSelectedDate(null);
-  setSelectedTime("");
-  setWorkCalandar(null);
-  setFirstDay(null);
-  setSlots([]);
-  setSelectedClient("");
-  setQuery("");
-  setSuggestions([]);
-  setIsSearchedAddress(false);
-  setLimitedLocations([]);
-  setFilteredProviders([]);
-  setFormData({
-    name: "",
-    email: "",
-    phone: "",
-    privacy: false,
-  });
-  setServices({
-    manicure: false,
-    manicureGel: false,
-    pedicure: false,
-    pedicureGel: false,
-    eyelashFull: false,
-    eyelashRefill: false,
-    waxEyebrows: false,
-    waxLips: false,
-  });
-};
-
-// Update your handleSubmit function to use the reset
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSubmittingBooking(true);
-
-  if (!formData.privacy) {
-    alert("You must agree to the Privacy Policy before booking.");
-    setSubmittingBooking(false);
-    return;
-  }
-
-  if (!address.fullAddress || !address.lat || !address.lon) {
-    alert("Please provide a valid address with latitude and longitude.");
-    setSubmittingBooking(false);
-    return;
-  }
-
-  const bookingData = {
-    provider: selectedProvider,
-    date: selectedDate,
-    time: selectedTime,
-    fullname: formData.name,
-    email: formData.email,
-    phonenumber: formData.phone,
-    clientaddress: {
-      fullAddress: address.fullAddress,
-      lat: address.lat,
-      lon: address.lon,
-    },
-    services,
+    setSelectedEvent("");
+    setSelectedProvider("");
+    setSelectedDate(null);
+    setSelectedTime("");
+    setWorkCalandar(null);
+    setFirstDay(null);
+    setSlots([]);
+    setSelectedClient("");
+    setQuery("");
+    setSuggestions([]);
+    setIsSearchedAddress(false);
+    setLimitedLocations([]);
+    setFilteredProviders([]);
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      privacy: false,
+    });
+    setServices({
+      manicure: false,
+      manicureGel: false,
+      pedicure: false,
+      pedicureGel: false,
+      eyelashFull: false,
+      eyelashRefill: false,
+      waxEyebrows: false,
+      waxLips: false,
+    });
   };
 
-  try {
-    const res = await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bookingData),
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingBooking(true);
 
-    if (!res.ok) {
-      throw new Error("Failed to create booking");
+    if (!formData.privacy) {
+      alert("You must agree to the Privacy Policy before booking.");
+      setSubmittingBooking(false);
+      return;
     }
 
-    const data = await res.json();
-    console.log("✅ Booking created:", data);
+    if (!address.fullAddress || !address.lat || !address.lon) {
+      alert("Please provide a valid address with latitude and longitude.");
+      setSubmittingBooking(false);
+      return;
+    }
 
-    // Reset everything after successful booking
-    resetBooking();
-    
-    // Return success for notification
-    return { success: true, data };
-  } catch (err) {
-    console.error("❌ Error creating booking:", err);
-    return { success: false, error: err.message };
-  } finally {
-    setSubmittingBooking(false);
-  }
-};
+    const bookingData = {
+      provider: selectedProvider,
+      date: selectedDate,
+      time: selectedTime,
+      fullname: formData.name,
+      email: formData.email,
+      phonenumber: formData.phone,
+      clientaddress: {
+        fullAddress: address.fullAddress,
+        lat: address.lat,
+        lon: address.lon,
+        city: address.city,
+        state: address.state,
+      },
+      services,
+    };
+
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingData),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create booking");
+      }
+
+      const data = await res.json();
+      console.log("✅ Booking created:", data);
+
+      // Reset everything after successful booking
+      resetBooking();
+      
+      // Return success for notification
+      return { success: true, data };
+    } catch (err) {
+      console.error("❌ Error creating booking:", err);
+      return { success: false, error: err.message };
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
 
   async function handleBlacklist(providerId) {
     if (!userEmail) {
@@ -242,9 +260,74 @@ const handleSubmit = async (e) => {
   const handleSearchSelect = (place) => {
     setQuery(place.display_name);
     setSuggestions([]);
-    console.log("here it is", place);
+    console.log("Selected place:", place);
     setClientLocation([place.lat, place.lon]);
+    
+    // Extract state from the selected place
+    const state = extractStateFromPlace(place);
+    console.log("Extracted state from place:", state);
+    setAddress(prev => ({
+      ...prev,
+      state: state
+    }));
   };
+
+  // Improved function to extract state from LocationIQ place object
+  function extractStateFromPlace(place) {
+    console.log("Extracting state from place:", place);
+    
+    // First try to get state from address object (LocationIQ usually has this)
+    if (place.address) {
+      // Try different possible state fields in LocationIQ response
+      if (place.address.state) {
+        console.log("Found state in address.state:", place.address.state);
+        return place.address.state;
+      }
+      if (place.address.state_code) {
+        console.log("Found state in address.state_code:", place.address.state_code);
+        return place.address.state_code;
+      }
+    }
+    
+    // Try to extract from display_name as fallback
+    if (place.display_name) {
+      console.log("Trying to extract from display_name:", place.display_name);
+      const parts = place.display_name.split(',');
+      
+      // Look for a 2-letter state code in the last few parts
+      for (let i = Math.max(0, parts.length - 3); i < parts.length; i++) {
+        const part = parts[i].trim();
+        // If it's a 2-letter uppercase code, it's likely a state
+        if (part.length === 2 && /^[A-Z]{2}$/.test(part)) {
+          console.log("Extracted state from display_name:", part);
+          return part;
+        }
+      }
+      
+      // If no 2-letter code found, try to get the state name and map it
+      if (parts.length >= 3) {
+        const possibleState = parts[parts.length - 1].trim();
+        console.log("Possible state name:", possibleState);
+        // Map common state names to codes
+        const stateMap = {
+          'pennsylvania': 'PA',
+          'new jersey': 'NJ',
+          'new york': 'NY',
+          'california': 'CA',
+          'texas': 'TX',
+          // Add more as needed
+        };
+        const mappedState = stateMap[possibleState.toLowerCase()];
+        if (mappedState) {
+          console.log("Mapped state name to code:", mappedState);
+          return mappedState;
+        }
+      }
+    }
+    
+    console.log("No state found in place object");
+    return '';
+  }
 
   async function getLatLngFromAddress(client) {
     setLoadingAddress(true);
@@ -254,7 +337,7 @@ const handleSubmit = async (e) => {
         client.address2,
         client.city,
         client.zip,
-        client.state,
+        client.state, // This should be the state code like "PA"
         client.country,
       ]
         .filter(Boolean)
@@ -267,7 +350,7 @@ const handleSubmit = async (e) => {
       );
 
       const data = await res.json();
-      console.log("data:", data);
+      console.log("Location data:", data);
 
       if (!Array.isArray(data) || data.length === 0) {
         throw new Error("No location found");
@@ -275,15 +358,20 @@ const handleSubmit = async (e) => {
 
       const location = data[0];
 
-      // ✅ Update the address state with the fetched data
+      // Extract state from the location response
+      const extractedState = extractStateFromPlace(location);
+      
+      // Update the address state with the fetched data
       setAddress({
         fullAddress: location.display_name,
         lat: location.lat,
         lon: location.lon,
         city: client.city,
-        state: client.state,
+        state: extractedState || client.state, // Use extracted state or fallback to client.state
       });
-
+      
+      console.log("Client state set to:", extractedState || client.state);
+      
       setIsSearchedAddress(true);
       setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
     } catch (error) {
@@ -339,7 +427,6 @@ const handleSubmit = async (e) => {
     const selectedServices = Object.entries(services)
       .filter(([_, isSelected]) => isSelected)
       .map(([key]) => {
-        // Map service keys to human-readable names
         const serviceNames = {
           manicure: "Manicure",
           manicureGel: "Manicure Gel",
@@ -432,12 +519,19 @@ const handleSubmit = async (e) => {
   }, [selectedDate, workCalandar]);
 
   useEffect(() => {
+    console.log("🔍 Filtering providers...");
+    console.log("Client location:", clientLocation);
+    console.log("Client state:", address.state);
+    console.log("Total providers:", providerArray?.length);
+    console.log("Total locations:", locationArray?.length);
+
     if (!providerArray || providerArray.length === 0) {
       setFilteredProviders([]);
       return;
     }
 
     if (!clientLocation) {
+      console.log("No client location, showing all providers");
       setFilteredProviders(providerArray);
       return;
     }
@@ -446,10 +540,6 @@ const handleSubmit = async (e) => {
 
     const [userLat, userLng] = clientLocation;
 
-    const locationArray = Array.isArray(locations)
-      ? locations
-      : Object.values(locations || {});
-
     // STEP 1: Distance filtering
     const providersWithDistance = providerArray
       .map((p) => {
@@ -457,9 +547,14 @@ const handleSubmit = async (e) => {
           ?.map((locId) => locationArray.find((l) => l.id === locId))
           .filter(Boolean);
 
-        if (!providerLocations?.length) return null;
+        if (!providerLocations?.length) {
+          console.log(`Provider ${p.id} has no locations`);
+          return null;
+        }
 
         let minDist = Infinity;
+        let nearestLocation = null;
+        
         providerLocations.forEach((loc) => {
           const dist = getDistance(
             userLat,
@@ -467,25 +562,46 @@ const handleSubmit = async (e) => {
             parseFloat(loc.lat),
             parseFloat(loc.lng)
           );
-          if (dist < minDist) minDist = dist;
+          if (dist < minDist) {
+            minDist = dist;
+            nearestLocation = loc;
+          }
         });
+
+        const providerState = getStateFromLocation(nearestLocation);
+        console.log(`Provider ${p.id} - distance: ${minDist}, location state: ${providerState}`);
 
         return {
           ...p,
           distance: minDist,
-          nearestLocation: providerLocations[0],
+          nearestLocation: nearestLocation,
+          providerState: providerState, // Store the extracted state
         };
       })
       .filter(Boolean)
       .filter((p) => p.distance <= searchWithin)
       .sort((a, b) => a.distance - b.distance);
 
-    const limitedProviders =
-      providersWithDistance.length > 4
-        ? providersWithDistance.slice(0, 4)
-        : providersWithDistance;
+    console.log("Providers after distance filtering:", providersWithDistance.length);
 
-    // STEP 2 + 3: Apply blacklist and booking priority
+    // STEP 2: STATE-BASED FILTERING
+    let finalFilteredProviders;
+    if (address.state && address.state.length === 2) { // Only filter if we have a valid state code
+      finalFilteredProviders = providersWithDistance.filter((p) => {
+        console.log(`Checking provider ${p.id}: ${p.providerState} === ${address.state}?`, p.providerState === address.state);
+        return p.providerState === address.state;
+      });
+      console.log("Providers after state filtering:", finalFilteredProviders.length);
+    } else {
+      finalFilteredProviders = providersWithDistance;
+      console.log("No valid client state code set, showing all distance-filtered providers");
+    }
+
+    // Limit to 4 providers
+    const limitedProviders = finalFilteredProviders.slice(0, 4);
+    console.log("Final limited providers:", limitedProviders.length);
+
+    // STEP 3 + 4: Apply blacklist and booking priority
     async function filterProviders() {
       if (!userEmail) {
         setFilteredProviders(limitedProviders);
@@ -494,22 +610,18 @@ const handleSubmit = async (e) => {
       }
 
       try {
-        // ✅ 1️⃣ Fetch blacklisted provider IDs
         const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
         const blacklistData = await blacklistRes.json();
         const blockedIds = blacklistData?.blockedProviderIds || [];
 
-        // ✅ 2️⃣ Fetch past bookings for this user
         const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
         const bookingData = await bookingRes.json();
         const bookedProviderIds = bookingData?.data?.map((b) => b.provider) || [];
 
-        // ✅ 3️⃣ Remove blacklisted providers
         let finalList = limitedProviders.filter(
           (p) => !blockedIds.includes(p.id)
         );
 
-        // ✅ 4️⃣ Reorder: previously booked providers appear first
         finalList = finalList.sort((a, b) => {
           const aBooked = bookedProviderIds.includes(a.id);
           const bBooked = bookedProviderIds.includes(b.id);
@@ -529,7 +641,7 @@ const handleSubmit = async (e) => {
     }
 
     filterProviders();
-  }, [clientLocation, searchWithin, providerArray, locations, userEmail]);
+  }, [clientLocation, searchWithin, providerArray, locations, userEmail, address.state]);
 
   return {
     // State
@@ -577,8 +689,7 @@ const handleSubmit = async (e) => {
     getLatLngFromAddress,
     handleNotFoundSubmit,
     handleMonthChange,
-      resetBooking,
-    // New function
+    resetBooking,
     getSelectedServiceNames
   };
 }
