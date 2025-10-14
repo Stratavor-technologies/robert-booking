@@ -20,20 +20,157 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Helper function to extract state from location title
-function getStateFromLocation(location) {
-  if (!location || !location.title) return '';
+// Helper function to convert state names to codes
+function stateNameToCode(stateName) {
+  const stateMap = {
+    'pennsylvania': 'PA',
+    'new jersey': 'NJ',
+    'new york': 'NY',
+    'california': 'CA',
+    'texas': 'TX',
+    'florida': 'FL',
+    'illinois': 'IL',
+    'ohio': 'OH',
+    'georgia': 'GA',
+    'michigan': 'MI',
+    'north carolina': 'NC',
+    'virginia': 'VA',
+    'washington': 'WA',
+    'arizona': 'AZ',
+    'massachusetts': 'MA',
+    'tennessee': 'TN',
+    'indiana': 'IN',
+    'missouri': 'MO',
+    'maryland': 'MD',
+    'wisconsin': 'WI',
+    'colorado': 'CO',
+    'minnesota': 'MN',
+    'south carolina': 'SC',
+    'alabama': 'AL',
+    'louisiana': 'LA',
+    'kentucky': 'KY',
+    'oregon': 'OR',
+    'oklahoma': 'OK',
+    'connecticut': 'CT',
+    'iowa': 'IA',
+    'utah': 'UT',
+    'nevada': 'NV',
+    'arkansas': 'AR',
+    'mississippi': 'MS',
+    'kansas': 'KS',
+    'new mexico': 'NM',
+    'nebraska': 'NE',
+    'west virginia': 'WV',
+    'idaho': 'ID',
+    'hawaii': 'HI',
+    'new hampshire': 'NH',
+    'maine': 'ME',
+    'rhode island': 'RI',
+    'montana': 'MT',
+    'delaware': 'DE',
+    'south dakota': 'SD',
+    'north dakota': 'ND',
+    'alaska': 'AK',
+    'vermont': 'VT',
+    'wyoming': 'WY'
+  };
   
-  console.log("Extracting state from location title:", location.title);
+  const normalizedName = stateName.toLowerCase().trim();
+  return stateMap[normalizedName] || '';
+}
+
+// Helper function to normalize state (convert names to codes, ensure uppercase)
+function normalizeState(state) {
+  if (!state) return '';
   
-  // Extract state from title (e.g., "729 Stryker Avenue, Doylestown, PA" -> "PA")
-  const parts = location.title.split(',');
-  if (parts.length >= 3) {
-    const statePart = parts[parts.length - 1].trim();
-    console.log("Extracted state:", statePart);
-    return statePart;
+  // If it's already a 2-letter code, return uppercase
+  if (state.length === 2 && /^[A-Za-z]{2}$/.test(state)) {
+    return state.toUpperCase();
   }
   
+  // If it's a state name, convert to code
+  return stateNameToCode(state);
+}
+
+// Helper function to extract state from location title
+// Helper function to extract state from location
+function getStateFromLocation(location) {
+  if (!location) return '';
+  
+  console.log("Extracting state from location:", location);
+  
+  // First try to get state directly from location object
+  if (location.state) {
+    console.log("Found state in location.state:", location.state);
+    const normalizedState = normalizeState(location.state);
+    console.log("Normalized state:", normalizedState);
+    return normalizedState;
+  }
+  
+  // Fallback: try to extract from title
+  if (location.title) {
+    console.log("Extracting state from location title:", location.title);
+    
+    // Extract state from title (e.g., "729 Stryker Avenue, Doylestown, PA" -> "PA")
+    const parts = location.title.split(',');
+    if (parts.length >= 3) {
+      const statePart = parts[parts.length - 1].trim();
+      console.log("Extracted state part from title:", statePart);
+      
+      // Normalize the state (convert names to codes, ensure proper format)
+      const normalizedState = normalizeState(statePart);
+      console.log("Normalized state from title:", normalizedState);
+      
+      return normalizedState;
+    }
+  }
+  
+  console.log("No state found in location object");
+  return '';
+}
+
+// Improved function to extract state from LocationIQ place object
+function extractStateFromPlace(place) {
+  console.log("Extracting state from place:", place);
+  
+  // First try to get state from address object (LocationIQ usually has this)
+  if (place.address) {
+    // Try different possible state fields in LocationIQ response
+    if (place.address.state) {
+      console.log("Found state in address.state:", place.address.state);
+      return normalizeState(place.address.state);
+    }
+    if (place.address.state_code) {
+      console.log("Found state in address.state_code:", place.address.state_code);
+      return normalizeState(place.address.state_code);
+    }
+  }
+  
+  // Try to extract from display_name as fallback
+  if (place.display_name) {
+    console.log("Trying to extract from display_name:", place.display_name);
+    const parts = place.display_name.split(',');
+    
+    // Look for state in the last few parts
+    for (let i = Math.max(0, parts.length - 3); i < parts.length; i++) {
+      const part = parts[i].trim();
+      
+      // If it's a 2-letter uppercase code, it's likely a state
+      if (part.length === 2 && /^[A-Z]{2}$/.test(part)) {
+        console.log("Extracted state code from display_name:", part);
+        return part;
+      }
+      
+      // If it's a state name, convert to code
+      const stateCode = stateNameToCode(part);
+      if (stateCode) {
+        console.log("Converted state name to code:", part, "->", stateCode);
+        return stateCode;
+      }
+    }
+  }
+  
+  console.log("No state found in place object");
   return '';
 }
 
@@ -272,63 +409,6 @@ export function useBooking({ providers, events, locations, clients }) {
     }));
   };
 
-  // Improved function to extract state from LocationIQ place object
-  function extractStateFromPlace(place) {
-    console.log("Extracting state from place:", place);
-    
-    // First try to get state from address object (LocationIQ usually has this)
-    if (place.address) {
-      // Try different possible state fields in LocationIQ response
-      if (place.address.state) {
-        console.log("Found state in address.state:", place.address.state);
-        return place.address.state;
-      }
-      if (place.address.state_code) {
-        console.log("Found state in address.state_code:", place.address.state_code);
-        return place.address.state_code;
-      }
-    }
-    
-    // Try to extract from display_name as fallback
-    if (place.display_name) {
-      console.log("Trying to extract from display_name:", place.display_name);
-      const parts = place.display_name.split(',');
-      
-      // Look for a 2-letter state code in the last few parts
-      for (let i = Math.max(0, parts.length - 3); i < parts.length; i++) {
-        const part = parts[i].trim();
-        // If it's a 2-letter uppercase code, it's likely a state
-        if (part.length === 2 && /^[A-Z]{2}$/.test(part)) {
-          console.log("Extracted state from display_name:", part);
-          return part;
-        }
-      }
-      
-      // If no 2-letter code found, try to get the state name and map it
-      if (parts.length >= 3) {
-        const possibleState = parts[parts.length - 1].trim();
-        console.log("Possible state name:", possibleState);
-        // Map common state names to codes
-        const stateMap = {
-          'pennsylvania': 'PA',
-          'new jersey': 'NJ',
-          'new york': 'NY',
-          'california': 'CA',
-          'texas': 'TX',
-          // Add more as needed
-        };
-        const mappedState = stateMap[possibleState.toLowerCase()];
-        if (mappedState) {
-          console.log("Mapped state name to code:", mappedState);
-          return mappedState;
-        }
-      }
-    }
-    
-    console.log("No state found in place object");
-    return '';
-  }
-
   async function getLatLngFromAddress(client) {
     setLoadingAddress(true);
     try {
@@ -540,22 +620,53 @@ export function useBooking({ providers, events, locations, clients }) {
 
     const [userLat, userLng] = clientLocation;
 
-    // STEP 1: Distance filtering
-    const providersWithDistance = providerArray
-      .map((p) => {
-        const providerLocations = p.locations
-          ?.map((locId) => locationArray.find((l) => l.id === locId))
-          .filter(Boolean);
+    // STEP 1: STATE-BASED FILTERING FIRST (STRICT REQUIREMENT)
+    let stateFilteredProviders = providerArray;
+    if (address.state && address.state.length === 2) {
+      stateFilteredProviders = providerArray
+        .map((p) => {
+          const providerLocations = p.locations
+            ?.map((locId) => locationArray.find((l) => l.id === locId))
+            .filter(Boolean);
 
-        if (!providerLocations?.length) {
-          console.log(`Provider ${p.id} has no locations`);
+          if (!providerLocations?.length) return null;
+
+          // Get provider state from first location
+          const providerState = getStateFromLocation(providerLocations[0]);
+          console.log(`Provider ${p.id} state: ${providerState}, Client state: ${address.state}`);
+
+          // Only include providers in the same state
+          if (providerState === address.state) {
+            return {
+              ...p,
+              providerState: providerState,
+              providerLocations: providerLocations // Store all locations for distance calculation
+            };
+          }
+          console.log(`❌ Provider ${p.id} filtered out - state mismatch: ${providerState} !== ${address.state}`);
           return null;
-        }
+        })
+        .filter(Boolean);
+      
+      console.log("Providers after state filtering:", stateFilteredProviders.length);
+    } else {
+      console.log("No valid client state code, showing all providers (no state filtering)");
+      // If no state, prepare providers for distance calculation
+      stateFilteredProviders = providerArray.map(p => ({
+        ...p,
+        providerLocations: p.locations
+          ?.map((locId) => locationArray.find((l) => l.id === locId))
+          .filter(Boolean)
+      })).filter(p => p.providerLocations?.length);
+    }
 
+    // STEP 2: Distance filtering on state-compliant providers
+    const providersWithDistance = stateFilteredProviders
+      .map((p) => {
         let minDist = Infinity;
         let nearestLocation = null;
         
-        providerLocations.forEach((loc) => {
+        p.providerLocations.forEach((loc) => {
           const dist = getDistance(
             userLat,
             userLng,
@@ -568,40 +679,24 @@ export function useBooking({ providers, events, locations, clients }) {
           }
         });
 
-        const providerState = getStateFromLocation(nearestLocation);
-        console.log(`Provider ${p.id} - distance: ${minDist}, location state: ${providerState}`);
+        console.log(`Provider ${p.id} - distance: ${minDist}`);
 
         return {
           ...p,
           distance: minDist,
           nearestLocation: nearestLocation,
-          providerState: providerState, // Store the extracted state
         };
       })
-      .filter(Boolean)
       .filter((p) => p.distance <= searchWithin)
       .sort((a, b) => a.distance - b.distance);
 
     console.log("Providers after distance filtering:", providersWithDistance.length);
 
-    // STEP 2: STATE-BASED FILTERING
-    let finalFilteredProviders;
-    if (address.state && address.state.length === 2) { // Only filter if we have a valid state code
-      finalFilteredProviders = providersWithDistance.filter((p) => {
-        console.log(`Checking provider ${p.id}: ${p.providerState} === ${address.state}?`, p.providerState === address.state);
-        return p.providerState === address.state;
-      });
-      console.log("Providers after state filtering:", finalFilteredProviders.length);
-    } else {
-      finalFilteredProviders = providersWithDistance;
-      console.log("No valid client state code set, showing all distance-filtered providers");
-    }
+    // STEP 3: Limit to 4 providers
+    const limitedProviders = providersWithDistance.slice(0, 4);
+    console.log("Providers after limiting to 4:", limitedProviders.length);
 
-    // Limit to 4 providers
-    const limitedProviders = finalFilteredProviders.slice(0, 4);
-    console.log("Final limited providers:", limitedProviders.length);
-
-    // STEP 3 + 4: Apply blacklist and booking priority
+    // STEP 4 + 5: Apply blacklist and booking priority
     async function filterProviders() {
       if (!userEmail) {
         setFilteredProviders(limitedProviders);
@@ -618,10 +713,12 @@ export function useBooking({ providers, events, locations, clients }) {
         const bookingData = await bookingRes.json();
         const bookedProviderIds = bookingData?.data?.map((b) => b.provider) || [];
 
+        // Remove blacklisted providers
         let finalList = limitedProviders.filter(
           (p) => !blockedIds.includes(p.id)
         );
 
+        // Reorder: previously booked providers appear first
         finalList = finalList.sort((a, b) => {
           const aBooked = bookedProviderIds.includes(a.id);
           const bBooked = bookedProviderIds.includes(b.id);
