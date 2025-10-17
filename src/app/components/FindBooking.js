@@ -23,6 +23,15 @@ const dayMap = {
 export default function FindBooking({ providers, events, locations, clients }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
+  const [userFlow, setUserFlow] = useState("entry"); // 'entry', 'new-user', 'returning-client', 'otp-verification'
+  const [loginData, setLoginData] = useState({
+    email: "",
+    phonenumber: ""
+  });
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   const {
     // State
@@ -115,8 +124,321 @@ export default function FindBooking({ providers, events, locations, clients }) {
     resetBooking();
     setShowSuccess(false);
     setBookingDetails(null);
+    setUserFlow("entry");
+    setOtpVerified(false);
+    setOtp("");
+    setLoginData({ email: "", phonenumber: "" });
   };
 
+  // Handle OTP send for returning clients
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setOtpLoading(true);
+    setOtpError("");
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          phonenumber: loginData.phonenumber
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUserFlow("otp-verification");
+      } else {
+        setOtpError(result.error || "Failed to send OTP");
+      }
+    } catch (error) {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Handle OTP verification
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setOtpLoading(true);
+    setOtpError("");
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          phonenumber: loginData.phonenumber,
+          otp: otp
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setOtpVerified(true);
+        setUserFlow("new-user"); // Switch to booking flow
+        
+        // Auto-fill address if available
+        if (result.user.lastAddress) {
+          handleFieldChange({
+            target: {
+              name: "fullAddress",
+              value: result.user.lastAddress.fullAddress
+            }
+          });
+          handleFieldChange({
+            target: {
+              name: "city",
+              value: result.user.lastAddress.city || ""
+            }
+          });
+          handleFieldChange({
+            target: {
+              name: "state",
+              value: result.user.lastAddress.state || ""
+            }
+          });
+        }
+        
+        // Set user email
+        setUserEmail(result.user.email);
+      } else {
+        setOtpError(result.error || "Invalid OTP");
+      }
+    } catch (error) {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Entry Point - Two Buttons
+  if (userFlow === "entry") {
+    return (
+      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
+        
+        {/* Header Section */}
+        <div className="relative text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Book Your Appointment
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Find the perfect service provider near you and schedule your appointment in just a few clicks
+          </p>
+        </div>
+
+        {/* Two Button Selection */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto py-8">
+          {/* Find Door-To-Door Services */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Find Door-To-Door Services</h3>
+            <p className="text-gray-600 mb-6">New to our service? Find beauty professionals in your area.</p>
+            <button
+              onClick={() => setUserFlow("new-user")}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              Find Services
+            </button>
+          </div>
+
+          {/* Client Login */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Client Login</h3>
+            <p className="text-gray-600 mb-6">Returning client? Login to manage your appointments.</p>
+            <button
+              onClick={() => setUserFlow("returning-client")}
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              Client Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Returning Client Login Form
+  if (userFlow === "returning-client") {
+    return (
+      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
+        
+        {/* Header Section */}
+        <div className="relative text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Client Login
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Enter your email and phone number to receive OTP
+          </p>
+        </div>
+
+        {/* Login Form */}
+        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
+          <form onSubmit={handleSendOTP} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={loginData.email}
+                onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={loginData.phonenumber}
+                onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                placeholder="Enter your phone number"
+                required
+              />
+            </div>
+
+            {otpError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+                {otpError}
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUserFlow("entry")}
+                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+              >
+                {otpLoading ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // OTP Verification
+  if (userFlow === "otp-verification") {
+    return (
+      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
+        
+        {/* Header Section */}
+        <div className="relative text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Verify OTP
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Enter the OTP sent to your email and phone
+          </p>
+          <p className="text-sm text-gray-500">
+            For testing, use: <strong>1234</strong>
+          </p>
+        </div>
+
+        {/* OTP Form */}
+        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
+          <form onSubmit={handleVerifyOTP} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                OTP Code
+              </label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono"
+                placeholder="Enter OTP"
+                maxLength={6}
+                required
+              />
+            </div>
+
+            {otpError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+                {otpError}
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUserFlow("returning-client")}
+                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+              >
+                {otpLoading ? "Verifying..." : "Verify OTP"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Booking Flow (for both new users and returning clients)
   return (
     <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
       {/* Success Notification */}
