@@ -73,47 +73,55 @@ export async function POST(request) {
       );
     }
 
-    // ✅ Check if user exists, if not create new user
+    // Check if user exists, if not create new user
     let user = await User.findOne({ email });
-    
+
     if (!user) {
       // Create new user with the first address from booking
       user = await User.create({
         name: fullname,
         email: email,
         phonenumber,
-        address: [{
-          fullAddress: clientaddress.fullAddress,
-          lat: clientaddress.lat,
-          lon: clientaddress.lon,
-          city: clientaddress.city || "",
-          state: clientaddress.state || ""
-        }]
+        address: [
+          {
+            fullAddress: clientaddress.fullAddress,
+            lat: clientaddress.lat,
+            lon: clientaddress.lon,
+            city: clientaddress.city || "",
+            state: clientaddress.state || "",
+          },
+        ],
       });
     } else {
-      // Optional: Update user name if different or add new address if not exists
+      // Update user name if different
       if (user.name !== fullname) {
         user.name = fullname;
       }
-      
-      // Check if this address already exists for the user
-      const addressExists = user.address.some(addr => 
-        addr.fullAddress === clientaddress.fullAddress
+
+      // Check if this address already exists
+      const existingIndex = user.address.findIndex(
+        (addr) => addr.fullAddress === clientaddress.fullAddress
       );
-      
-      if (!addressExists) {
-        user.address.push({
+
+      if (existingIndex > -1) {
+        // Move existing address to top
+        const [existingAddress] = user.address.splice(existingIndex, 1);
+        user.address.unshift(existingAddress);
+      } else {
+        // Add new address to top
+        user.address.unshift({
           fullAddress: clientaddress.fullAddress,
           lat: clientaddress.lat,
           lon: clientaddress.lon,
           city: clientaddress.city || "",
-          state: clientaddress.state || ""
+          state: clientaddress.state || "",
         });
-        await user.save();
       }
+
+      await user.save();
     }
 
-    // ✅ Create booking
+    // Create booking
     const newBooking = await Booking.create({
       fullname,
       email,
@@ -123,7 +131,7 @@ export async function POST(request) {
       time,
       clientaddress,
       services: services || {},
-      userId: user._id // Optional: link booking to user
+      userId: user._id, // link booking to user
     });
 
     return NextResponse.json(
@@ -134,8 +142,8 @@ export async function POST(request) {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email
-        }
+          email: user.email,
+        },
       },
       { status: 201 }
     );
@@ -147,4 +155,5 @@ export async function POST(request) {
     );
   }
 }
+
 

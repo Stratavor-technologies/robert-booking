@@ -6,7 +6,8 @@ export default function SearchSection({
   onSearchWithinChange,
   onUserEmailChange,
   onSearchClick,
-  loadingAddress = false
+  loadingAddress = false,
+  currentEmail,
 }) {
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative overflow-hidden">
@@ -47,7 +48,7 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="Enter your city"
               disabled={loadingAddress}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md ${
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-black ${
                 loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             />
@@ -66,7 +67,7 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="Enter your state"
               disabled={loadingAddress}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md ${
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-black ${
                 loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             />
@@ -103,8 +104,8 @@ export default function SearchSection({
             value={userEmail}
             onChange={(e) => onUserEmailChange(e.target.value)}
             placeholder="your.email@example.com"
-            disabled={loadingAddress}
-            className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md ${
+            disabled={loadingAddress || currentEmail}
+            className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-black ${
               loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           />
@@ -180,7 +181,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false }) {
           }
         }}
         disabled={disabled}
-        className="flex-1 p-3.5 text-gray-900 placeholder-gray-400 text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
+        className="flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
         placeholder="1-20"
       />
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">Miles</span>

@@ -14,7 +14,8 @@ export default function BookingSummary({
   onSubmit,
   onChange,
   getSelectedServiceNames,
-  submittingBooking = false
+  submittingBooking = false,
+  currentEmail,
 }) {
   const providerArray = Array.isArray(providers) ? providers : Object.values(providers || {});
   const eventArray = Array.isArray(events) ? events : Object.values(events || {});
@@ -100,6 +101,7 @@ export default function BookingSummary({
             onChange={onChange}
             submittingBooking={submittingBooking}
             formValid={formValid}
+                 currentEmail={currentEmail}
           />
         </div>
       </div>
@@ -182,7 +184,14 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
   );
 }
 
-function BookingForm({ formData, onSubmit, onChange, submittingBooking, formValid }) {
+function BookingForm({
+  formData,
+  onSubmit,
+  onChange,
+  submittingBooking,
+  formValid,
+  currentEmail
+}) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formValid && !submittingBooking) {
@@ -198,7 +207,8 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
       value: formData.name,
       placeholder: "Enter your full name",
       required: true,
-      icon: User
+      icon: User,
+      disabled: submittingBooking, // normal disable rule
     },
     {
       label: "Email Address",
@@ -207,7 +217,8 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
       value: formData.email,
       placeholder: "your.email@example.com",
       required: true,
-      icon: Mail
+      icon: Mail,
+      disabled: submittingBooking || currentEmail, // ✅ disable if currentEmail = true
     },
     {
       label: "Phone Number",
@@ -216,8 +227,9 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
       value: formData.phone,
       placeholder: "+1 (555) 123-4567",
       required: true,
-      icon: Phone
-    }
+      icon: Phone,
+      disabled: submittingBooking, // normal disable rule
+    },
   ];
 
   return (
@@ -233,16 +245,16 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
           placeholder={field.placeholder}
           required={field.required}
           icon={<field.icon className="w-5 h-5 text-gray-400" />}
-          disabled={submittingBooking}
+          disabled={field.disabled}
         />
       ))}
-      
+
       <PrivacyCheckbox
         checked={formData.privacy}
         onChange={onChange}
         disabled={submittingBooking}
       />
-      
+
       <button
         type="submit"
         disabled={!formValid || submittingBooking}
@@ -257,13 +269,15 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
             <Loader2 className="w-5 h-5 text-white animate-spin" />
           </div>
         )}
-        
-        <CheckCircle className={`w-5 h-5 transition-transform ${
-          submittingBooking ? 'opacity-0' : 'group-hover:scale-110'
-        }`} />
-        
-        <span className={submittingBooking ? 'opacity-0' : ''}>
-          {submittingBooking ? 'Processing...' : 'Confirm Booking'}
+
+        <CheckCircle
+          className={`w-5 h-5 transition-transform ${
+            submittingBooking ? "opacity-0" : "group-hover:scale-110"
+          }`}
+        />
+
+        <span className={submittingBooking ? "opacity-0" : ""}>
+          {submittingBooking ? "Processing..." : "Confirm Booking"}
         </span>
       </button>
 
@@ -271,8 +285,18 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
       <div className="text-center">
         {!formValid && (
           <p className="text-sm text-amber-600 flex items-center justify-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
             Please complete all required fields
           </p>
@@ -287,9 +311,19 @@ function BookingForm({ formData, onSubmit, onChange, submittingBooking, formVali
   );
 }
 
-function FormField({ label, name, type, value, onChange, placeholder, required, icon, disabled = false }) {
+function FormField({
+  label,
+  name,
+  type,
+  value,
+  onChange,
+  placeholder,
+  required,
+  icon,
+  disabled = false,
+}) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 ">
       <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
         {label}
         {required && <span className="text-red-500">*</span>}
@@ -306,8 +340,8 @@ function FormField({ label, name, type, value, onChange, placeholder, required, 
           placeholder={placeholder}
           disabled={disabled}
           className={`w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md ${
-            disabled ? 'opacity-50 cursor-not-allowed' : ''
-          } ${value ? 'border-emerald-200 bg-emerald-50' : ''}`}
+            disabled ? " cursor-not-allowed" : ""
+          } ${value ? "border-emerald-200 bg-emerald-50" : ""}`}
           required={required}
         />
         {value && !disabled && (

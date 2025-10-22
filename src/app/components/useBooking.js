@@ -708,11 +708,11 @@ export function useBooking({ providers, events, locations, clients }) {
   const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
   const blacklistData = await blacklistRes.json();
   const blockedIds = blacklistData?.blockedProviderIds || [];
-
+ 
   // Fetch booking history
   const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
   const bookingData = await bookingRes.json();
-  
+   
   console.log("📊 Full booking response:", bookingData);
   
   // Extract provider IDs with their most recent booking date
@@ -842,6 +842,9 @@ export function useBooking({ providers, events, locations, clients }) {
     handleNotFoundSubmit,
     handleMonthChange,
     resetBooking,
-    getSelectedServiceNames
+    getSelectedServiceNames,
+
+
+    setFormData
   };
 }

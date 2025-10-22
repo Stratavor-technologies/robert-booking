@@ -9,6 +9,7 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
+import { set } from "mongoose";
 
 const dayMap = {
   0: "Sunday",
@@ -32,7 +33,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
-
+  const [currentEmail, setCurrentEmail] = useState(false);
   const {
     // State
     selectedEvent,
@@ -80,7 +81,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
     handleNotFoundSubmit,
     handleMonthChange,
     getSelectedServiceNames,
-    resetBooking
+    resetBooking,
+
+
+    setFormData
   } = useBooking({ providers, events, locations, clients });
 
   const currentStep = selectedTime
@@ -131,36 +135,52 @@ export default function FindBooking({ providers, events, locations, clients }) {
   };
 
   // Handle OTP send for returning clients
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    setOtpLoading(true);
-    setOtpError("");
+const handleSendOTP = async (e) => {
+  e.preventDefault();
+  setOtpError("");
 
-    try {
-      const response = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: loginData.email,
-          phonenumber: loginData.phonenumber
-        }),
-      });
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^[0-9]{10,15}$/; // Adjust length as needed
 
-      const result = await response.json();
+  // Client-side validation
+  if (!loginData.email || !emailRegex.test(loginData.email)) {
+    setOtpError("Please enter a valid email address.");
+    return;
+  }
 
-      if (result.success) {
-        setUserFlow("otp-verification");
-      } else {
-        setOtpError(result.error || "Failed to send OTP");
-      }
-    } catch (error) {
-      setOtpError("Network error. Please try again.");
-    } finally {
-      setOtpLoading(false);
+  if (!loginData.phonenumber || !phoneRegex.test(loginData.phonenumber)) {
+    setOtpError("Please enter a valid phone number.");
+    return;
+  }
+
+  setOtpLoading(true);
+
+  try {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: loginData.email,
+        phonenumber: loginData.phonenumber
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      setUserFlow("otp-verification");
+    } else {
+      setOtpError(result.error || "Failed to send OTP");
     }
-  };
+  } catch (error) {
+    setOtpError("Network error. Please try again.");
+  } finally {
+    setOtpLoading(false);
+  }
+};
+
 
   // Handle OTP verification
   const handleVerifyOTP = async (e) => {
@@ -211,6 +231,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
         
         // Set user email
         setUserEmail(result.user.email);
+        setFormData(prev => ({...prev, email: result.user.email}));
+        if(!currentEmail){    
+          setCurrentEmail(true);
+        }
       } else {
         setOtpError(result.error || "Invalid OTP");
       }
@@ -280,6 +304,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </button>
           </div>
         </div>
+        
       </div>
     );
   }
@@ -308,60 +333,69 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </div>
 
         {/* Login Form */}
-        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
-          <form onSubmit={handleSendOTP} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={loginData.email}
-                onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
+       <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
+<form onSubmit={handleSendOTP} className="space-y-6">
+  {/* Email Field */}
+  <div>
+    <label className="block text-sm font-medium text-gray-900 mb-2">
+      Email Address
+    </label>
+    <input
+      type="email"
+      value={loginData.email}
+      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+      placeholder="Enter your email"
+      className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+        otpError.includes("email") ? "border-red-500" : "border-gray-300"
+      }`}
+      required
+    />
+  </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={loginData.phonenumber}
-                onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                placeholder="Enter your phone number"
-                required
-              />
-            </div>
+  {/* Phone Field */}
+  <div>
+    <label className="block text-sm font-medium text-gray-900 mb-2">
+      Phone Number
+    </label>
+    <input
+      type="tel"
+      value={loginData.phonenumber}
+      onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
+      placeholder="Enter your phone number"
+      className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+        otpError.includes("phone") ? "border-red-500" : "border-gray-300"
+      }`}
+      required
+    />
+  </div>
 
-            {otpError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
-                {otpError}
-              </div>
-            )}
+  {/* Error Message */}
+  {otpError && (
+    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+      {otpError}
+    </div>
+  )}
 
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setUserFlow("entry")}
-                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={otpLoading}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-              >
-                {otpLoading ? "Sending OTP..." : "Send OTP"}
-              </button>
-            </div>
-          </form>
-        </div>
+  {/* Buttons */}
+  <div className="flex gap-4">
+    <button
+      type="button"
+      onClick={() => setUserFlow("entry")}
+      className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+    >
+      Back
+    </button>
+    <button
+      type="submit"
+      disabled={otpLoading}
+      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+    >
+      {otpLoading ? "Sending OTP..." : "Send OTP"}
+    </button>
+  </div>
+</form>
+
+</div>
       </div>
     );
   }
@@ -387,52 +421,50 @@ export default function FindBooking({ providers, events, locations, clients }) {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Enter the OTP sent to your email and phone
           </p>
-          <p className="text-sm text-gray-500">
-            For testing, use: <strong>1234</strong>
-          </p>
+          
         </div>
 
         {/* OTP Form */}
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
-          <form onSubmit={handleVerifyOTP} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                OTP Code
-              </label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono"
-                placeholder="Enter OTP"
-                maxLength={6}
-                required
-              />
-            </div>
+      <form onSubmit={handleVerifyOTP} className="space-y-6">
+  <div>
+    <label className="block text-sm font-medium text-gray-900 mb-2">
+      OTP Code
+    </label>
+    <input
+      type="text"
+      value={otp}
+      onChange={(e) => setOtp(e.target.value)}
+      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono text-black placeholder-black"
+      placeholder="Enter OTP"
+      maxLength={6}
+      required
+    />
+  </div>
 
-            {otpError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
-                {otpError}
-              </div>
-            )}
+  {otpError && (
+    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+      {otpError}
+    </div>
+  )}
 
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setUserFlow("returning-client")}
-                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={otpLoading}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-              >
-                {otpLoading ? "Verifying..." : "Verify OTP"}
-              </button>
-            </div>
-          </form>
+  <div className="flex gap-4">
+    <button
+      type="button"
+      onClick={() => setUserFlow("returning-client")}
+      className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+    >
+      Back
+    </button>
+    <button
+      type="submit"
+      disabled={otpLoading}
+      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+    >
+      {otpLoading ? "Verifying..." : "Verify OTP"}
+    </button>
+  </div>
+</form>
         </div>
       </div>
     );
@@ -497,6 +529,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             onUserEmailChange={setUserEmail}
             onSearchClick={() => getLatLngFromAddress(address)}
             loadingAddress={loadingAddress}
+            currentEmail={currentEmail}
           />
 
           {/* Loading State for Address Search */}
@@ -679,6 +712,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
               onChange={handleChange}
               getSelectedServiceNames={getSelectedServiceNames}
               submittingBooking={submittingBooking}
+              currentEmail={currentEmail}
             />
           )}
         </>
