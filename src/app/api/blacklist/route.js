@@ -79,3 +79,49 @@ export async function GET(req) {
     );
   }
 }
+
+// 🟥 DELETE — Remove a provider from user's blacklist (unblock)
+export async function DELETE(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+    const providerId = searchParams.get("providerId");
+
+    if (!email || !providerId) {
+      return NextResponse.json(
+        { success: false, message: "Missing email or providerId" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    const userBlacklist = await Blacklist.findOne({ email });
+
+    if (!userBlacklist) {
+      return NextResponse.json(
+        { success: false, message: "No blacklist found for this user" },
+        { status: 404 }
+      );
+    }
+
+    // Remove the providerId from the array
+    userBlacklist.providerIds = userBlacklist.providerIds.filter(
+      id => id !== providerId
+    );
+
+    await userBlacklist.save();
+
+    return NextResponse.json({
+      success: true,
+      message: "Provider unblocked successfully",
+      data: userBlacklist,
+    });
+  } catch (error) {
+    console.error("DELETE /blacklist Error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}

@@ -1,5 +1,6 @@
 import ProvidersMap from "./ProvidersMap";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function ProvidersSection({
   providers,
@@ -39,6 +40,7 @@ export default function ProvidersSection({
           </div>
         </div>
         <ProvidersMap
+          providers={providers}
           locations={locations}
           userLocation={clientLocation}
           searchWithin={searchWithin}
@@ -51,7 +53,7 @@ export default function ProvidersSection({
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">2</span>
+              <span className="text-white font-bold text-lg">{providers.length}</span>
             </div>
             <div>
               <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
@@ -69,9 +71,24 @@ export default function ProvidersSection({
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Search radius</div>
-            <div className="text-lg font-semibold text-indigo-600">{searchWithin} miles</div>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Search radius</div>
+              <div className="text-lg font-semibold text-indigo-600">{searchWithin} miles</div>
+            </div>
+            
+            {/* Manage Hidden Providers Button */}
+            {userEmail && (
+              <Link 
+                href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
+                className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Manage Hidden
+              </Link>
+            )}
           </div>
         </div>
 
@@ -109,7 +126,20 @@ export default function ProvidersSection({
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Providers Found</h3>
-            <p className="text-gray-600">Try expanding your search radius or check back later.</p>
+            <p className="text-gray-600 mb-6">Try expanding your search radius or check back later.</p>
+            
+            {/* Show Manage Hidden button in empty state too */}
+            {userEmail && (
+              <Link 
+                href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
+                className="inline-flex items-center gap-2 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Manage Hidden Providers
+              </Link>
+            )}
           </div>
         )}
       </div>

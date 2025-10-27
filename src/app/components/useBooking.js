@@ -597,7 +597,7 @@ export function useBooking({ providers, events, locations, clients }) {
     setLoadingTimeSlots(false);
   }, [selectedDate, workCalandar]);
 
-  useEffect(() => {
+useEffect(() => {
     console.log("🔍 Filtering providers...");
     console.log("Client location:", clientLocation);
     console.log("Client state:", address.state);
@@ -619,6 +619,26 @@ export function useBooking({ providers, events, locations, clients }) {
 
     const [userLat, userLng] = clientLocation;
 
+    // Function to extract numeric limit from provider description
+    const getProviderDistanceLimit = (provider) => {
+      try {
+        // Extract numeric value from description HTML
+        const description = provider.description || "";
+        // Match numbers in the description (looking for distance limits)
+        const matches = description.match(/\b\d+\b/);
+        if (matches && matches.length > 0) {
+          const limit = parseInt(matches[0]);
+          console.log(`Provider ${provider.id} distance limit: ${limit} miles`);
+          return limit;
+        }
+        // If no numeric value found, return a default high value (no limit)
+        return Infinity;
+      } catch (error) {
+        console.error(`Error parsing limit for provider ${provider.id}:`, error);
+        return Infinity;
+      }
+    };
+
     // STEP 1: STATE-BASED FILTERING FIRST (STRICT REQUIREMENT)
     let stateFilteredProviders = providerArray;
     if (address.state && address.state.length === 2) {
@@ -639,7 +659,8 @@ export function useBooking({ providers, events, locations, clients }) {
             return {
               ...p,
               providerState: providerState,
-              providerLocations: providerLocations // Store all locations for distance calculation
+              providerLocations: providerLocations, // Store all locations for distance calculation
+              distanceLimit: getProviderDistanceLimit(p) // Extract provider's distance limit
             };
           }
           console.log(`❌ Provider ${p.id} filtered out - state mismatch: ${providerState} !== ${address.state}`);
@@ -655,7 +676,8 @@ export function useBooking({ providers, events, locations, clients }) {
         ...p,
         providerLocations: p.locations
           ?.map((locId) => locationArray.find((l) => l.id === locId))
-          .filter(Boolean)
+          .filter(Boolean),
+        distanceLimit: getProviderDistanceLimit(p) // Extract provider's distance limit
       })).filter(p => p.providerLocations?.length);
     }
 
@@ -678,7 +700,7 @@ export function useBooking({ providers, events, locations, clients }) {
           }
         });
 
-        console.log(`Provider ${p.id} - distance: ${minDist}`);
+        console.log(`Provider ${p.id} - actual distance: ${minDist} miles, provider limit: ${p.distanceLimit} miles`);
 
         return {
           ...p,
@@ -686,7 +708,19 @@ export function useBooking({ providers, events, locations, clients }) {
           nearestLocation: nearestLocation,
         };
       })
-      .filter((p) => p.distance <= searchWithin)
+      .filter((p) => {
+        // Filter based on both user's search radius AND provider's distance limit
+        const withinUserRadius = p.distance <= searchWithin;
+        const withinProviderLimit = p.distance <= p.distanceLimit;
+        
+        if (!withinUserRadius) {
+          console.log(`❌ Provider ${p.id} filtered out - exceeds user search radius: ${p.distance} > ${searchWithin}`);
+        } else if (!withinProviderLimit) {
+          console.log(`❌ Provider ${p.id} filtered out - exceeds provider distance limit: ${p.distance} > ${p.distanceLimit}`);
+        }
+        
+        return withinUserRadius && withinProviderLimit;
+      })
       .sort((a, b) => a.distance - b.distance);
 
     console.log("Providers after distance filtering:", providersWithDistance.length);
@@ -779,7 +813,8 @@ export function useBooking({ providers, events, locations, clients }) {
       id: p.id, 
       name: p.name,
       lastBooking: lastBooking ? lastBooking.toISOString() : 'Never',
-      distance: p.distance
+      distance: p.distance,
+      distanceLimit: p.distanceLimit
     };
   }));
 
@@ -794,7 +829,6 @@ export function useBooking({ providers, events, locations, clients }) {
 
     filterProviders();
   }, [clientLocation, searchWithin, providerArray, locations, userEmail, address.state]);
-
   return {
     // State
     selectedEvent,
@@ -843,8 +877,14 @@ export function useBooking({ providers, events, locations, clients }) {
     handleMonthChange,
     resetBooking,
     getSelectedServiceNames,
-
+    providerArray,
 
     setFormData
   };
 }
+
+
+
+
+
+

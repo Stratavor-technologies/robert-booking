@@ -57,6 +57,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     address,
     services,
     
+    providerArray,
     // Loading States
     loadingProviders,
     loadingServices,
