@@ -95,38 +95,46 @@ function normalizeState(state) {
 // Helper function to extract state from location
 function getStateFromLocation(location) {
   if (!location) return '';
-  
+
   console.log("Extracting state from location:", location);
-  
-  // First try to get state directly from location object
+
+  // ✅ 1. Try from `location.state`
   if (location.state) {
     console.log("Found state in location.state:", location.state);
     const normalizedState = normalizeState(location.state);
     console.log("Normalized state:", normalizedState);
     return normalizedState;
   }
-  
-  // Fallback: try to extract from title
+
+  // ✅ 2. Try from `location.address2`
+  if (location.address2) {
+    console.log("Found state in location.address2:", location.address2);
+    const normalizedState = normalizeState(location.address2);
+    console.log("Normalized state from address2:", normalizedState);
+    return normalizedState;
+  }
+
+  // ✅ 3. Fallback: extract from `location.title`
   if (location.title) {
-    console.log("Extracting state from location title:", location.title);
-    
-    // Extract state from title (e.g., "729 Stryker Avenue, Doylestown, PA" -> "PA")
+    console.log("Extracting state from location.title:", location.title);
+
+    // e.g. "729 Stryker Avenue, Doylestown, PA" → "PA"
     const parts = location.title.split(',');
     if (parts.length >= 3) {
       const statePart = parts[parts.length - 1].trim();
       console.log("Extracted state part from title:", statePart);
-      
-      // Normalize the state (convert names to codes, ensure proper format)
+
       const normalizedState = normalizeState(statePart);
       console.log("Normalized state from title:", normalizedState);
-      
+
       return normalizedState;
     }
   }
-  
+
   console.log("No state found in location object");
   return '';
 }
+
 
 // Improved function to extract state from LocationIQ place object
 function extractStateFromPlace(place) {
