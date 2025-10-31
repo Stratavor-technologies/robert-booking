@@ -14,6 +14,12 @@ export default function ProvidersSection({
   loadingProviders = false
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
+  if(providers)
+  {
+    console.log("userEmail raw:", JSON.stringify(userEmail));
+console.log("isEmpty?", userEmail === "");
+    console.log(providers)
+  }
 
   const handleBlacklist = async (providerId) => {
     setBlacklistingProvider(providerId);
@@ -112,6 +118,7 @@ export default function ProvidersSection({
                 onSelect={onProviderSelect}
                 onBlacklist={handleBlacklist}
                 isBlacklisting={blacklistingProvider === provider.id}
+                userEmail={userEmail}
               />
             ))}
           </div>
@@ -147,7 +154,7 @@ export default function ProvidersSection({
   );
 }
 
-function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false }) {
+function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false ,userEmail }) {
   return (
     <div
       className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${
@@ -209,7 +216,7 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   </svg>
-                  {provider.nearestLocation.address}
+                 {  provider.nearestLocation.city==provider.nearestLocation.address2  ? provider.nearestLocation.city  : provider.nearestLocation.city +" " +provider.nearestLocation.address2 } 
                 </p>
               )}
             </div>
@@ -248,7 +255,8 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
             {isSelected ? "Selected" : "Select"}
           </button>
           
-          <button
+
+          {userEmail ?  <button
             onClick={(e) => {
               e.stopPropagation();
               !isBlacklisting && onBlacklist(provider.id);
@@ -271,7 +279,11 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
                 Hide
               </>
             )}
-          </button>
+          </button>  : <></>}
+
+
+         
+
         </div>
       </div>
     </div>

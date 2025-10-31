@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react"; // icons
+import { Menu, X } from "lucide-react";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,7 +12,12 @@ export default function Header() {
     { label: "About", href: "/about" },
     { label: "Services", href: "/services" },
     { label: "Contact", href: "/contact" },
+    { label: "Notify-Users", href: "/notify" },
   ];
+
+  const handleReload = () => {
+    window.location.href = "/"; // forces full reload
+  };
 
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
@@ -37,12 +42,12 @@ export default function Header() {
 
         {/* CTA Button */}
         <div className="hidden md:block">
-          <Link
-            href="/signup"
+          <button
+            onClick={handleReload}
             className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
           >
-            Get Started
-          </Link>
+            Back to Home
+          </button>
         </div>
 
         {/* Mobile Menu Button */}
@@ -67,13 +72,12 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/signup"
-            className="block bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition text-center"
-            onClick={() => setIsOpen(false)}
+          <button
+            onClick={handleReload}
+            className="block w-full bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition text-center"
           >
-            Get Started
-          </Link>
+            Back To Home
+          </button>
         </div>
       )}
     </header>

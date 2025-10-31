@@ -56,7 +56,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     formData,
     address,
     services,
-    
+
     providerArray,
     // Loading States
     loadingProviders,
@@ -64,7 +64,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     loadingTimeSlots,
     submittingBooking,
     loadingAddress,
-    
+
     // Handlers
     handleChange,
     handleCheckboxChange,
@@ -91,12 +91,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const currentStep = selectedTime
     ? 4
     : selectedDate
-    ? 3
-    : selectedProvider
-    ? 2
-    : selectedEvent
-    ? 1
-    : 0;
+      ? 3
+      : selectedProvider
+        ? 2
+        : selectedEvent
+          ? 1
+          : 0;
 
   // Enhanced handleSubmit that shows success notification
   const handleSubmitWithNotification = async (e) => {
@@ -109,7 +109,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         services: getSelectedServiceNames(),
       });
       setShowSuccess(true);
-      
+
       // Auto-hide success notification after 5 seconds
       setTimeout(() => {
         setShowSuccess(false);
@@ -136,51 +136,51 @@ export default function FindBooking({ providers, events, locations, clients }) {
   };
 
   // Handle OTP send for returning clients
-const handleSendOTP = async (e) => {
-  e.preventDefault();
-  setOtpError("");
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setOtpError("");
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneRegex = /^[0-9]{10,15}$/; // Adjust length as needed
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{10,15}$/; // Adjust length as needed
 
-  // Client-side validation
-  if (!loginData.email || !emailRegex.test(loginData.email)) {
-    setOtpError("Please enter a valid email address.");
-    return;
-  }
-
-  if (!loginData.phonenumber || !phoneRegex.test(loginData.phonenumber)) {
-    setOtpError("Please enter a valid phone number.");
-    return;
-  }
-
-  setOtpLoading(true);
-
-  try {
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: loginData.email,
-        phonenumber: loginData.phonenumber
-      }),
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      setUserFlow("otp-verification");
-    } else {
-      setOtpError(result.error || "Failed to send OTP");
+    // Client-side validation
+    if (!loginData.email || !emailRegex.test(loginData.email)) {
+      setOtpError("Please enter a valid email address.");
+      return;
     }
-  } catch (error) {
-    setOtpError("Network error. Please try again.");
-  } finally {
-    setOtpLoading(false);
-  }
-};
+
+    if (!loginData.phonenumber || !phoneRegex.test(loginData.phonenumber)) {
+      setOtpError("Please enter a valid phone number.");
+      return;
+    }
+
+    setOtpLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          phonenumber: loginData.phonenumber
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUserFlow("otp-verification");
+      } else {
+        setOtpError(result.error || "Failed to send OTP");
+      }
+    } catch (error) {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
 
   // Handle OTP verification
@@ -207,7 +207,7 @@ const handleSendOTP = async (e) => {
       if (result.success) {
         setOtpVerified(true);
         setUserFlow("new-user"); // Switch to booking flow
-        
+
         // Auto-fill address if available
         if (result.user.lastAddress) {
           handleFieldChange({
@@ -229,11 +229,11 @@ const handleSendOTP = async (e) => {
             }
           });
         }
-        
+
         // Set user email
         setUserEmail(result.user.email);
-        setFormData(prev => ({...prev, email: result.user.email}));
-        if(!currentEmail){    
+        setFormData(prev => ({ ...prev, email: result.user.email }));
+        if (!currentEmail) {
           setCurrentEmail(true);
         }
       } else {
@@ -253,7 +253,7 @@ const handleSendOTP = async (e) => {
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
-        
+
         {/* Header Section */}
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
@@ -305,7 +305,7 @@ const handleSendOTP = async (e) => {
             </button>
           </div>
         </div>
-        
+
       </div>
     );
   }
@@ -317,7 +317,7 @@ const handleSendOTP = async (e) => {
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
-        
+
         {/* Header Section */}
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
@@ -334,69 +334,67 @@ const handleSendOTP = async (e) => {
         </div>
 
         {/* Login Form */}
-       <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
-<form onSubmit={handleSendOTP} className="space-y-6">
-  {/* Email Field */}
-  <div>
-    <label className="block text-sm font-medium text-gray-900 mb-2">
-      Email Address
-    </label>
-    <input
-      type="email"
-      value={loginData.email}
-      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
-      placeholder="Enter your email"
-      className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-        otpError.includes("email") ? "border-red-500" : "border-gray-300"
-      }`}
-      required
-    />
-  </div>
+        <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
+          <form onSubmit={handleSendOTP} className="space-y-6">
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={loginData.email}
+                onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter your email"
+                className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("email") ? "border-red-500" : "border-gray-300"
+                  }`}
+                required
+              />
+            </div>
 
-  {/* Phone Field */}
-  <div>
-    <label className="block text-sm font-medium text-gray-900 mb-2">
-      Phone Number
-    </label>
-    <input
-      type="tel"
-      value={loginData.phonenumber}
-      onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
-      placeholder="Enter your phone number"
-      className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-        otpError.includes("phone") ? "border-red-500" : "border-gray-300"
-      }`}
-      required
-    />
-  </div>
+            {/* Phone Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={loginData.phonenumber}
+                onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
+                placeholder="Enter your phone number"
+                className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("phone") ? "border-red-500" : "border-gray-300"
+                  }`}
+                required
+              />
+            </div>
 
-  {/* Error Message */}
-  {otpError && (
-    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
-      {otpError}
-    </div>
-  )}
+            {/* Error Message */}
+            {otpError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+                {otpError}
+              </div>
+            )}
 
-  {/* Buttons */}
-  <div className="flex gap-4">
-    <button
-      type="button"
-      onClick={() => setUserFlow("entry")}
-      className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-    >
-      Back
-    </button>
-    <button
-      type="submit"
-      disabled={otpLoading}
-      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-    >
-      {otpLoading ? "Sending OTP..." : "Send OTP"}
-    </button>
-  </div>
-</form>
+            {/* Buttons */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUserFlow("entry")}
+                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+              >
+                {otpLoading ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </div>
+          </form>
 
-</div>
+        </div>
       </div>
     );
   }
@@ -408,7 +406,7 @@ const handleSendOTP = async (e) => {
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
-        
+
         {/* Header Section */}
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
@@ -422,50 +420,50 @@ const handleSendOTP = async (e) => {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Enter the OTP sent to your email and phone
           </p>
-          
+
         </div>
 
         {/* OTP Form */}
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
-      <form onSubmit={handleVerifyOTP} className="space-y-6">
-  <div>
-    <label className="block text-sm font-medium text-gray-900 mb-2">
-      OTP Code
-    </label>
-    <input
-      type="text"
-      value={otp}
-      onChange={(e) => setOtp(e.target.value)}
-      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono text-black placeholder-black"
-      placeholder="Enter OTP"
-      maxLength={6}
-      required
-    />
-  </div>
+          <form onSubmit={handleVerifyOTP} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                OTP Code
+              </label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono text-black placeholder-black"
+                placeholder="Enter OTP"
+                maxLength={6}
+                required
+              />
+            </div>
 
-  {otpError && (
-    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
-      {otpError}
-    </div>
-  )}
+            {otpError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+                {otpError}
+              </div>
+            )}
 
-  <div className="flex gap-4">
-    <button
-      type="button"
-      onClick={() => setUserFlow("returning-client")}
-      className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-    >
-      Back
-    </button>
-    <button
-      type="submit"
-      disabled={otpLoading}
-      className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-    >
-      {otpLoading ? "Verifying..." : "Verify OTP"}
-    </button>
-  </div>
-</form>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUserFlow("returning-client")}
+                className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={otpLoading}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+              >
+                {otpLoading ? "Verifying..." : "Verify OTP"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -476,7 +474,7 @@ const handleSendOTP = async (e) => {
     <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
       {/* Success Notification */}
       {showSuccess && bookingDetails && (
-        <SuccessNotification 
+        <SuccessNotification
           bookingDetails={bookingDetails}
           onClose={handleCloseSuccess}
         />
@@ -485,7 +483,7 @@ const handleSendOTP = async (e) => {
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
-      
+
       {/* Header Section */}
       <div className="relative text-center space-y-4">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
@@ -499,7 +497,7 @@ const handleSendOTP = async (e) => {
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Find the perfect service provider near you and schedule your appointment in just a few clicks
         </p>
-        
+
         {/* Progress Bar - Only show if not in success state */}
         {!showSuccess && (
           <div className="max-w-2xl mx-auto pt-6">
@@ -508,7 +506,7 @@ const handleSendOTP = async (e) => {
               <span className="text-sm font-semibold text-indigo-600">{Math.round((currentStep / 4) * 100)}% Complete</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
+              <div
                 className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(currentStep / 4) * 100}%` }}
               />
@@ -528,7 +526,7 @@ const handleSendOTP = async (e) => {
             onFieldChange={handleFieldChange}
             onSearchWithinChange={setSearchWithin}
             onUserEmailChange={setUserEmail}
-            onSearchClick={() => getLatLngFromAddress(address)}
+            onSearchClick={getLatLngFromAddress}
             loadingAddress={loadingAddress}
             currentEmail={currentEmail}
           />
@@ -564,13 +562,13 @@ const handleSendOTP = async (e) => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Content */}
                 <div className="text-center space-y-4 pt-4">
                   <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     {filteredProviders.length} Service Provider{filteredProviders.length !== 1 ? 's' : ''} Found Near You
                   </h2>
-                  
+
                   {/* Subtitle with dynamic messaging */}
                   <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
                     {filteredProviders.length > 0 ? (
@@ -579,7 +577,7 @@ const handleSendOTP = async (e) => {
                       <>No providers found within your search area. Try expanding your search radius.</>
                     )}
                   </p>
-                  
+
                   {/* Stats Bar */}
                   {filteredProviders.length > 0 && (
                     <div className="flex justify-center items-center gap-6 pt-4">
@@ -604,6 +602,7 @@ const handleSendOTP = async (e) => {
           {isSearchedAddress && !loadingAddress && !loadingProviders && filteredProviders.length === 0 && (
             <NoProvidersSection
               address={address}
+              userEmail={userEmail}
               onFieldChange={handleFieldChange}
               onSubmit={handleNotFoundSubmit}
             />

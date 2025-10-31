@@ -227,6 +227,7 @@ export function useBooking({ providers, events, locations, clients }) {
     lon: "",
     city: "",
     state: "",
+    zip:""
   });
 
   const [services, setServices] = useState({
@@ -376,8 +377,10 @@ export function useBooking({ providers, events, locations, clients }) {
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
+   
     setAddress((prev) => ({ ...prev, [name]: value }));
   };
+
 
   const handleSearchChange = async (e) => {
     const value = e.target.value;
@@ -416,57 +419,53 @@ export function useBooking({ providers, events, locations, clients }) {
     }));
   };
 
-  async function getLatLngFromAddress(client) {
-    setLoadingAddress(true);
-    try {
-      const fullAddress = [
-        client.address1,
-        client.address2,
-        client.city,
-        client.zip,
-        client.state, // This should be the state code like "PA"
-        client.country,
-      ]
-        .filter(Boolean)
-        .join(", ");
+const getLatLngFromAddress = async () => {
+  setLoadingAddress(true);
+  try {
+    const fullAddress = [
+      address.address1,
+      address.address2,
+      address.city,
+      address.zip,
+      address.state,
+      address.country,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
-      const res = await fetch(
-        `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(
-          fullAddress
-        )}&format=json&limit=1`
-      );
+   
 
-      const data = await res.json();
-      console.log("Location data:", data);
+    const res = await fetch(
+      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
+    );
 
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error("No location found");
-      }
+    const data = await res.json();
+    console.log("📍 Location data:", data);
 
-      const location = data[0];
-
-      // Extract state from the location response
-      const extractedState = extractStateFromPlace(location);
-      
-      // Update the address state with the fetched data
-      setAddress({
-        fullAddress: location.display_name,
-        lat: location.lat,
-        lon: location.lon,
-        city: client.city,
-        state: extractedState || client.state, // Use extracted state or fallback to client.state
-      });
-      
-      console.log("Client state set to:", extractedState || client.state);
-      
-      setIsSearchedAddress(true);
-      setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
-    } catch (error) {
-      console.error("Error fetching location:", error);
-    } finally {
-      setLoadingAddress(false);
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("No location found");
     }
+
+    const location = data[0];
+    const extractedState = extractStateFromPlace(location);
+
+    setAddress((prev) => ({
+      ...prev,
+      fullAddress: location.display_name,
+      lat: location.lat,
+      lon: location.lon,
+      state: extractedState || prev.state,
+    }));
+
+    setIsSearchedAddress(true);
+    setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
+  } catch (error) {
+    console.error("❌ Error fetching location:", error);
+  } finally {
+    setLoadingAddress(false);
   }
+};
+
 
   const handleNotFoundSubmit = async () => {
     if (address.email === "" || address.phone === "") {
