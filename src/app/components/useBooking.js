@@ -374,12 +374,40 @@ export function useBooking({ providers, events, locations, clients }) {
       alert("Something went wrong while Hiding the provider.");
     }
   }
+const handleFieldChange = (e) => {
+  const { name, value } = e.target;
+  let formattedValue = value;
 
-  const handleFieldChange = (e) => {
-    const { name, value } = e.target;
-   
-    setAddress((prev) => ({ ...prev, [name]: value }));
-  };
+  switch (name) {
+    case "city":
+      // Capitalize first letter of each word, remove numbers/symbols
+      formattedValue = value
+        .toLowerCase()
+        .replace(/[^a-zA-Z\s]/g, "") // keep only letters and spaces
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+      break;
+
+    case "state":
+      // Allow only 2 uppercase letters
+      formattedValue = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+      break;
+
+    case "zip":
+      // Allow only 5 numeric digits
+      formattedValue = value.replace(/\D/g, "").slice(0, 5);
+      break;
+
+    default:
+      formattedValue = value;
+      break;
+  }
+
+  setAddress((prev) => ({
+    ...prev,
+    [name]: formattedValue,
+  }));
+};
+
 
 
   const handleSearchChange = async (e) => {

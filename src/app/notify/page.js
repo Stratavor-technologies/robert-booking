@@ -189,9 +189,9 @@ export default function NotifyPage() {
                     <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
                       <span className="text-gray-400">📍</span>
                       <div>
-                        <div className="text-xs text-gray-500 font-medium">Coordinates</div>
+                        <div className="text-xs text-gray-500 font-medium">Address</div>
                         <div className="text-gray-900 font-medium text-xs">
-                          {formatCoordinate(enquiry.lat)}, {formatCoordinate(enquiry.lon)}
+                          {enquiry.fullAddress}
                         </div>
                       </div>
                     </div>
