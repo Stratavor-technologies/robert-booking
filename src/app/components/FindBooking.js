@@ -9,6 +9,7 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
+import Header from "./Header";
 import { set } from "mongoose";
 
 const dayMap = {
@@ -22,6 +23,8 @@ const dayMap = {
 };
 
 export default function FindBooking({ providers, events, locations, clients }) {
+
+  console.log("FindBooking props: ", providers, events, locations, clients);
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
   const [userFlow, setUserFlow] = useState("entry"); // 'entry', 'new-user', 'returning-client', 'otp-verification'
@@ -117,7 +120,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
       }, 5000);
     }
   };
-
   // Manual close handler for success notification
   const handleCloseSuccess = () => {
     setShowSuccess(false);
@@ -229,7 +231,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             }
           });
         }
-
+       
         // Set user email
         setUserEmail(result.user.email);
         setFormData(prev => ({ ...prev, email: result.user.email }));
@@ -249,7 +251,9 @@ export default function FindBooking({ providers, events, locations, clients }) {
   // Entry Point - Two Buttons
   if (userFlow === "entry") {
     return (
-      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+      <>
+      <Header userEmail={userEmail}  providers={providers}/>
+          <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
@@ -307,12 +311,16 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </div>
 
       </div>
+      </>
     );
   }
 
   // Returning Client Login Form
   if (userFlow === "returning-client") {
     return (
+      <>
+          <Header userEmail={userEmail}  providers={providers}/>
+     
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
@@ -396,12 +404,16 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
         </div>
       </div>
+       </>
     );
   }
 
   // OTP Verification
   if (userFlow === "otp-verification") {
     return (
+      <>
+           <Header userEmail={userEmail}  providers={providers}/>
+     
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
@@ -466,11 +478,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
           </form>
         </div>
       </div>
+       </>
     );
   }
 
   // Main Booking Flow (for both new users and returning clients)
   return (
+    <>
+        <Header userEmail={userEmail}  providers={providers}/>
+   
     <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
       {/* Success Notification */}
       {showSuccess && bookingDetails && (
@@ -736,5 +752,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
         </div>
       )}
     </div>
+     </>
   );
 }
