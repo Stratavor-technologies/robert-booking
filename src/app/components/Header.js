@@ -1,11 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasUser, setHasUser] = useState(false);
+  const router = useRouter();
+
+/*   useEffect(() => {
+    // Check if user exists in sessionStorage
+  
+    const user = sessionStorage.getItem("userAuth");
+    console.log(user)
+    setHasUser(!!user);
+  }, []); */
+
+useEffect(() => {
+  const checkUser = () => {
+    const user = sessionStorage.getItem("userAuth");
+    setHasUser(!!user);
+  };
+
+  checkUser();
+
+  // Listen for changes to sessionStorage (from other parts of app)
+  window.addEventListener("storage", checkUser);
+  window.addEventListener("session-changed", checkUser); // custom event trigger
+  return () => {
+    window.removeEventListener("storage", checkUser);
+    window.removeEventListener("session-changed", checkUser);
+  };
+}, []);
+
+
 
   const navItems = [
     { label: "Home", href: "/" },
@@ -15,21 +45,30 @@ export default function Header() {
     { label: "Notify-Users", href: "/notify" },
   ];
 
-  const handleReload = () => {
-    window.location.href = "/"; // forces full reload
+  // Add "Past Bookings" if user is logged in
+  const updatedNavItems = hasUser
+    ? [...navItems, { label: "Past Bookings", href: "/past-bookings" }]
+    : navItems;
+
+  const handleBackToHome = () => {
+    sessionStorage.clear(); // clear user/session data
+    window.location.reload(); // reload page
   };
 
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
         {/* Logo */}
-        <Link href="/" className="text-2xl font-bold text-blue-600">
+        <button
+          onClick={() => router.push("/")}
+          className="text-2xl font-bold text-blue-600"
+        >
           BellyCast
-        </Link>
+        </button>
 
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6">
-          {navItems.map((item, idx) => (
+          {updatedNavItems.map((item, idx) => (
             <Link
               key={idx}
               href={item.href}
@@ -43,7 +82,7 @@ export default function Header() {
         {/* CTA Button */}
         <div className="hidden md:block">
           <button
-            onClick={handleReload}
+            onClick={handleBackToHome}
             className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
           >
             Back to Home
@@ -62,7 +101,7 @@ export default function Header() {
       {/* Mobile Dropdown */}
       {isOpen && (
         <div className="md:hidden bg-white shadow-md px-6 py-4 space-y-4">
-          {navItems.map((item, idx) => (
+          {updatedNavItems.map((item, idx) => (
             <Link
               key={idx}
               href={item.href}
@@ -73,7 +112,7 @@ export default function Header() {
             </Link>
           ))}
           <button
-            onClick={handleReload}
+            onClick={handleBackToHome}
             className="block w-full bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition text-center"
           >
             Back To Home

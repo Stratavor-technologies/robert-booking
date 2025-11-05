@@ -9,7 +9,6 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
-import { set } from "mongoose";
 
 const dayMap = {
   0: "Sunday",
@@ -24,7 +23,7 @@ const dayMap = {
 export default function FindBooking({ providers, events, locations, clients }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
-  const [userFlow, setUserFlow] = useState("entry"); // 'entry', 'new-user', 'returning-client', 'otp-verification'
+  const [userFlow, setUserFlow] = useState("entry");
   const [loginData, setLoginData] = useState({
     email: "",
     phonenumber: ""
@@ -34,60 +33,164 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
-  const {
-    // State
-    selectedEvent,
-    selectedProvider,
-    selectedDate,
-    selectedTime,
-    workCalandar,
-    firstDay,
-    loadingCalendar,
-    slots,
-    clientLocation,
-    searchWithin,
-    selectedClient,
-    query,
-    suggestions,
-    isSearchedAddress,
-    limitedLocations,
-    filteredProviders,
-    userEmail,
-    formData,
-    address,
-    services,
 
-    providerArray,
-    // Loading States
-    loadingProviders,
-    loadingServices,
-    loadingTimeSlots,
-    submittingBooking,
-    loadingAddress,
+  // 🔥 AUTH PERSISTENCE: Load saved auth state on component mount
+/*   useEffect(() => {
+    const loadAuthState = () => {
+      if (typeof window !== 'undefined') {
+        const savedAuth = sessionStorage.getItem('userAuth');
+        if (savedAuth) {
+          try {
+            const parsed = JSON.parse(savedAuth);
+            if (parsed.isAuthenticated) {
+              console.log('✅ Restoring auth state:', parsed);
+              setUserFlow("new-user");
+              setOtpVerified(true);
+              setLoginData({
+                email: parsed.userEmail,
+                phonenumber: parsed.loginData.phonenumber
+              });
+              setUserEmail(parsed.userEmail);
+              setFormData(prev => ({ ...prev, email: parsed.userEmail }));
+              setCurrentEmail(true);
+              
+              // Restore address if available
+              if (parsed.userData?.lastAddress) {
+                handleFieldChange({
+                  target: {
+                    name: "fullAddress",
+                    value: parsed.userData.lastAddress.fullAddress
+                  }
+                });
+                handleFieldChange({
+                  target: {
+                    name: "city",
+                    value: parsed.userData.lastAddress.city || ""
+                  }
+                });
+                handleFieldChange({
+                  target: {
+                    name: "state",
+                    value: parsed.userData.lastAddress.state || ""
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error loading auth state:', error);
+            sessionStorage.removeItem('userAuth');
+          }
+        }
+      }
+    };
 
-    // Handlers
-    handleChange,
-    handleCheckboxChange,
-    handleSubmit,
-    handleBlacklist,
-    handleFieldChange,
-    handleSearchChange,
-    handleSearchSelect,
-    setSearchWithin,
-    setUserEmail,
-    setSelectedProvider,
-    setSelectedDate,
-    setSelectedTime,
-    getLatLngFromAddress,
-    handleNotFoundSubmit,
-    handleMonthChange,
-    getSelectedServiceNames,
-    resetBooking,
+    loadAuthState();
+  }, []); */
 
+// Get all hook functions FIRST
+const {
+  selectedEvent,
+  selectedProvider,
+  selectedDate,
+  selectedTime,
+  workCalandar,
+  firstDay,
+  loadingCalendar,
+  slots,
+  clientLocation,
+  searchWithin,
+  selectedClient,
+  query,
+  suggestions,
+  isSearchedAddress,
+  limitedLocations,
+  filteredProviders,
+  userEmail,
+  formData,
+  address,
+  services,
+  providerArray,
+  loadingProviders,
+  loadingServices,
+  loadingTimeSlots,
+  submittingBooking,
+  loadingAddress,
+  handleChange,
+  handleCheckboxChange,
+  handleSubmit,
+  handleBlacklist,
+  handleFieldChange,
+  handleSearchChange,
+  handleSearchSelect,
+  setSearchWithin,
+  setUserEmail,
+  setSelectedProvider,
+  setSelectedDate,
+  setSelectedTime,
+  getLatLngFromAddress,
+  handleNotFoundSubmit,
+  handleMonthChange,
+  getSelectedServiceNames,
+  resetBooking,
+  setFormData
+} = useBooking({ providers, events, locations, clients });
 
-    setFormData
-  } = useBooking({ providers, events, locations, clients });
+// 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
+useEffect(() => {
+  const loadAuthState = () => {
+    if (typeof window !== 'undefined') {
+      const savedAuth = sessionStorage.getItem('userAuth');
+      if (savedAuth) {
+        try {
+          const parsed = JSON.parse(savedAuth);
+          if (parsed.isAuthenticated) {
+            console.log('✅ Restoring auth state:', parsed);
+            
+            // Set UI state
+            setUserFlow("new-user");
+            setOtpVerified(true);
+            setLoginData({
+              email: parsed.userEmail,
+              phonenumber: parsed.loginData.phonenumber
+            });
+            setCurrentEmail(true);
+            
+            // Set booking hook state
+            setUserEmail(parsed.userEmail);
+            setFormData(prev => ({ ...prev, email: parsed.userEmail }));
+            
+            // Restore address if available
+            if (parsed.userData?.lastAddress) {
+              const addr = parsed.userData.lastAddress;
+              
+              if (addr.fullAddress) {
+                handleFieldChange({
+                  target: { name: "fullAddress", value: addr.fullAddress }
+                });
+              }
+              if (addr.city) {
+                handleFieldChange({
+                  target: { name: "city", value: addr.city }
+                });
+              }
+              if (addr.state) {
+                handleFieldChange({
+                  target: { name: "state", value: addr.state }
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error loading auth state:', error);
+          sessionStorage.removeItem('userAuth');
+        }
+      }
+    }
+  };
 
+  loadAuthState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []); // Empty array - only run once on mount
   const currentStep = selectedTime
     ? 4
     : selectedDate
@@ -110,7 +213,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
       });
       setShowSuccess(true);
 
-      // Auto-hide success notification after 5 seconds
       setTimeout(() => {
         setShowSuccess(false);
         setBookingDetails(null);
@@ -118,13 +220,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
     }
   };
 
-  // Manual close handler for success notification
   const handleCloseSuccess = () => {
     setShowSuccess(false);
     setBookingDetails(null);
   };
 
-  // Reset everything including success state
+  // 🔥 AUTH PERSISTENCE: Enhanced reset that clears session storage
   const handleFullReset = () => {
     resetBooking();
     setShowSuccess(false);
@@ -133,6 +234,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setOtpVerified(false);
     setOtp("");
     setLoginData({ email: "", phonenumber: "" });
+    
+    // Clear auth state from session storage
+    sessionStorage.removeItem('userAuth');
+    console.log('🗑️ Cleared auth state from session storage');
   };
 
   // Handle OTP send for returning clients
@@ -141,9 +246,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
     setOtpError("");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[0-9]{10,15}$/; // Adjust length as needed
+    const phoneRegex = /^[0-9]{10,15}$/;
 
-    // Client-side validation
     if (!loginData.email || !emailRegex.test(loginData.email)) {
       setOtpError("Please enter a valid email address.");
       return;
@@ -182,8 +286,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     }
   };
 
-
-  // Handle OTP verification
+  // 🔥 AUTH PERSISTENCE: Enhanced OTP verification that saves to session storage
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setOtpLoading(true);
@@ -206,8 +309,22 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
       if (result.success) {
         setOtpVerified(true);
-        setUserFlow("new-user"); // Switch to booking flow
+        setUserFlow("new-user");
 
+        // 🔥 SAVE AUTH STATE TO SESSION STORAGE
+        const authData = {
+          isAuthenticated: true,
+          userEmail: result.user.email,
+          userData: result.user,
+          loginData: {
+            email: loginData.email,
+            phonenumber: loginData.phonenumber
+          },
+          timestamp: new Date().toISOString()
+        };
+        sessionStorage.setItem('userAuth', JSON.stringify(authData));
+        console.log('💾 Saved auth state to session storage');
+        window.dispatchEvent(new Event("session-changed"));
         // Auto-fill address if available
         if (result.user.lastAddress) {
           handleFieldChange({
@@ -230,7 +347,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
           });
         }
 
-        // Set user email
         setUserEmail(result.user.email);
         setFormData(prev => ({ ...prev, email: result.user.email }));
         if (!currentEmail) {
@@ -305,7 +421,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </button>
           </div>
         </div>
-
       </div>
     );
   }
@@ -393,7 +508,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
               </button>
             </div>
           </form>
-
         </div>
       </div>
     );
@@ -420,7 +534,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Enter the OTP sent to your email and phone
           </p>
-
         </div>
 
         {/* OTP Form */}

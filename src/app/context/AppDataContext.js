@@ -1,0 +1,84 @@
+"use client";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
+
+const AppDataContext = createContext();
+
+export const AppDataProvider = ({ children }) => {
+  const [providers, setProviders] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_URL;
+
+      const [providersRes, eventsRes, locationsRes, clientsRes] = await Promise.all([
+        fetch(`${base}/api/providers`, { cache: "no-store" }),
+        fetch(`${base}/api/events`, { cache: "no-store" }),
+        fetch(`${base}/api/locations`, { cache: "no-store" }),
+        fetch(`${base}/api/clients`, { cache: "no-store" }),
+      ]);
+
+      const [providersJson, eventsJson, locationsJson, clientsJson] = await Promise.all([
+        providersRes.ok ? providersRes.json() : [],
+        eventsRes.ok ? eventsRes.json() : [],
+        locationsRes.ok ? locationsRes.json() : [],
+        clientsRes.ok ? clientsRes.json() : [],
+      ]);
+
+      // 🧠 Convert object to array safely
+      const normalize = (data) =>
+        Array.isArray(data)
+          ? data
+          : typeof data === "object" && data !== null
+          ? Object.values(data)
+          : [];
+
+      const filteredProviders = normalize(providersJson).filter(
+        (p) =>
+          p.is_active === "1" &&
+          p.is_visible === "1" &&
+          (p.good_standing === true ||
+            p.good_standing === "1" ||
+            p.good_standing === "yes" ||
+            p.good_standing === "true" ||
+            !("good_standing" in p))
+      );
+
+      setProviders(filteredProviders);
+      setEvents(normalize(eventsJson));
+      setLocations(normalize(locationsJson));
+      setClients(normalize(clientsJson));
+    } catch (err) {
+      console.error("Error fetching app data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {   
+    
+    console.log("Providers updated:", providers);
+
+    } ,[providers]);
+
+  return (
+    <AppDataContext.Provider
+      value={{
+        providers,
+        events,
+        locations,
+        clients,
+        loading,
+        fetchAllData,
+      }}
+    >
+      {children}
+    </AppDataContext.Provider>
+  );
+};
+
+export const useAppData = () => useContext(AppDataContext);
