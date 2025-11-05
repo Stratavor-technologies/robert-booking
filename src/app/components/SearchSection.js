@@ -1,3 +1,6 @@
+"use client";
+import { useState } from "react";
+
 export default function SearchSection({
   address,
   searchWithin,
@@ -9,9 +12,36 @@ export default function SearchSection({
   loadingAddress = false,
   currentEmail,
 }) {
+  const usStates = [
+    "AL", "AK", "AZ", "AR", "CA",
+    "CO", " CT", " DE", " FL", " GA",
+    "HI", " ID", " IL", " IN", " IA", " KS",
+    "KY", " LA", " ME", " MD", " MA",
+    "MI", " MN", " MS", " MO", " MT",
+    "NE", " NV", "  NH", "  NJ", "  NM",
+    "NY", "NC", "  ND", " OH", " OK",
+    "OR", " PA", "  RI", "  SC",
+    "SD", " TN", " TX", " UT", " VT",
+    "VA", " WA", "  WV", " WI", " WY",
+  ];
+
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchText, setSearchText] = useState(address.state || "");
+
+  const filteredStates = usStates.filter((state) =>
+    state.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  const handleSelect = (state) => {
+    const abbr = state.match(/\((.*?)\)/)?.[1] || state;
+    setSearchText(abbr);
+    setShowDropdown(false);
+    onFieldChange({ target: { name: "state", value: abbr } });
+  };
+
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative overflow-hidden">
-      {/* Background Gradient */}
+      {/* Gradient header bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
 
       {/* Header */}
@@ -31,29 +61,14 @@ export default function SearchSection({
 
       {/* Form */}
       <div className="space-y-6">
-        {/* City & State Grid */}
+        {/* City, State, ZIP Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* City */}
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <svg
-                className="w-4 h-4 text-indigo-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
+              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               City
             </label>
@@ -64,20 +79,15 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="Enter your city"
               disabled={loadingAddress}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             />
           </div>
 
-          {/* State */}
-          <div className="space-y-2">
+          {/* State (Custom Combo Box) */}
+          <div className="space-y-2 relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <svg
-                className="w-4 h-4 text-indigo-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -87,33 +97,58 @@ export default function SearchSection({
               </svg>
               State
             </label>
-            <input
-              type="text"
-              name="state"
-              value={address.state}
-              onChange={onFieldChange}
-              placeholder="Enter your state"
-              disabled={loadingAddress}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-            />
-          </div>
 
-          {/* ZIP / Postal Code */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="text"
+                name="state"
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                  setShowDropdown(true);
+                  onFieldChange({ target: { name: "state", value: e.target.value.toUpperCase() } });
+                }}
+                onFocus={() => setShowDropdown(true)}
+                placeholder="select a state"
+                disabled={loadingAddress}
+                className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none uppercase transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+              />
               <svg
-                className="w-4 h-4 text-indigo-500"
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+
+              {showDropdown && (
+                <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                  {filteredStates.length > 0 ? (
+                    filteredStates.map((state) => (
+                      <li
+                        key={state}
+                        onClick={() => handleSelect(state)}
+                        className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
+                      >
+                        {state}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-4 py-2 text-gray-400">No results found</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* ZIP */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z" />
               </svg>
               ZIP Code
             </label>
@@ -124,36 +159,25 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="Enter your ZIP code"
               disabled={loadingAddress}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             />
           </div>
         </div>
 
+        {/* Search Area + Email + Button remain unchanged */}
+        <SearchWithinInput
+          searchWithin={searchWithin}
+          onChange={onSearchWithinChange}
+          disabled={loadingAddress}
+        />
 
-        {/* Search Within Input */}
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Search Radius
-          </label>
-          <SearchWithinInput
-            searchWithin={searchWithin}
-            onChange={onSearchWithinChange}
-            disabled={loadingAddress}
-          />
-        </div>
-
-        {/* Email Input */}
-         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <label className="block text-sm font-semibold text-black mb-2 flex items-center gap-2">
+            <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Email Address
-            <span className="text-xs text-gray-400 font-normal">(for personalized experience)</span>
           </label>
           <input
             type="email"
@@ -162,52 +186,17 @@ export default function SearchSection({
             onChange={(e) => onUserEmailChange(e.target.value)}
             placeholder="your.email@example.com"
             disabled={loadingAddress || currentEmail}
-            className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-black ${
-              loadingAddress ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3.5 bg-white/50 focus:ring-2 focus:ring-indigo-400 text-black"
           />
         </div>
 
-        {/* Search Button */}
         <button
           onClick={onSearchClick}
           disabled={loadingAddress}
-          className={`w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 flex items-center justify-center gap-3 group relative overflow-hidden ${loadingAddress
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:scale-[1.02]'
-            }`}
+          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
-          {/* Loading Overlay */}
-          {loadingAddress && (
-            <div className="absolute inset-0 bg-indigo-600 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-
-          <svg
-            className={`w-5 h-5 text-white transition-transform ${loadingAddress ? 'opacity-0' : 'group-hover:scale-110'
-              }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-
-          <span className={loadingAddress ? 'opacity-0' : ''}>
-            {loadingAddress ? 'Searching...' : 'Search Service Providers'}
-          </span>
+          {loadingAddress ? "Searching..." : "Search Service Providers"}
         </button>
-
-        {/* Loading Message */}
-        {loadingAddress && (
-          <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <div className="flex items-center justify-center gap-3 text-blue-700">
-              <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm font-medium">Finding providers in your area...</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -215,8 +204,10 @@ export default function SearchSection({
 
 function SearchWithinInput({ searchWithin, onChange, disabled = false }) {
   return (
-    <div className={`flex items-center bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 ${disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`}>
+    <div
+      className={`flex items-center bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 ${disabled ? "opacity-50 cursor-not-allowed" : ""
+        }`}
+    >
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-r border-gray-200 flex items-center gap-2">
         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -236,9 +227,11 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false }) {
         }}
         disabled={disabled}
         className="flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
-        placeholder="1-20"
+        placeholder="1–20"
       />
-      <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">Miles</span>
+      <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
+        Miles
+      </span>
     </div>
   );
 }

@@ -1,12 +1,17 @@
 import mongoose from "mongoose";
-
+ 
 // Prevent OverwriteModelError during hot reload in Next.js
 if (mongoose.models.Enquiry) {
   delete mongoose.models.Enquiry;
 }
-
+ 
 const EnquirySchema = new mongoose.Schema(
   {
+    enquiredBy: {
+      type: String,
+      trim: true,
+   
+    },
     city: {
       type: String,
       trim: true,
@@ -53,5 +58,5 @@ const EnquirySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
+ 
 export default mongoose.model("Enquiry", EnquirySchema);
