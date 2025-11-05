@@ -20,9 +20,42 @@ const dayMap = {
   6: "Saturday",
 };
 
-export default function FindBooking({ providers, events, locations, clients }) {
+// Helper functions for localStorage
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(`booking_${key}`, JSON.stringify(data));
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
+};
 
+const getFromLocalStorage = (key, defaultValue = null) => {
+  try {
+    const item = localStorage.getItem(`booking_${key}`);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error('Error reading from localStorage:', error);
+    return defaultValue;
+  }
+};
+
+const clearLocalStorage = () => {
+  try {
+    // Remove only booking-related items
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('booking_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (error) {
+    console.error('Error clearing localStorage:', error);
+  }
+};
+
+export default function FindBooking({ providers, events, locations, clients }) {
   console.log("FindBooking props: ", providers, events, locations, clients);
+  
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
   const [userFlow, setUserFlow] = useState("entry");
@@ -32,7 +65,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
   });
   const [otp, setOtp] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
 
@@ -276,7 +308,7 @@ useEffect(() => {
       const result = await response.json();
 
       if (result.success) {
-        setUserFlow("otp-verification");
+        setUserFlowWithPersist("otp-verification");
       } else {
         setOtpError(result.error || "Failed to send OTP");
       }
@@ -349,9 +381,7 @@ useEffect(() => {
         }
         setUserEmail(result.user.email);
         setFormData(prev => ({ ...prev, email: result.user.email }));
-        if (!currentEmail) {
-          setCurrentEmail(true);
-        }
+        setCurrentEmailWithPersist(true);
       } else {
         setOtpError(result.error || "Invalid OTP");
       }
@@ -399,7 +429,7 @@ useEffect(() => {
             <h3 className="text-2xl font-bold text-gray-800 mb-3">Find Door-To-Door Services</h3>
             <p className="text-gray-600 mb-6">New to our service? Find beauty professionals in your area.</p>
             <button
-              onClick={() => setUserFlow("new-user")}
+              onClick={() => setUserFlowWithPersist("new-user")}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
               Find Services
@@ -416,7 +446,7 @@ useEffect(() => {
             <h3 className="text-2xl font-bold text-gray-800 mb-3">Client Login</h3>
             <p className="text-gray-600 mb-6">Returning client? Login to manage your appointments.</p>
             <button
-              onClick={() => setUserFlow("returning-client")}
+              onClick={() => setUserFlowWithPersist("returning-client")}
               className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
               Client Login
@@ -465,7 +495,7 @@ useEffect(() => {
               <input
                 type="email"
                 value={loginData.email}
-                onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => setLoginDataWithPersist({ ...loginData, email: e.target.value })}
                 placeholder="Enter your email"
                 className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("email") ? "border-red-500" : "border-gray-300"
                   }`}
@@ -481,7 +511,7 @@ useEffect(() => {
               <input
                 type="tel"
                 value={loginData.phonenumber}
-                onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
+                onChange={(e) => setLoginDataWithPersist({ ...loginData, phonenumber: e.target.value })}
                 placeholder="Enter your phone number"
                 className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("phone") ? "border-red-500" : "border-gray-300"
                   }`}
@@ -500,7 +530,7 @@ useEffect(() => {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => setUserFlow("entry")}
+                onClick={() => setUserFlowWithPersist("entry")}
                 className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 Back
@@ -556,7 +586,7 @@ useEffect(() => {
               <input
                 type="text"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(e) => setOtpWithPersist(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-center text-2xl font-mono text-black placeholder-black"
                 placeholder="Enter OTP"
                 maxLength={6}
@@ -573,7 +603,7 @@ useEffect(() => {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => setUserFlow("returning-client")}
+                onClick={() => setUserFlowWithPersist("returning-client")}
                 className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 Back
