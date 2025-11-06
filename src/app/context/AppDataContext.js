@@ -53,17 +53,28 @@ export const AppDataProvider = ({ children }) => {
       setLocations(normalize(locationsJson));
       setClients(normalize(clientsJson));
     } catch (err) {
-      console.error("Error fetching app data:", err);
+      console.error("Error fetching in app data:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {   
-    
-    console.log("Providers updated:", providers);
-
+    console.log("Provider updated :", providers);
     } ,[providers]);
+
+  useEffect(()=>{
+    console.log("events updated:", events);
+  },[events]);
+
+  useEffect(()=>{
+    console.log("location updated:", locations);
+  },[locations]);
+
+  useEffect(()=>{
+    console.log("clients updated:", clients);
+  },[clients]);
+
 
   return (
     <AppDataContext.Provider

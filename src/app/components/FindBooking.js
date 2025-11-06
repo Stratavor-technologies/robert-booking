@@ -144,7 +144,7 @@ useEffect(() => {
         try {
           const parsed = JSON.parse(savedAuth);
           if (parsed.isAuthenticated) {
-            console.log('✅ Restoring auth state:', parsed);
+            /* console.log('✅ Restoring auth state:', parsed); */
             
             // Set UI state
             setUserFlow("new-user");

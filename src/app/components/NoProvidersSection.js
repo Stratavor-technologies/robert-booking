@@ -197,7 +197,7 @@ export default function NoProvidersSection({ address, userEmail }) {
             placeholder="your.email@example.com"
             disabled={isSubmitting}
             className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
-            bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+            bg-white/50 text-gray-600 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
             focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
               }`}
           />

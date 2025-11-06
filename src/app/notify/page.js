@@ -76,10 +76,10 @@ export default function NotifyPage() {
             <tr>
               {[
                 "ID",
-                "Name",
                 "Date",
                 "State",
                 "City",
+                "Name",
                 "Email",
                 "Phone",
                 "Status",
@@ -99,20 +99,15 @@ export default function NotifyPage() {
               filteredEnquiries.map((enquiry, index) => (
                 <tr
                   key={index}
-                  className={`border-b border-gray-100 hover:bg-amber-50/50 transition ${
-                    index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                  }`}
+                  className={`border-b border-gray-100 hover:bg-amber-50/50 transition ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                    }`}
                 >
-                  {/* ID — first 4 chars of _id */}
+                  {/* ID */}
                   <td className="p-4 border-r font-mono text-gray-700">
-                    {enquiry._id?.slice(0, 4) || "----"}
+                    {enquiry._id ? enquiry._id.slice(-4) : "----"}
                   </td>
 
-                  {/* Name (enquiredBy) */}
-                  <td className="p-4 border-r font-medium text-gray-800 capitalize">
-                    {enquiry.enquiredBy || "N/A"}
-                  </td>
-
+                  {/* Date */}
                   <td className="p-4 border-r text-gray-600">
                     {new Date(enquiry.createdAt).toLocaleDateString("en-US", {
                       day: "2-digit",
@@ -120,29 +115,48 @@ export default function NotifyPage() {
                       year: "numeric",
                     })}
                   </td>
+
+                  {/* State */}
                   <td className="p-4 border-r font-medium text-gray-800">
                     {enquiry.state || "N/A"}
                   </td>
+
+                  {/* City */}
                   <td className="p-4 border-r">{enquiry.city || "N/A"}</td>
+
+                  {/* Name */}
+                  <td className="p-4 border-r font-medium text-gray-800 capitalize">
+                    {enquiry.enquiredBy || "N/A"}
+                  </td>
+
+                  {/* Email */}
                   <td className="p-4 border-r max-w-[200px] truncate text-blue-600 hover:underline cursor-pointer">
                     {enquiry.email}
                   </td>
+
+                  {/* Phone */}
                   <td className="p-4 border-r text-gray-700">
-                    {enquiry.phoneNumber || "—"}
+                    {enquiry.phoneNumber
+                      ? `(${enquiry.phoneNumber.slice(0, 3)}) ${enquiry.phoneNumber.slice(3, 6)}-${enquiry.phoneNumber.slice(6)}`
+                      : "—"}
                   </td>
+
+
+                  {/* Status */}
                   <td className="p-4 border-r">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        enquiry.status === "completed"
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${enquiry.status === "completed"
                           ? "bg-green-100 text-green-700"
                           : enquiry.status === "contacted"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
                     >
                       {enquiry.status || "New"}
                     </span>
                   </td>
+
+                  {/* Action */}
                   <td className="p-4 text-center">
                     <button className="px-4 py-1.5 text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg shadow hover:shadow-md hover:scale-105 transition">
                       Edit

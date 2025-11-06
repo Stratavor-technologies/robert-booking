@@ -252,7 +252,7 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             } ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {isSelected ? "Selected" : "Select"}
+            {isSelected ? "Selected" : "View Services"}
           </button>
           
 
