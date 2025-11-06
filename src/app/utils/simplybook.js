@@ -134,7 +134,7 @@ export async function getLocations() {
 
 export async function getEvents() {
   const token = await getToken();
-  return callSimplyBook("getEventList", {}, token);
+  return callSimplyBook("getServiceList", {}, token);
 }
 
 export async function getWorkCalendar(year, month, performerId) {

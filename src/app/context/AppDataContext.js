@@ -29,6 +29,23 @@ export const AppDataProvider = ({ children }) => {
         clientsRes.ok ? clientsRes.json() : [],
       ]);
 
+   /*    useEffect(() => {   
+    console.log("Provider updated :", providers);
+    } ,[providers]);
+
+  useEffect(()=>{
+    console.log("events updated:", events);
+  },[events]);
+
+  useEffect(()=>{
+    console.log("location updated:", locations);
+  },[locations]);
+
+  useEffect(()=>{
+    console.log("clients updated:", clients);
+  },[clients]);
+ */
+
       // 🧠 Convert object to array safely
       const normalize = (data) =>
         Array.isArray(data)

@@ -634,10 +634,10 @@ const getLatLngFromAddress = async () => {
 
 useEffect(() => {
     console.log("🔍 Filtering providers...");
-    console.log("Client location:", clientLocation);
-    console.log("Client state:", address.state);
-    console.log("Total providers:", providerArray?.length);
-    console.log("Total locations:", locationArray?.length);
+    console.log("Client location of that country:", clientLocation);
+    console.log("Client state of that country:", address.state);
+    console.log("Total providers of that country:", providerArray?.length);
+    console.log("Total locations of that country:", locationArray?.length);
 
     if (!providerArray || providerArray.length === 0) {
       setFilteredProviders([]);
@@ -703,7 +703,7 @@ useEffect(() => {
         })
         .filter(Boolean);
       
-      console.log("Providers after state filtering:", stateFilteredProviders.length);
+      console.log("Providers after state filtering out:", stateFilteredProviders.length);
     } else {
       console.log("No valid client state code, showing all providers (no state filtering)");
       // If no state, prepare providers for distance calculation

@@ -19,6 +19,8 @@ export default function Home() {
     fetchAllData();
   }, [fetchAllData]);
 
+  console.log("events: ", events);
+
   return (
     <>
       <Banner />

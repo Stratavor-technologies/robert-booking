@@ -16,7 +16,7 @@ export default function ProvidersSection({
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   if(providers)
   {
-    console.log("userEmail raw:", JSON.stringify(userEmail));
+    console.log("userEmail raw of your data:", JSON.stringify(userEmail));
 console.log("isEmpty?", userEmail === "");
     console.log(providers)
   }
@@ -42,7 +42,7 @@ console.log("isEmpty?", userEmail === "");
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-800">Provider Locations</h3>
-            <p className="text-sm text-gray-600">View all available providers in your area</p>
+            <p className="text-sm text-gray-600">View all available providers in your currently area</p>
           </div>
         </div>
         <ProvidersMap

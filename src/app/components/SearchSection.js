@@ -214,6 +214,9 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false }) {
         </svg>
         Within
       </span>
+      {/* <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
+        Miles
+      </span> */}
       <input
         type="number"
         value={searchWithin}
