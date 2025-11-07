@@ -3,7 +3,6 @@ import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import User from "@/models/User";
 
-
 export async function GET(request) {
   try {
     await connectDB();
@@ -37,8 +36,6 @@ export async function GET(request) {
   }
 }
 
-
-
 export async function POST(request) {
   try {
     await connectDB();
@@ -52,7 +49,7 @@ export async function POST(request) {
       date,
       time,
       clientaddress,
-      services,
+      services = {},
     } = body;
 
     // Validation
@@ -121,7 +118,10 @@ export async function POST(request) {
       await user.save();
     }
 
-    // Create booking
+    // Convert services object to Map for MongoDB
+    const servicesMap = new Map(Object.entries(services));
+
+    // Create booking with dynamic services
     const newBooking = await Booking.create({
       fullname,
       email,
@@ -130,15 +130,19 @@ export async function POST(request) {
       date,
       time,
       clientaddress,
-      services: services || {},
+      services: servicesMap,
       userId: user._id, // link booking to user
     });
+
+    // Convert Map back to object for response
+    const bookingResponse = newBooking.toObject();
+    bookingResponse.services = Object.fromEntries(servicesMap);
 
     return NextResponse.json(
       {
         success: true,
         message: "Booking created successfully",
-        booking: newBooking,
+        booking: bookingResponse,
         user: {
           id: user._id,
           name: user.name,
@@ -155,5 +159,3 @@ export async function POST(request) {
     );
   }
 }
-
-

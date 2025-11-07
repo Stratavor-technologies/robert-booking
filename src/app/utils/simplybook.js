@@ -122,11 +122,6 @@ export async function getProviders() {
   return callSimplyBook("getUnitList", {}, token);
 }
 
-// export async function getClients() {
-//   const token = await getToken();
-//   return callSimplyBook("getClientList", {}, token);
-// }
-
 export async function getLocations() {
   const token = await getToken();
   return callSimplyBook("getLocationsList", {}, token);
@@ -134,7 +129,7 @@ export async function getLocations() {
 
 export async function getEvents() {
   const token = await getToken();
-  return callSimplyBook("getServiceList", {}, token);
+  return callSimplyBook("getEventList", {}, token);
 }
 
 export async function getWorkCalendar(year, month, performerId) {

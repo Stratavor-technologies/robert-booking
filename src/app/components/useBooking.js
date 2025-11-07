@@ -135,7 +135,6 @@ function getStateFromLocation(location) {
   return '';
 }
 
-
 // Improved function to extract state from LocationIQ place object
 function extractStateFromPlace(place) {
   console.log("Extracting state from place:", place);
@@ -230,16 +229,30 @@ export function useBooking({ providers, events, locations, clients }) {
     zip:""
   });
 
-  const [services, setServices] = useState({
-    manicure: false,
-    manicureGel: false,
-    pedicure: false,
-    pedicureGel: false,
-    eyelashFull: false,
-    eyelashRefill: false,
-    waxEyebrows: false,
-    waxLips: false,
-  });
+  // Make services state dynamic based on events
+  const [services, setServices] = useState({});
+
+  // Initialize dynamic services state based on events
+  useEffect(() => {
+    if (events && Array.isArray(events)) {
+      const initialServices = {};
+      
+      events.forEach(event => {
+        if (event.id && event.name) {
+          // Create consistent key from service name
+          const key = event.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/(^_+|_+$)/g, '');
+          
+          initialServices[key] = false;
+        }
+      });
+      
+      setServices(initialServices);
+      console.log('Dynamic services state initialized:', initialServices);
+    }
+  }, [events]);
 
   // Handler functions
   const handleChange = (e) => {
@@ -252,7 +265,10 @@ export function useBooking({ providers, events, locations, clients }) {
 
   const handleCheckboxChange = (e) => {
     const { name, checked } = e.target;
-    setServices((prev) => ({ ...prev, [name]: checked }));
+    setServices((prev) => ({ 
+      ...prev, 
+      [name]: checked 
+    }));
   };
 
   const resetBooking = () => {
@@ -275,16 +291,21 @@ export function useBooking({ providers, events, locations, clients }) {
       phone: "",
       privacy: false,
     });
-    setServices({
-      manicure: false,
-      manicureGel: false,
-      pedicure: false,
-      pedicureGel: false,
-      eyelashFull: false,
-      eyelashRefill: false,
-      waxEyebrows: false,
-      waxLips: false,
-    });
+    
+    // Reset services to all false but keep the structure
+    if (events && Array.isArray(events)) {
+      const resetServices = {};
+      events.forEach(event => {
+        if (event.id && event.name) {
+          const key = event.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/(^_+|_+$)/g, '');
+          resetServices[key] = false;
+        }
+      });
+      setServices(resetServices);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -317,8 +338,10 @@ export function useBooking({ providers, events, locations, clients }) {
         city: address.city,
         state: address.state,
       },
-      services,
+      services, // This now contains the dynamic service keys
     };
+
+    console.log('Submitting booking with services:', services);
 
     try {
       const res = await fetch("/api/bookings", {
@@ -374,41 +397,40 @@ export function useBooking({ providers, events, locations, clients }) {
       alert("Something went wrong while Hiding the provider.");
     }
   }
-const handleFieldChange = (e) => {
-  const { name, value } = e.target;
-  let formattedValue = value;
 
-  switch (name) {
-    case "city":
-      // Capitalize first letter of each word, remove numbers/symbols
-      formattedValue = value
-        .toLowerCase()
-        .replace(/[^a-zA-Z\s]/g, "") // keep only letters and spaces
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-      break;
+  const handleFieldChange = (e) => {
+    const { name, value } = e.target;
+    let formattedValue = value;
 
-    case "state":
-      // Allow only 2 uppercase letters
-      formattedValue = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-      break;
+    switch (name) {
+      case "city":
+        // Capitalize first letter of each word, remove numbers/symbols
+        formattedValue = value
+          .toLowerCase()
+          .replace(/[^a-zA-Z\s]/g, "") // keep only letters and spaces
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+        break;
 
-    case "zip":
-      // Allow only 5 numeric digits
-      formattedValue = value.replace(/\D/g, "").slice(0, 5);
-      break;
+      case "state":
+        // Allow only 2 uppercase letters
+        formattedValue = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+        break;
 
-    default:
-      formattedValue = value;
-      break;
-  }
+      case "zip":
+        // Allow only 5 numeric digits
+        formattedValue = value.replace(/\D/g, "").slice(0, 5);
+        break;
 
-  setAddress((prev) => ({
-    ...prev,
-    [name]: formattedValue,
-  }));
-};
+      default:
+        formattedValue = value;
+        break;
+    }
 
-
+    setAddress((prev) => ({
+      ...prev,
+      [name]: formattedValue,
+    }));
+  };
 
   const handleSearchChange = async (e) => {
     const value = e.target.value;
@@ -447,53 +469,50 @@ const handleFieldChange = (e) => {
     }));
   };
 
-const getLatLngFromAddress = async () => {
-  setLoadingAddress(true);
-  try {
-    const fullAddress = [
-      address.address1,
-      address.address2,
-      address.city,
-      address.zip,
-      address.state,
-      address.country,
-    ]
-      .filter(Boolean)
-      .join(", ");
+  const getLatLngFromAddress = async () => {
+    setLoadingAddress(true);
+    try {
+      const fullAddress = [
+        address.address1,
+        address.address2,
+        address.city,
+        address.zip,
+        address.state,
+        address.country,
+      ]
+        .filter(Boolean)
+        .join(", ");
 
-   
+      const res = await fetch(
+        `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
+      );
 
-    const res = await fetch(
-      `${LOCATIONIQ_API}?key=pk.6e77c85892d2eafd57fef22405d53630&q=${encodeURIComponent(fullAddress)}&format=json&limit=1`
-    );
+      const data = await res.json();
+      console.log("📍 Location data:", data);
 
-    const data = await res.json();
-    console.log("📍 Location data:", data);
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("No location found");
+      }
 
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("No location found");
+      const location = data[0];
+      const extractedState = extractStateFromPlace(location);
+
+      setAddress((prev) => ({
+        ...prev,
+        fullAddress: location.display_name,
+        lat: location.lat,
+        lon: location.lon,
+        state: extractedState || prev.state,
+      }));
+
+      setIsSearchedAddress(true);
+      setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
+    } catch (error) {
+      console.error("❌ Error fetching location:", error);
+    } finally {
+      setLoadingAddress(false);
     }
-
-    const location = data[0];
-    const extractedState = extractStateFromPlace(location);
-
-    setAddress((prev) => ({
-      ...prev,
-      fullAddress: location.display_name,
-      lat: location.lat,
-      lon: location.lon,
-      state: extractedState || prev.state,
-    }));
-
-    setIsSearchedAddress(true);
-    setClientLocation([parseFloat(location.lat), parseFloat(location.lon)]);
-  } catch (error) {
-    console.error("❌ Error fetching location:", error);
-  } finally {
-    setLoadingAddress(false);
-  }
-};
-
+  };
 
   const handleNotFoundSubmit = async () => {
     if (address.email === "" || address.phone === "") {
@@ -536,22 +555,23 @@ const getLatLngFromAddress = async () => {
     }
   };
 
-  // Add function to get selected service names
+  // Update getSelectedServiceNames to work with dynamic services
   const getSelectedServiceNames = () => {
     const selectedServices = Object.entries(services)
       .filter(([_, isSelected]) => isSelected)
       .map(([key]) => {
-        const serviceNames = {
-          manicure: "Manicure",
-          manicureGel: "Manicure Gel",
-          pedicure: "Pedicure",
-          pedicureGel: "Pedicure Gel",
-          eyelashFull: "Eyelash Full Set",
-          eyelashRefill: "Eyelash Refill",
-          waxEyebrows: "Wax Eyebrows",
-          waxLips: "Wax Lips"
-        };
-        return serviceNames[key] || key;
+        // Find the service name from events data
+        if (events && Array.isArray(events)) {
+          const service = events.find(event => {
+            const eventKey = event.name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '_')
+              .replace(/(^_+|_+$)/g, '');
+            return eventKey === key;
+          });
+          return service ? service.name : key;
+        }
+        return key;
       });
     
     return selectedServices.length > 0 ? selectedServices.join(", ") : "No services selected";
@@ -632,7 +652,7 @@ const getLatLngFromAddress = async () => {
     setLoadingTimeSlots(false);
   }, [selectedDate, workCalandar]);
 
-useEffect(() => {
+  useEffect(() => {
     console.log("🔍 Filtering providers...");
     console.log("Client location of that country:", clientLocation);
     console.log("Client state of that country:", address.state);
@@ -864,6 +884,7 @@ useEffect(() => {
 
     filterProviders();
   }, [clientLocation, searchWithin, providerArray, locations, userEmail, address.state]);
+  
   return {
     // State
     selectedEvent,
@@ -886,7 +907,8 @@ useEffect(() => {
     formData,
     address,
     services,
-    
+    providerArray,
+
     // Loading States
     loadingProviders,
     loadingServices,
@@ -912,14 +934,6 @@ useEffect(() => {
     handleMonthChange,
     resetBooking,
     getSelectedServiceNames,
-    providerArray,
-
     setFormData
   };
 }
-
-
-
-
-
-

@@ -11,14 +11,15 @@ export default function ProvidersSection({
   userEmail,
   onProviderSelect,
   onBlacklist,
-  loadingProviders = false
+  loadingProviders = false,
+  events = [] 
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
-  if(providers)
-  {
+
+  if (providers) {
     console.log("userEmail raw of your data:", JSON.stringify(userEmail));
-console.log("isEmpty?", userEmail === "");
-    console.log(providers)
+    console.log("isEmpty?", userEmail === "");
+    console.log(providers);
   }
 
   const handleBlacklist = async (providerId) => {
@@ -82,10 +83,10 @@ console.log("isEmpty?", userEmail === "");
               <div className="text-sm text-gray-500">Search radius</div>
               <div className="text-lg font-semibold text-indigo-600">{searchWithin} miles</div>
             </div>
-            
+
             {/* Manage Hidden Providers Button */}
             {userEmail && (
-              <Link 
+              <Link
                 href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
                 className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
               >
@@ -119,6 +120,7 @@ console.log("isEmpty?", userEmail === "");
                 onBlacklist={handleBlacklist}
                 isBlacklisting={blacklistingProvider === provider.id}
                 userEmail={userEmail}
+                events={events} // Pass events to ProviderCard
               />
             ))}
           </div>
@@ -134,10 +136,10 @@ console.log("isEmpty?", userEmail === "");
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Providers Found</h3>
             <p className="text-gray-600 mb-6">Try expanding your search radius or check back later.</p>
-            
+
             {/* Show Manage Hidden button in empty state too */}
             {userEmail && (
-              <Link 
+              <Link
                 href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
                 className="inline-flex items-center gap-2 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
               >
@@ -154,7 +156,39 @@ console.log("isEmpty?", userEmail === "");
   );
 }
 
-function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false ,userEmail }) {
+function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false, userEmail, events = [] }) {
+  // Get the service names and prices for this provider
+  const getProviderServices = () => {
+    if (!provider.services || !events || events.length === 0) return [];
+    
+    return provider.services
+      .map(serviceId => {
+        // Convert serviceId to string for comparison since event IDs are strings
+        const service = events.find(event => event.id === serviceId.toString());
+        return service ? {
+          name: service.name,
+          price: service.price || "0.00",
+          currency: service.currency || "USD"
+        } : null;
+      })
+      .filter(service => service !== null);
+  };
+
+  const providerServices = getProviderServices();
+
+  // Format price function
+  const formatPrice = (price, currency) => {
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum)) return `$${0.00}`;
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(priceNum);
+  };
+
   return (
     <div
       className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${
@@ -211,12 +245,41 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
               <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                 {provider.name}
               </h3>
+              
+              {/* Services Display - Vertical Bullet Points with Prices */}
+              {providerServices.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm text-gray-600 font-medium mb-2">Services offered:</p>
+                  <ul className="space-y-2">
+                    {providerServices.map((service, index) => (
+                      <li key={index} className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <span className="text-indigo-500 mt-1.5 flex-shrink-0">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                          <span className="text-sm text-gray-700 leading-relaxed flex-1 min-w-0">
+                            {service.name}
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-lg flex-shrink-0">
+                          {formatPrice(service.price, service.currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
               {provider.nearestLocation && (
-                <p className="text-gray-600 text-sm mt-1 flex items-center gap-2">
+                <p className="text-gray-600 text-sm mt-3 flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   </svg>
-                 {  provider.nearestLocation.city==provider.nearestLocation.address2  ? provider.nearestLocation.city  : provider.nearestLocation.city +" " +provider.nearestLocation.address2 } 
+                  {provider.nearestLocation.city === provider.nearestLocation.address2 
+                    ? provider.nearestLocation.city 
+                    : provider.nearestLocation.city + " " + provider.nearestLocation.address2}
                 </p>
               )}
             </div>
@@ -255,35 +318,32 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
             {isSelected ? "Selected" : "View Services"}
           </button>
           
-
-          {userEmail ?  <button
-            onClick={(e) => {
-              e.stopPropagation();
-              !isBlacklisting && onBlacklist(provider.id);
-            }}
-            disabled={isBlacklisting}
-            className={`flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-medium transition-all group/blacklist ${
-              isBlacklisting ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            {isBlacklisting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                Hiding...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4 group-hover/blacklist:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Hide
-              </>
-            )}
-          </button>  : <></>}
-
-
-         
-
+          {userEmail ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                !isBlacklisting && onBlacklist(provider.id);
+              }}
+              disabled={isBlacklisting}
+              className={`flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-medium transition-all group/blacklist ${
+                isBlacklisting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isBlacklisting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                  Hiding...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 group-hover/blacklist:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Hide
+                </>
+              )}
+            </button>
+          ) : <></>}
         </div>
       </div>
     </div>

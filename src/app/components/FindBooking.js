@@ -35,7 +35,108 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [currentEmail, setCurrentEmail] = useState(false);
 
   // 🔥 AUTH PERSISTENCE: Load saved auth state on component mount
-/*   useEffect(() => {
+  /*   useEffect(() => {
+      const loadAuthState = () => {
+        if (typeof window !== 'undefined') {
+          const savedAuth = sessionStorage.getItem('userAuth');
+          if (savedAuth) {
+            try {
+              const parsed = JSON.parse(savedAuth);
+              if (parsed.isAuthenticated) {
+                console.log('✅ Restoring auth state:', parsed);
+                setUserFlow("new-user");
+                setOtpVerified(true);
+                setLoginData({
+                  email: parsed.userEmail,
+                  phonenumber: parsed.loginData.phonenumber
+                });
+                setUserEmail(parsed.userEmail);
+                setFormData(prev => ({ ...prev, email: parsed.userEmail }));
+                setCurrentEmail(true);
+                
+                // Restore address if available
+                if (parsed.userData?.lastAddress) {
+                  handleFieldChange({
+                    target: {
+                      name: "fullAddress",
+                      value: parsed.userData.lastAddress.fullAddress
+                    }
+                  });
+                  handleFieldChange({
+                    target: {
+                      name: "city",
+                      value: parsed.userData.lastAddress.city || ""
+                    }
+                  });
+                  handleFieldChange({
+                    target: {
+                      name: "state",
+                      value: parsed.userData.lastAddress.state || ""
+                    }
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error loading auth state:', error);
+              sessionStorage.removeItem('userAuth');
+            }
+          }
+        }
+      };
+  
+      loadAuthState();
+    }, []); */
+
+  // Get all hook functions FIRST
+  const {
+    selectedEvent,
+    selectedProvider,
+    selectedDate,
+    selectedTime,
+    workCalandar,
+    firstDay,
+    loadingCalendar,
+    slots,
+    clientLocation,
+    searchWithin,
+    selectedClient,
+    query,
+    suggestions,
+    isSearchedAddress,
+    limitedLocations,
+    filteredProviders,
+    userEmail,
+    formData,
+    address,
+    services,
+    providerArray,
+    loadingProviders,
+    loadingServices,
+    loadingTimeSlots,
+    submittingBooking,
+    loadingAddress,
+    handleChange,
+    handleCheckboxChange,
+    handleSubmit,
+    handleBlacklist,
+    handleFieldChange,
+    handleSearchChange,
+    handleSearchSelect,
+    setSearchWithin,
+    setUserEmail,
+    setSelectedProvider,
+    setSelectedDate,
+    setSelectedTime,
+    getLatLngFromAddress,
+    handleNotFoundSubmit,
+    handleMonthChange,
+    getSelectedServiceNames,
+    resetBooking,
+    setFormData
+  } = useBooking({ providers, events, locations, clients });
+
+  // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
+  useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
         const savedAuth = sessionStorage.getItem('userAuth');
@@ -43,41 +144,44 @@ export default function FindBooking({ providers, events, locations, clients }) {
           try {
             const parsed = JSON.parse(savedAuth);
             if (parsed.isAuthenticated) {
-              console.log('✅ Restoring auth state:', parsed);
+              /* console.log('✅ Restoring auth state:', parsed); */
+
+              // Set UI state
               setUserFlow("new-user");
               setOtpVerified(true);
               setLoginData({
                 email: parsed.userEmail,
                 phonenumber: parsed.loginData.phonenumber
               });
+              setCurrentEmail(true);
+
+              // Set booking hook state
               setUserEmail(parsed.userEmail);
               setFormData(prev => ({ ...prev, email: parsed.userEmail }));
-              setCurrentEmail(true);
-              
+
               // Restore address if available
               if (parsed.userData?.lastAddress) {
-                handleFieldChange({
-                  target: {
-                    name: "fullAddress",
-                    value: parsed.userData.lastAddress.fullAddress
-                  }
-                });
-                handleFieldChange({
-                  target: {
-                    name: "city",
-                    value: parsed.userData.lastAddress.city || ""
-                  }
-                });
-                handleFieldChange({
-                  target: {
-                    name: "state",
-                    value: parsed.userData.lastAddress.state || ""
-                  }
-                });
+                const addr = parsed.userData.lastAddress;
+
+                if (addr.fullAddress) {
+                  handleFieldChange({
+                    target: { name: "fullAddress", value: addr.fullAddress }
+                  });
+                }
+                if (addr.city) {
+                  handleFieldChange({
+                    target: { name: "city", value: addr.city }
+                  });
+                }
+                if (addr.state) {
+                  handleFieldChange({
+                    target: { name: "state", value: addr.state }
+                  });
+                }
               }
             }
           } catch (error) {
-            console.error('Error loading auth state:', error);
+            console.error('❌ Error loading auth state:', error);
             sessionStorage.removeItem('userAuth');
           }
         }
@@ -85,112 +189,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
     };
 
     loadAuthState();
-  }, []); */
-
-// Get all hook functions FIRST
-const {
-  selectedEvent,
-  selectedProvider,
-  selectedDate,
-  selectedTime,
-  workCalandar,
-  firstDay,
-  loadingCalendar,
-  slots,
-  clientLocation,
-  searchWithin,
-  selectedClient,
-  query,
-  suggestions,
-  isSearchedAddress,
-  limitedLocations,
-  filteredProviders,
-  userEmail,
-  formData,
-  address,
-  services,
-  providerArray,
-  loadingProviders,
-  loadingServices,
-  loadingTimeSlots,
-  submittingBooking,
-  loadingAddress,
-  handleChange,
-  handleCheckboxChange,
-  handleSubmit,
-  handleBlacklist,
-  handleFieldChange,
-  handleSearchChange,
-  handleSearchSelect,
-  setSearchWithin,
-  setUserEmail,
-  setSelectedProvider,
-  setSelectedDate,
-  setSelectedTime,
-  getLatLngFromAddress,
-  handleNotFoundSubmit,
-  handleMonthChange,
-  getSelectedServiceNames,
-  resetBooking,
-  setFormData
-} = useBooking({ providers, events, locations, clients });
-
-// 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
-useEffect(() => {
-  const loadAuthState = () => {
-    if (typeof window !== 'undefined') {
-      const savedAuth = sessionStorage.getItem('userAuth');
-      if (savedAuth) {
-        try {
-          const parsed = JSON.parse(savedAuth);
-          if (parsed.isAuthenticated) {
-            /* console.log('✅ Restoring auth state:', parsed); */
-            
-            // Set UI state
-            setUserFlow("new-user");
-            setOtpVerified(true);
-            setLoginData({
-              email: parsed.userEmail,
-              phonenumber: parsed.loginData.phonenumber
-            });
-            setCurrentEmail(true);
-            
-            // Set booking hook state
-            setUserEmail(parsed.userEmail);
-            setFormData(prev => ({ ...prev, email: parsed.userEmail }));
-            
-            // Restore address if available
-            if (parsed.userData?.lastAddress) {
-              const addr = parsed.userData.lastAddress;
-              
-              if (addr.fullAddress) {
-                handleFieldChange({
-                  target: { name: "fullAddress", value: addr.fullAddress }
-                });
-              }
-              if (addr.city) {
-                handleFieldChange({
-                  target: { name: "city", value: addr.city }
-                });
-              }
-              if (addr.state) {
-                handleFieldChange({
-                  target: { name: "state", value: addr.state }
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ Error loading auth state:', error);
-          sessionStorage.removeItem('userAuth');
-        }
-      }
-    }
-  };
-
-  loadAuthState();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []); // Empty array - only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty array - only run once on mount
   const currentStep = selectedTime
     ? 4
     : selectedDate
@@ -234,7 +234,7 @@ useEffect(() => {
     setOtpVerified(false);
     setOtp("");
     setLoginData({ email: "", phonenumber: "" });
-    
+
     // Clear auth state from session storage
     sessionStorage.removeItem('userAuth');
     console.log('🗑️ Cleared auth state from session storage');
@@ -748,6 +748,7 @@ useEffect(() => {
                     userEmail={userEmail}
                     onProviderSelect={setSelectedProvider}
                     onBlacklist={handleBlacklist}
+                    events={events}
                   />
                 )
               )}
@@ -762,13 +763,16 @@ useEffect(() => {
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                  <h3 className="text-2xl font-semibold text-gray-800 mb-3">Loading Services</h3>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
                   <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
                 </div>
               ) : (
                 <ServicesSection
                   services={services}
                   onCheckboxChange={handleCheckboxChange}
+                  selectedProvider={selectedProvider}
+                  providers={providers}
+                  events={events}
                 />
               )}
             </div>
