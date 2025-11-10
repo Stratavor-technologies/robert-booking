@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function SearchSection({
   address,
@@ -14,19 +14,20 @@ export default function SearchSection({
 }) {
   const usStates = [
     "AL", "AK", "AZ", "AR", "CA",
-    "CO", " CT", " DE", " FL", " GA",
-    "HI", " ID", " IL", " IN", " IA", " KS",
-    "KY", " LA", " ME", " MD", " MA",
-    "MI", " MN", " MS", " MO", " MT",
-    "NE", " NV", "  NH", "  NJ", "  NM",
-    "NY", "NC", "  ND", " OH", " OK",
-    "OR", " PA", "  RI", "  SC",
-    "SD", " TN", " TX", " UT", " VT",
-    "VA", " WA", "  WV", " WI", " WY",
+    "CO", "CT", "DE", "FL", "GA",
+    "HI", "ID", "IL", "IN", "IA", "KS",
+    "KY", "LA", "ME", "MD", "MA",
+    "MI", "MN", "MS", "MO", "MT",
+    "NE", "NV", "NH", "NJ", "NM",
+    "NY", "NC", "ND", "OH", "OK",
+    "OR", "PA", "RI", "SC",
+    "SD", "TN", "TX", "UT", "VT",
+    "VA", "WA", "WV", "WI", "WY",
   ];
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState(address.state || "");
+  const dropdownRef = useRef(null);
 
   const filteredStates = usStates.filter((state) =>
     state.toLowerCase().includes(searchText.toLowerCase())
@@ -38,6 +39,20 @@ export default function SearchSection({
     setShowDropdown(false);
     onFieldChange({ target: { name: "state", value: abbr } });
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative overflow-hidden">
@@ -85,7 +100,7 @@ export default function SearchSection({
           </div>
 
           {/* State (Custom Combo Box) */}
-          <div className="space-y-2 relative">
+          <div className="space-y-2 relative" ref={dropdownRef}>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -109,9 +124,9 @@ export default function SearchSection({
                   onFieldChange({ target: { name: "state", value: e.target.value.toUpperCase() } });
                 }}
                 onFocus={() => setShowDropdown(true)}
-                placeholder="select a state"
+                placeholder="state"
                 disabled={loadingAddress}
-                className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none uppercase transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
+                className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
                   }`}
               />
               <svg
@@ -172,7 +187,7 @@ export default function SearchSection({
           disabled={loadingAddress}
         />
 
-        <div className="space-y-2">
+    {/*     <div className="space-y-2">
           <label className="block text-sm font-semibold text-black mb-2 flex items-center gap-2">
             <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -189,7 +204,7 @@ export default function SearchSection({
             className="w-full border border-gray-200 rounded-xl px-4 py-3.5 bg-white/50 focus:ring-2 focus:ring-indigo-400 text-black"
           />
         </div>
-
+ */}
         <button
           onClick={onSearchClick}
           disabled={loadingAddress}
@@ -214,9 +229,6 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false }) {
         </svg>
         Within
       </span>
-      {/* <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
-        Miles
-      </span> */}
       <input
         type="number"
         value={searchWithin}

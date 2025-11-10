@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import SearchSection from "./SearchSection";
@@ -33,59 +34,6 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
-
-  // 🔥 AUTH PERSISTENCE: Load saved auth state on component mount
-  /*   useEffect(() => {
-      const loadAuthState = () => {
-        if (typeof window !== 'undefined') {
-          const savedAuth = sessionStorage.getItem('userAuth');
-          if (savedAuth) {
-            try {
-              const parsed = JSON.parse(savedAuth);
-              if (parsed.isAuthenticated) {
-                console.log('✅ Restoring auth state:', parsed);
-                setUserFlow("new-user");
-                setOtpVerified(true);
-                setLoginData({
-                  email: parsed.userEmail,
-                  phonenumber: parsed.loginData.phonenumber
-                });
-                setUserEmail(parsed.userEmail);
-                setFormData(prev => ({ ...prev, email: parsed.userEmail }));
-                setCurrentEmail(true);
-                
-                // Restore address if available
-                if (parsed.userData?.lastAddress) {
-                  handleFieldChange({
-                    target: {
-                      name: "fullAddress",
-                      value: parsed.userData.lastAddress.fullAddress
-                    }
-                  });
-                  handleFieldChange({
-                    target: {
-                      name: "city",
-                      value: parsed.userData.lastAddress.city || ""
-                    }
-                  });
-                  handleFieldChange({
-                    target: {
-                      name: "state",
-                      value: parsed.userData.lastAddress.state || ""
-                    }
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('Error loading auth state:', error);
-              sessionStorage.removeItem('userAuth');
-            }
-          }
-        }
-      };
-  
-      loadAuthState();
-    }, []); */
 
   // Get all hook functions FIRST
   const {
@@ -240,7 +188,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     console.log('🗑️ Cleared auth state from session storage');
   };
 
-  // Handle OTP send for returning clients
+  // Handle OTP send for returning clients with redirect on failure
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setOtpError("");
@@ -277,10 +225,34 @@ export default function FindBooking({ providers, events, locations, clients }) {
       if (result.success) {
         setUserFlow("otp-verification");
       } else {
-        setOtpError(result.error || "Failed to send OTP");
+        // 🔥 REDIRECT TO MAIN BOOKING FLOW ON FAILURE
+        const errorMsg = result.error || "Unable to verify client account";
+        setOtpError(`${errorMsg}. Taking you to service search...`);
+        
+        // Redirect to main booking flow after showing message
+        setTimeout(() => {
+          console.log('🔀 Redirecting to new-user flow due to OTP failure');
+          setUserFlow("new-user");
+          setUserEmail(loginData.email);
+          setFormData(prev => ({ ...prev, email: loginData.email }));
+          // 🔥 IMPORTANT: Don't set currentEmail to true so email remains editable
+          setCurrentEmail(false);
+        }, 2500);
       }
     } catch (error) {
-      setOtpError("Network error. Please try again.");
+      console.error('OTP send error:', error);
+      // 🔥 REDIRECT TO MAIN BOOKING FLOW ON NETWORK ERROR TOO
+      setOtpError("Network issue. Taking you to service search...");
+      
+      // Redirect to main booking flow on network errors too
+      setTimeout(() => {
+        console.log('🔀 Redirecting to new-user flow due to network error');
+        setUserFlow("new-user");
+        setUserEmail(loginData.email);
+        setFormData(prev => ({ ...prev, email: loginData.email }));
+        // 🔥 IMPORTANT: Don't set currentEmail to true so email remains editable
+        setCurrentEmail(false);
+      }, 2500);
     } finally {
       setOtpLoading(false);
     }
@@ -563,7 +535,11 @@ export default function FindBooking({ providers, events, locations, clients }) {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={() => setUserFlow("returning-client")}
+                onClick={() => {
+                  setUserFlow("returning-client");
+                  setOtpError("");
+                  setOtp("");
+                }}
                 className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 Back

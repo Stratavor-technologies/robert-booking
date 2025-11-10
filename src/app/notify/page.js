@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 
 export default function NotifyPage() {
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [selectedIds, setSelectedIds] = useState([]);
 
+  // Email Modal States
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  // 🟢 Fetch enquiries
   useEffect(() => {
     const fetchEnquiries = async () => {
       try {
@@ -28,14 +38,195 @@ export default function NotifyPage() {
     fetchEnquiries();
   }, []);
 
-  const filteredEnquiries = enquiries.filter((enquiry) => {
-    return (
-      enquiry.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      enquiry.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      enquiry.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      enquiry.enquiredBy?.toLowerCase().includes(searchTerm.toLowerCase())
+  // 🔄 Sorting logic
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return "↕️";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
+  };
+
+  // 🧩 Filter + sort
+  const filteredAndSortedEnquiries = enquiries
+    .filter((enquiry) => {
+      return (
+        enquiry.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enquiry.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enquiry.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        enquiry.enquiredBy?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    })
+    .sort((a, b) => {
+      if (!sortConfig.key) return 0;
+      const aValue = a[sortConfig.key] || "";
+      const bValue = b[sortConfig.key] || "";
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+  // 🧮 Checkbox logic
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredAndSortedEnquiries.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredAndSortedEnquiries.map((e) => e._id));
+    }
+  };
+
+  // 🗑️ Delete Function
+  const handleDelete = async () => {
+    if (selectedIds.length === 0) {
+      alert("Please select at least one enquiry to delete.");
+      return;
+    }
+
+    const confirmMsg =
+      selectedIds.length === 1
+        ? "Are you sure you want to delete this enquiry?"
+        : "Are you sure you want to delete selected enquiries?";
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      let res;
+      if (selectedIds.length === 1) {
+        const id = selectedIds[0];
+        res = await fetch(`/api/enquiry?id=${id}`, {
+          method: "DELETE",
+        });
+      } else {
+        res = await fetch("/api/enquiry", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedIds }),
+        });
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert(data.message || "Deleted successfully!");
+        setEnquiries((prev) =>
+          prev.filter((enquiry) => !selectedIds.includes(enquiry._id))
+        );
+        setSelectedIds([]);
+      } else {
+        alert(data.error || "Failed to delete.");
+      }
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+      alert("An error occurred while deleting.");
+    }
+  };
+
+  // 📤 Export selected as CSV
+  const handleExport = () => {
+    if (selectedIds.length === 0) {
+      alert("Please select at least one enquiry to export.");
+      return;
+    }
+
+    const selectedData = enquiries.filter((e) => selectedIds.includes(e._id));
+    const csvRows = [
+      ["ID", "Date", "State", "City", "Name", "Email", "Phone", "Status"],
+      ...selectedData.map((e) => [
+        e._id,
+        new Date(e.createdAt).toLocaleString(),
+        e.state || "",
+        e.city || "",
+        e.enquiredBy || "",
+        e.email || "",
+        e.phoneNumber || "",
+        e.status || "New",
+      ]),
+    ];
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      csvRows.map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
+
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = "enquiries_export.csv";
+    link.click();
+  };
+
+  // 📧 Email modal logic
+  const handleEmail = () => {
+    if (selectedIds.length === 0) {
+      alert("Please select at least one enquiry to email.");
+      return;
+    }
+    setShowEmailModal(true);
+  };
+
+  const closeEmailModal = () => {
+    setShowEmailModal(false);
+    setRecipientEmail("");
+    setEmailMessage("");
+  };
+
+  // ✅ Send Email using backend API
+  const handleSendEmail = async () => {
+    if (!recipientEmail) {
+      alert("Please enter recipient email.");
+      return;
+    }
+
+    const selectedData = enquiries
+      .filter((e) => selectedIds.includes(e._id))
+      .map((e) => ({
+        name: e.enquiredBy,
+        email: e.email,
+        phone: e.phoneNumber,
+        city: e.city,
+        state: e.state,
+      }));
+
+    if (selectedData.length === 0) {
+      alert("No valid enquiries selected to send.");
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      const res = await fetch("/api/enquirymailer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: recipientEmail,
+          enquiries: selectedData,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Email sent successfully!");
+        closeEmailModal();
+      } else {
+        alert("❌ Failed to send email: " + data.message);
+      }
+    } catch (err) {
+      console.error("Email error:", err);
+      alert("❌ Error sending email.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -67,6 +258,27 @@ export default function NotifyPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="border border-gray-300 bg-gray-50 focus:bg-white focus:border-amber-500 transition-all duration-200 rounded-xl px-4 py-2 w-full sm:w-1/3 shadow-sm placeholder-gray-400 text-sm text-black"
         />
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleExport}
+            className="bg-white text-black px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all"
+          >
+            Export
+          </button>
+          <button
+            onClick={handleDelete}
+            className="bg-white text-black px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all"
+          >
+            Delete
+          </button>
+          <button
+            onClick={handleEmail}
+            className="bg-white text-black px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all"
+          >
+            Email
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -75,39 +287,64 @@ export default function NotifyPage() {
           <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200">
             <tr>
               {[
-                "ID",
-                "Date",
-                "State",
-                "City",
-                "Name",
-                "Email",
-                "Phone",
-                "Status",
-                "Action",
-              ].map((head) => (
+                { key: "_id", label: "ID" },
+                { key: "createdAt", label: "Date" },
+                { key: "state", label: "State" },
+                { key: "city", label: "City" },
+                { key: "enquiredBy", label: "Name" },
+                { key: "email", label: "Email" },
+                { key: "phoneNumber", label: "Phone" },
+                { key: "status", label: "Status" },
+              ].map((header) => (
                 <th
-                  key={head}
-                  className="p-4 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs border-r last:border-none"
+                  key={header.key}
+                  onClick={() =>
+                    header.key && header.key !== "_id" && handleSort(header.key)
+                  }
+                  className={`p-4 text-left font-semibold text-gray-700 uppercase tracking-wide text-xs border-r last:border-none ${
+                    header.key && header.key !== "_id"
+                      ? "cursor-pointer hover:bg-gray-200 transition-colors"
+                      : ""
+                  }`}
                 >
-                  {head}
+                  <div className="flex items-center gap-1">
+                    {header.label}
+                    {header.key && header.key !== "_id" && (
+                      <span className="text-xs">
+                        {getSortIndicator(header.key)}
+                      </span>
+                    )}
+                  </div>
                 </th>
               ))}
+
+              {/* Checkbox column */}
+              <th className="p-4 text-center font-semibold text-gray-700 uppercase tracking-wide text-xs">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedIds.length === filteredAndSortedEnquiries.length &&
+                    filteredAndSortedEnquiries.length > 0
+                  }
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 accent-amber-500 cursor-pointer"
+                />
+              </th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredEnquiries.length > 0 ? (
-              filteredEnquiries.map((enquiry, index) => (
+            {filteredAndSortedEnquiries.length > 0 ? (
+              filteredAndSortedEnquiries.map((enquiry, index) => (
                 <tr
-                  key={index}
-                  className={`border-b border-gray-100 hover:bg-amber-50/50 transition ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    }`}
+                  key={enquiry._id}
+                  className={`border-b border-gray-100 hover:bg-amber-50/50 transition ${
+                    index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                  }`}
                 >
-                  {/* ID */}
                   <td className="p-4 border-r font-mono text-gray-700">
                     {enquiry._id ? enquiry._id.slice(-4) : "----"}
                   </td>
-
-                  {/* Date */}
                   <td className="p-4 border-r text-gray-600">
                     {new Date(enquiry.createdAt).toLocaleDateString("en-US", {
                       day: "2-digit",
@@ -115,59 +352,47 @@ export default function NotifyPage() {
                       year: "numeric",
                     })}
                   </td>
-
-                  {/* State */}
                   <td className="p-4 border-r font-medium text-gray-800">
                     {enquiry.state || "N/A"}
                   </td>
-
-                  {/* City */}
                   <td className="p-4 border-r">{enquiry.city || "N/A"}</td>
-
-                  {/* Name */}
                   <td className="p-4 border-r font-medium text-gray-800 capitalize">
                     {enquiry.enquiredBy || "N/A"}
                   </td>
-
-                  {/* Email */}
-                  <td className="p-4 border-r max-w-[200px] truncate text-blue-600 hover:underline cursor-pointer">
+                  <td className="p-4 border-r text-blue-600 truncate max-w-[200px]">
                     {enquiry.email}
                   </td>
-
-                  {/* Phone */}
                   <td className="p-4 border-r text-gray-700">
-                    {enquiry.phoneNumber
-                      ? `(${enquiry.phoneNumber.slice(0, 3)}) ${enquiry.phoneNumber.slice(3, 6)}-${enquiry.phoneNumber.slice(6)}`
-                      : "—"}
+                    {enquiry.phoneNumber || "—"}
                   </td>
-
-
-                  {/* Status */}
                   <td className="p-4 border-r">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${enquiry.status === "completed"
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        enquiry.status === "completed"
                           ? "bg-green-100 text-green-700"
                           : enquiry.status === "contacted"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
                     >
                       {enquiry.status || "New"}
                     </span>
                   </td>
 
-                  {/* Action */}
                   <td className="p-4 text-center">
-                    <button className="px-4 py-1.5 text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg shadow hover:shadow-md hover:scale-105 transition">
-                      Edit
-                    </button>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(enquiry._id)}
+                      onChange={() => toggleSelect(enquiry._id)}
+                      className="w-4 h-4 accent-amber-500 cursor-pointer"
+                    />
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan="9"
+                  colSpan="10"
                   className="p-8 text-center text-gray-500 font-medium"
                 >
                   No enquiries found.
@@ -178,10 +403,54 @@ export default function NotifyPage() {
         </table>
       </div>
 
-      {/* Footer subtle note */}
       <p className="text-center text-gray-400 text-xs mt-6">
         © {new Date().getFullYear()} Enquiry Management Dashboard
       </p>
+
+      {/* 🟣 Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white text-black rounded-xl p-6 w-96 shadow-lg">
+            <h2 className="text-xl font-bold mb-3 text-center">Send Email</h2>
+            <p className="text-sm text-gray-600 text-center mb-4">
+              Selected enquiries:{" "}
+              <strong>{selectedIds.length}</strong>
+            </p>
+            <input
+              type="email"
+              placeholder="Enter recipient email..."
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 mb-3"
+            />
+            <textarea
+              placeholder="Enter your message..."
+              value={emailMessage}
+              onChange={(e) => setEmailMessage(e.target.value)}
+              rows={4}
+              className="w-full border border-gray-300 rounded-lg p-2 mb-4 resize-none"
+            />
+            <div className="flex justify-between">
+              <button
+                onClick={closeEmailModal}
+                className="bg-gray-400 text-white px-4 py-2 rounded-lg"
+                disabled={sending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sending}
+                className={`px-4 py-2 rounded-lg text-white ${
+                  sending ? "bg-blue-300" : "bg-blue-600"
+                }`}
+              >
+                {sending ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

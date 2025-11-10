@@ -24,10 +24,10 @@ export default function BookingSummary({
 
   // Check form validity
   useEffect(() => {
-    const isValid = formData.name && 
-                   formData.email && 
-                   formData.phone && 
-                   formData.privacy;
+    const isValid = formData.name &&
+      formData.email &&
+      formData.phone &&
+      formData.privacy;
     setFormValid(isValid);
   }, [formData]);
 
@@ -73,7 +73,7 @@ export default function BookingSummary({
             </div>
             <h3 className="text-xl font-semibold text-gray-800">Appointment Summary</h3>
           </div>
-          
+
           <SummaryTable
             selectedEvent={selectedEvent}
             selectedProvider={selectedProvider}
@@ -94,14 +94,14 @@ export default function BookingSummary({
             </div>
             <h3 className="text-xl font-semibold text-gray-800">Your Information</h3>
           </div>
-          
+
           <BookingForm
             formData={formData}
             onSubmit={onSubmit}
             onChange={onChange}
             submittingBooking={submittingBooking}
             formValid={formValid}
-                 currentEmail={currentEmail}
+            currentEmail={currentEmail}
           />
         </div>
       </div>
@@ -149,10 +149,10 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
       label: "Date",
-      value: `${dayMap[selectedDate.getDay()]}, ${selectedDate.toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
+      value: `${dayMap[selectedDate.getDay()]}, ${selectedDate.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
       })}`,
       description: "Appointment date"
     },
@@ -244,7 +244,7 @@ function BookingForm({
           onChange={onChange}
           placeholder={field.placeholder}
           required={field.required}
-          icon={<field.icon className="w-5 h-5 text-gray-400" />}
+          icon={<field.icon className="w-5 h-5 text-black" />}
           disabled={field.disabled}
         />
       ))}
@@ -258,11 +258,10 @@ function BookingForm({
       <button
         type="submit"
         disabled={!formValid || submittingBooking}
-        className={`w-full py-4 text-white text-lg font-semibold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-3 group relative overflow-hidden ${
-          formValid && !submittingBooking
+        className={`w-full py-4 text-white text-lg font-semibold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-3 group relative overflow-hidden ${formValid && !submittingBooking
             ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:shadow-xl hover:scale-[1.02]"
             : "bg-gray-400 cursor-not-allowed"
-        }`}
+          }`}
       >
         {submittingBooking && (
           <div className="absolute inset-0 bg-emerald-500 flex items-center justify-center">
@@ -271,9 +270,8 @@ function BookingForm({
         )}
 
         <CheckCircle
-          className={`w-5 h-5 transition-transform ${
-            submittingBooking ? "opacity-0" : "group-hover:scale-110"
-          }`}
+          className={`w-5 h-5 transition-transform ${submittingBooking ? "opacity-0" : "group-hover:scale-110"
+            }`}
         />
 
         <span className={submittingBooking ? "opacity-0" : ""}>
@@ -339,11 +337,14 @@ function FormField({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md ${
-            disabled ? " cursor-not-allowed" : ""
-          } ${value ? "border-emerald-200 bg-emerald-50" : ""}`}
-          required={required}
+          className={`w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl 
+              focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 
+              focus:outline-none transition-all duration-200 bg-white/50 shadow-sm 
+              hover:shadow-md text-gray-800
+              ${disabled ? " cursor-not-allowed text-gray-400" : ""}
+              ${value ? "border-emerald-200 bg-emerald-50" : ""}`}
         />
+
         {value && !disabled && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -356,9 +357,8 @@ function FormField({
 
 function PrivacyCheckbox({ checked, onChange, disabled = false }) {
   return (
-    <div className={`flex items-start space-x-3 p-4 rounded-xl border transition-all duration-200 ${
-      checked ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'
-    } ${disabled ? 'opacity-50' : ''}`}>
+    <div className={`flex items-start space-x-3 p-4 rounded-xl border transition-all duration-200 ${checked ? 'bg-emerald-50 border-emerald-200' : 'bg-blue-50 border-blue-200'
+      } ${disabled ? 'opacity-50' : ''}`}>
       <input
         id="privacy"
         name="privacy"
@@ -366,9 +366,8 @@ function PrivacyCheckbox({ checked, onChange, disabled = false }) {
         checked={checked}
         onChange={onChange}
         disabled={disabled}
-        className={`h-5 w-5 rounded focus:ring-emerald-500 mt-0.5 flex-shrink-0 ${
-          checked ? 'text-emerald-600 border-emerald-300' : 'text-gray-600 border-gray-300'
-        }`}
+        className={`h-5 w-5 rounded focus:ring-emerald-500 mt-0.5 flex-shrink-0 ${checked ? 'text-emerald-600 border-emerald-300' : 'text-gray-600 border-gray-300'
+          }`}
       />
       <label htmlFor="privacy" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
         <div className="flex items-center gap-2 mb-1">
