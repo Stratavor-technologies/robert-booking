@@ -55,6 +55,11 @@ const EnquirySchema = new mongoose.Schema(
       match: [/^\d{10,15}$/, "Invalid phone number"],
       default: "",
     },
+    category:{
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   { timestamps: true }
 );

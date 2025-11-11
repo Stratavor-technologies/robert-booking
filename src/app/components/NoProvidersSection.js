@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 
-export default function NoProvidersSection({ address, userEmail }) {
+export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [localName, setLocalName] = useState("");
   const [localEmail, setLocalEmail] = useState(userEmail || "");
   const [localPhone, setLocalPhone] = useState(address?.phone || "");
+  const [localCategory, setLocalCategory] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     console.log("📍 Enquiry Address Data:", address);
@@ -30,10 +32,9 @@ export default function NoProvidersSection({ address, userEmail }) {
   // --- ✉️ Simple email validation ---
   const isValidEmail = (email) => email.includes("@");
 
-
   const handleSubmit = async () => {
-    if (localName.trim() === "" || localEmail.trim() === "" || localPhone.trim() === "") {
-      alert("Name, Email, and Phone are required...");
+    if (localName.trim() === "" || localEmail.trim() === "" || localPhone.trim() === "" || localCategory.trim() === "") {
+      alert("Name, Email, Phone, and Category are required...");
       return;
     }
 
@@ -49,7 +50,6 @@ export default function NoProvidersSection({ address, userEmail }) {
       return;
     }
 
-
     setIsSubmitting(true);
     try {
       const payload = {
@@ -62,6 +62,7 @@ export default function NoProvidersSection({ address, userEmail }) {
         enquiredBy: localName,
         email: localEmail,
         phoneNumber: cleanedPhone,
+        category: localCategory, // Added category to payload
       };
 
       console.log("📤 Sending enquiry payload:", payload);
@@ -74,11 +75,9 @@ export default function NoProvidersSection({ address, userEmail }) {
 
       const data = await res.json();
 
-
       if (data.success) {
         setSubmitted(true);
-        alert("We Will Notify you soon ")
-
+        alert("We Will Notify you soon");
       } else {
         alert(data.error || "Something went wrong.");
       }
@@ -87,6 +86,15 @@ export default function NoProvidersSection({ address, userEmail }) {
       alert("Failed to send enquiry.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle "No Thanks" button click - UPDATED
+  const handleNoThanks = () => {
+    console.log("User declined notification");
+    // Call the onNoThanks callback if provided
+    if (onNoThanks) {
+      onNoThanks();
     }
   };
 
@@ -120,57 +128,255 @@ export default function NoProvidersSection({ address, userEmail }) {
             Service Not Available Yet
           </h3>
           <p className="text-gray-600 text-lg leading-relaxed max-w-md mx-auto">
-            We're expanding! Provide your contact info and we’ll notify you when
+            We're expanding! Provide your contact info and we'll notify you when
             services become available in your area.
           </p>
         </div>
       </div>
 
-      {/* Form */}
-      <div className="space-y-6">
-        {/* 🧍 Name Field */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-            {/* 👤 Name Icon */}
-            <svg
-              className="w-4 h-4 text-amber-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+      {/* Conditional Rendering: Buttons or Form */}
+      {!showForm ? (
+        // Initial Buttons View
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            {/* Notify Me Button */}
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
+              font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
+              hover:scale-[1.02] flex items-center justify-center gap-3 group"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5.121 17.804A10.97 10.97 0 0112 15c2.5 0 4.847.815 6.879 2.196M15 
-           11a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            Name
-            <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-              Required
-            </span>
-          </label>
+              <svg
+                className="w-5 h-5 text-white transition-transform group-hover:scale-110"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 17h5l-5 5v-5zM4.93 4.93l14.14 14.14M14.83 14.83a4 4 0 01-5.66-5.66l5.66 5.66z"
+                />
+              </svg>
+              Notify Me
+            </button>
 
-          <input
-            type="text"
-            value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
-            placeholder="John Doe"
-            disabled={isSubmitting}
-            className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
+            {/* No Thanks Button */}
+            <button
+              onClick={handleNoThanks}
+              className="flex-1 py-4 bg-gray-200 text-gray-700 text-lg 
+              font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
+              hover:scale-[1.02] flex items-center justify-center gap-3 group"
+            >
+              <svg
+                className="w-5 h-5 text-gray-600 transition-transform group-hover:scale-110"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              No Thanks
+            </button>
+          </div>
+
+          {/* Info Text */}
+          <div className="text-center pt-4">
+            <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 
+                  12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              We'll contact you as soon as we have providers in your area
+            </p>
+          </div>
+        </div>
+      ) : (
+        // Form View (shown when user clicks "Notify Me")
+        <div className="space-y-6">
+          {/* 🧍 Name Field */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5.121 17.804A10.97 10.97 0 0112 15c2.5 0 4.847.815 6.879 2.196M15 
+              11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              Name
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+
+            <input
+              type="text"
+              value={localName}
+              onChange={(e) => setLocalName(e.target.value)}
+              placeholder="John Doe"
+              disabled={isSubmitting}
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
       bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
       focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+            />
+          </div>
+
+          {/* Email Field */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
+                  8M5 19h14a2 2 0 002-2V7a2 2 0 
+                  00-2-2H5a2 2 0 00-2 2v10a2 
+                  2 0 002 2z"
+                />
+              </svg>
+              Email Address
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+            <input
+              type="email"
+              value={localEmail}
+              onChange={(e) => setLocalEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              disabled={isSubmitting}
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
+              bg-white/50 text-gray-600 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+            />
+          </div>
+
+          {/* Phone Field */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 5a2 2 0 012-2h3.28a1 1 
+                  0 01.948.684l1.498 4.493a1 1 
+                  0 01-.502 1.21l-2.257 1.13a11.042 
+                  11.042 0 005.516 5.516l1.13-2.257a1 
+                  1 0 011.21-.502l4.493 1.498a1 1 
+                  0 01.684.949V19a2 2 0 01-2 2h-1C9.716 
+                  21 3 14.284 3 6V5z"
+                />
+              </svg>
+              Phone Number
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+            <input
+              type="tel"
+              value={localPhone}
+              onChange={handlePhoneChange}
+              placeholder="+1 (555) 123-4567"
+              disabled={isSubmitting}
+              className={`w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 
+              bg-white/50 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+            />
+          </div>
+
+          {/* Category Field - NEW */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              Service Category
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+            <input
+              type="text"
+              value={localCategory}
+              onChange={(e) => setLocalCategory(e.target.value)}
+              placeholder="e.g., wax,nail polish"
+              disabled={isSubmitting}
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
+              bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              What type of service are you looking for?
+            </p>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className={`w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
+            font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
+            flex items-center justify-center gap-3 group relative overflow-hidden ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02]"
               }`}
-          />
-        </div>
-
-
-        {/* Email Field */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          >
+            {isSubmitting && (
+              <div className="absolute inset-0 bg-amber-500 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
             <svg
-              className="w-4 h-4 text-amber-500"
+              className={`w-5 h-5 text-white transition-transform ${isSubmitting ? "opacity-0" : "group-hover:scale-110"
+                }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -179,129 +385,41 @@ export default function NoProvidersSection({ address, userEmail }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
-                8M5 19h14a2 2 0 002-2V7a2 2 0 
-                00-2-2H5a2 2 0 00-2 2v10a2 
+                d="M3 8l7.89 5.26a2 2 0 002.22 
+                0L21 8M5 19h14a2 2 0 002-2V7a2 
+                2 0 00-2-2H5a2 2 0 00-2 2v10a2 
                 2 0 002 2z"
               />
             </svg>
-            Email Address
-            <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-              Required
+            <span className={isSubmitting ? "opacity-0" : ""}>
+              {isSubmitting ? "Submitting..." : "Notify Me When Available"}
             </span>
-          </label>
-          <input
-            type="email"
-            value={localEmail}
-            onChange={(e) => setLocalEmail(e.target.value)}
-            placeholder="your.email@example.com"
-            disabled={isSubmitting}
-            className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
-            bg-white/50 text-gray-600 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-            focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-          />
-        </div>
+          </button>
 
-        {/* Phone Field */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-            <svg
-              className="w-4 h-4 text-amber-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 5a2 2 0 012-2h3.28a1 1 
-                0 01.948.684l1.498 4.493a1 1 
-                0 01-.502 1.21l-2.257 1.13a11.042 
-                11.042 0 005.516 5.516l1.13-2.257a1 
-                1 0 011.21-.502l4.493 1.498a1 1 
-                0 01.684.949V19a2 2 0 01-2 2h-1C9.716 
-                21 3 14.284 3 6V5z"
-              />
-            </svg>
-            Phone Number
-            <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-              Required
-            </span>
-          </label>
-          <input
-            type="tel"
-            value={localPhone}
-            onChange={handlePhoneChange}
-            placeholder="+1 (555) 123-4567"
-            disabled={isSubmitting}
-            className={`w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 
-            bg-white/50 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-            focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-          />
+          {/* Info Text */}
+          <div className="text-center pt-4">
+            <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 
+                  12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {isSubmitting
+                ? "Submitting your request..."
+                : "We'll contact you as soon as we have providers in your area"}
+            </p>
+          </div>
         </div>
-
-        {/* Submit Button */}
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className={`w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
-          font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
-          flex items-center justify-center gap-3 group relative overflow-hidden ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02]"
-            }`}
-        >
-          {isSubmitting && (
-            <div className="absolute inset-0 bg-amber-500 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-          <svg
-            className={`w-5 h-5 text-white transition-transform ${isSubmitting ? "opacity-0" : "group-hover:scale-110"
-              }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 8l7.89 5.26a2 2 0 002.22 
-              0L21 8M5 19h14a2 2 0 002-2V7a2 
-              2 0 00-2-2H5a2 2 0 00-2 2v10a2 
-              2 0 002 2z"
-            />
-          </svg>
-          <span className={isSubmitting ? "opacity-0" : ""}>
-            {isSubmitting ? "Submitting..." : "Notify Me When Available"}
-          </span>
-        </button>
-
-        {/* Info Text */}
-        <div className="text-center pt-4">
-          <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
-            <svg
-              className="w-4 h-4 text-amber-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 
-                12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {isSubmitting
-              ? "Submitting your request..."
-              : "We'll contact you as soon as we have providers in your area"}
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

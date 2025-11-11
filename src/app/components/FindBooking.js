@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import SearchSection from "./SearchSection";
@@ -34,6 +33,8 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
+
+  
 
   // Get all hook functions FIRST
   const {
@@ -139,6 +140,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
     loadAuthState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty array - only run once on mount
+
   const currentStep = selectedTime
     ? 4
     : selectedDate
@@ -186,6 +188,14 @@ export default function FindBooking({ providers, events, locations, clients }) {
     // Clear auth state from session storage
     sessionStorage.removeItem('userAuth');
     console.log('🗑️ Cleared auth state from session storage');
+  };
+
+  // NEW: Handler for "No Thanks" that goes back to ENTRY point
+  const handleNoThanks = () => {
+    // Reset everything and go back to the entry point with two buttons
+    resetBooking();
+    setUserFlow("entry");
+    console.log('🔙 Returning to entry point (Find Door-to-Door Services)');
   };
 
   // Handle OTP send for returning clients with redirect on failure
@@ -687,13 +697,14 @@ export default function FindBooking({ providers, events, locations, clients }) {
             </div>
           )}
 
-          {/* No Providers Found */}
+          {/* No Providers Found - UPDATED WITH onNoThanks PROP */}
           {isSearchedAddress && !loadingAddress && !loadingProviders && filteredProviders.length === 0 && (
             <NoProvidersSection
               address={address}
               userEmail={userEmail}
               onFieldChange={handleFieldChange}
               onSubmit={handleNotFoundSubmit}
+              onNoThanks={handleNoThanks} // Use the new handler
             />
           )}
 

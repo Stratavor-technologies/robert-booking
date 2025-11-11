@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Enquiry from "@/models/Enquiry";
 
-
+// 🟢 GET — Fetch Enquiries
 export async function GET(request) {
   try {
     await connectDB();
@@ -13,6 +13,7 @@ export async function GET(request) {
     const city = searchParams.get("city");
     const pincode = searchParams.get("pincode");
     const enquiredBy = searchParams.get("enquiredBy");
+    const category = searchParams.get("category"); // ✅ Added category filter
 
     const filter = {};
     if (email) filter.email = email;
@@ -20,6 +21,7 @@ export async function GET(request) {
     if (city) filter.city = city;
     if (pincode) filter.pincode = pincode;
     if (enquiredBy) filter.enquiredBy = enquiredBy;
+    if (category) filter.category = category; // ✅ Apply category filter
 
     const enquiries = await Enquiry.find(filter).sort({ createdAt: -1 });
 
@@ -40,6 +42,7 @@ export async function GET(request) {
   }
 }
 
+// 🟢 POST — Create a New Enquiry
 export async function POST(request) {
   try {
     await connectDB();
@@ -55,6 +58,7 @@ export async function POST(request) {
       fullAddress,
       lat,
       lon,
+      category, // ✅ Added category
     } = body;
 
     if (!email && !phoneNumber && !city && !state && !pincode) {
@@ -74,6 +78,7 @@ export async function POST(request) {
       fullAddress: fullAddress || "",
       lat: lat || "",
       lon: lon || "",
+      category: category || "", // ✅ Save category
     });
 
     return NextResponse.json(
