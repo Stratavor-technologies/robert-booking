@@ -34,7 +34,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
 
-  
+
 
   // Get all hook functions FIRST
   const {
@@ -85,10 +85,12 @@ export default function FindBooking({ providers, events, locations, clients }) {
   } = useBooking({ providers, events, locations, clients });
 
   // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
+  // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
   useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
         const savedAuth = sessionStorage.getItem('userAuth');
+        console.log(savedAuth)
         if (savedAuth) {
           try {
             const parsed = JSON.parse(savedAuth);
@@ -108,26 +110,16 @@ export default function FindBooking({ providers, events, locations, clients }) {
               setUserEmail(parsed.userEmail);
               setFormData(prev => ({ ...prev, email: parsed.userEmail }));
 
-              // Restore address if available
-              if (parsed.userData?.lastAddress) {
-                const addr = parsed.userData.lastAddress;
+              // 🔥 CLEAR CITY AND STATE FIELDS FOR VERIFIED USERS
+              handleFieldChange({
+                target: { name: "city", value: "" }
+              });
+              handleFieldChange({
+                target: { name: "state", value: "" }
+              });
 
-                if (addr.fullAddress) {
-                  handleFieldChange({
-                    target: { name: "fullAddress", value: addr.fullAddress }
-                  });
-                }
-                if (addr.city) {
-                  handleFieldChange({
-                    target: { name: "city", value: addr.city }
-                  });
-                }
-                if (addr.state) {
-                  handleFieldChange({
-                    target: { name: "state", value: addr.state }
-                  });
-                }
-              }
+              // Don't restore address for verified users - they should search fresh
+              console.log('🧹 Cleared city/state for verified user');
             }
           } catch (error) {
             console.error('❌ Error loading auth state:', error);
@@ -139,7 +131,24 @@ export default function FindBooking({ providers, events, locations, clients }) {
 
     loadAuthState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty array - only run once on mount
+  }, []); // Empty array - only run once on mount// Empty array - only run once on mount
+
+  /* useEffect(() => {
+    if (userFlow === "new-user") {
+      // Clear city and state fields when entering the door-to-door services flow
+      console.log('🧹 Clearing city and state fields for fresh search');
+      
+      handleFieldChange({
+        target: { name: "city", value: "" }
+      });
+      
+      handleFieldChange({
+        target: { name: "state", value: "" }
+      });
+
+    }
+  }, [userFlow, handleFieldChange]);  */
+
 
   const currentStep = selectedTime
     ? 4
@@ -238,7 +247,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
         // 🔥 REDIRECT TO MAIN BOOKING FLOW ON FAILURE
         const errorMsg = result.error || "Unable to verify client account";
         setOtpError(`${errorMsg}. Taking you to service search...`);
-        
+
         // Redirect to main booking flow after showing message
         setTimeout(() => {
           console.log('🔀 Redirecting to new-user flow due to OTP failure');
@@ -253,7 +262,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       console.error('OTP send error:', error);
       // 🔥 REDIRECT TO MAIN BOOKING FLOW ON NETWORK ERROR TOO
       setOtpError("Network issue. Taking you to service search...");
-      
+
       // Redirect to main booking flow on network errors too
       setTimeout(() => {
         console.log('🔀 Redirecting to new-user flow due to network error');
@@ -288,8 +297,10 @@ export default function FindBooking({ providers, events, locations, clients }) {
       });
 
       const result = await response.json();
+      console.log('OTP verification result:', result);
 
       if (result.success) {
+        console.log(result.user)
         setOtpVerified(true);
         setUserFlow("new-user");
 
@@ -307,6 +318,26 @@ export default function FindBooking({ providers, events, locations, clients }) {
         sessionStorage.setItem('userAuth', JSON.stringify(authData));
         console.log('💾 Saved auth state to session storage');
         window.dispatchEvent(new Event("session-changed"));
+
+        handleFieldChange({
+          target: { name: "city", value: "" }
+        });
+
+        handleFieldChange({
+          target: { name: "state", value: "" }
+        });
+
+        handleFieldChange({
+          target: { name: "fullAddress", value: "" }
+        });
+
+        setUserEmail(result.user.email);
+        setFormData(prev => ({ ...prev, email: result.user.email }));
+        if (!currentEmail) {
+          setCurrentEmail(true);
+        }
+
+
         // Auto-fill address if available
         if (result.user.lastAddress) {
           handleFieldChange({
@@ -379,7 +410,19 @@ export default function FindBooking({ providers, events, locations, clients }) {
             <h3 className="text-2xl font-bold text-gray-800 mb-3">Find Door-To-Door Services</h3>
             <p className="text-gray-600 mb-6">New to our service? Find beauty professionals in your area.</p>
             <button
-              onClick={() => setUserFlow("new-user")}
+              onClick={() => {
+                // Clear fields when manually starting new search
+                handleFieldChange({
+                  target: { name: "city", value: "" }
+                });
+                handleFieldChange({
+                  target: { name: "state", value: "" }
+                });
+                handleFieldChange({
+                  target: { name: "fullAddress", value: "" }
+                });
+                setUserFlow("new-user");
+              }}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
               Find Services
@@ -628,6 +671,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
             onSearchClick={getLatLngFromAddress}
             loadingAddress={loadingAddress}
             currentEmail={currentEmail}
+
           />
 
           {/* Loading State for Address Search */}
