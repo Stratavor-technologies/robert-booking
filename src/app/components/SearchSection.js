@@ -12,6 +12,7 @@ export default function SearchSection({
   loadingAddress = false,
   currentEmail,
 }) {
+
   const usStates = [
     "AL", "AK", "AZ", "AR", "CA",
     "CO", "CT", "DE", "FL", "GA",
@@ -28,6 +29,15 @@ export default function SearchSection({
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState(address.state || "");
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+  // Clear address fields when coming from login/OTP verification
+  onFieldChange({ target: { name: "city", value: "" } });
+  onFieldChange({ target: { name: "state", value: "" } });
+  onFieldChange({ target: { name: "zip", value: "" } });
+  setSearchText("");
+}, []);
+
 
   const filteredStates = usStates.filter((state) =>
     state.toLowerCase().includes(searchText.toLowerCase())
@@ -186,25 +196,6 @@ export default function SearchSection({
           onChange={onSearchWithinChange}
           disabled={loadingAddress}
         />
-
-    {/*     <div className="space-y-2">
-          <label className="block text-sm font-semibold text-black mb-2 flex items-center gap-2">
-            <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            Email Address
-          </label>
-          <input
-            type="email"
-            name="userEmail"
-            value={userEmail}
-            onChange={(e) => onUserEmailChange(e.target.value)}
-            placeholder="your.email@example.com"
-            disabled={loadingAddress || currentEmail}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3.5 bg-white/50 focus:ring-2 focus:ring-indigo-400 text-black"
-          />
-        </div>
- */}
         <button
           onClick={onSearchClick}
           disabled={loadingAddress}
