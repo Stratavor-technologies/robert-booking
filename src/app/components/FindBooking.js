@@ -220,7 +220,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
       return;
     }
 
-    if (!loginData.phonenumber || !phoneRegex.test(loginData.phonenumber)) {
+    if (!loginData.phonenumber ) {
       setOtpError("Please enter a valid phone number.");
       return;
     }
