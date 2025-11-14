@@ -12,7 +12,8 @@ export default function ProvidersSection({
   onProviderSelect,
   onBlacklist,
   loadingProviders = false,
-  events = []
+  events = [],
+  categories = []
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
 
@@ -120,7 +121,8 @@ export default function ProvidersSection({
                 onBlacklist={handleBlacklist}
                 isBlacklisting={blacklistingProvider === provider.id}
                 userEmail={userEmail}
-                events={events} // Pass events to ProviderCard
+                events={events}
+                categories={categories} // Pass events to ProviderCard
               />
             ))}
           </div>
@@ -156,31 +158,46 @@ export default function ProvidersSection({
   );
 }
 
-function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false, userEmail, events = [] }) {
-  // Get the service names for this provider
-  const getProviderServices = () => {
-    if (!provider.services || !events || events.length === 0) return [];
-    
-    return provider.services
-      .map(serviceId => {
-        // Convert serviceId to string for comparison since event IDs are strings
-        const service = events.find(event => event.id === serviceId.toString());
-        return service ? {
-          name: service.name
-        } : null;
-      })
-      .filter(service => service !== null);
+function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false, userEmail, events = [], categories = [] }) {
+  const getProviderCategories = () => {
+    if (!categories || categories.length === 0) return [];
+    return categories.filter(category => {
+
+      if (!category.units) return false;
+
+      const unitsArray = Array.isArray(category.units)
+        ? category.units
+        : typeof category.units === 'object' && category.units !== null
+          ? Object.values(category.units)
+          : [category.units];
+
+      const providerId = parseInt(provider.id);
+
+      return unitsArray.some(unitId => parseInt(unitId) === providerId);
+    });
   };
 
-  const providerServices = getProviderServices();
+  // Add this function after the getProviderCategories function
+  const getLocationDisplay = () => {
+    if (!provider.nearestLocation) return null;
+
+    // Extract city and state from title (last two parts after comma)
+    if (provider.nearestLocation.title) {
+      return provider.nearestLocation.title.split(',').slice(-2).join(',').trim();
+    }
+
+    // Fallback to just city if no title
+    return provider.nearestLocation.city;
+  };
+
+  const providerCategories = getProviderCategories();
 
   return (
     <div
-      className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${
-        isSelected
-          ? "border-indigo-500 bg-gradient-to-r from-indigo-50 to-blue-50 shadow-lg"
-          : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md"
-      } ${isBlacklisting ? "opacity-50" : ""}`}
+      className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${isSelected
+        ? "border-indigo-500 bg-gradient-to-r from-indigo-50 to-blue-50 shadow-lg"
+        : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md"
+        } ${isBlacklisting ? "opacity-50" : ""}`}
     >
       {/* Selection Indicator */}
       {isSelected && (
@@ -221,7 +238,7 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
         </div>
 
         {/* Provider Info */}
-        <div 
+        <div
           className="flex-1 min-w-0"
           onClick={() => !isBlacklisting && onSelect(provider.id)}
         >
@@ -230,37 +247,32 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
               <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                 {provider.name}
               </h3>
-              
+
               {/* Location - Moved to appear right after name */}
+              {/* Location with State */}
+              {/* Location with State */}
               {provider.nearestLocation && (
-                <p className="text-gray-600 text-sm mt-2 flex items-center gap-2">
+                <p className="text-gray-600 text-sm mt-2 flex items-center gap-2 font-bold">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   </svg>
-                  {provider.nearestLocation.city === provider.nearestLocation.address2 
-                    ? provider.nearestLocation.city 
-                    : provider.nearestLocation.city + " " + provider.nearestLocation.address2}
+                  {getLocationDisplay()}
                 </p>
               )}
-
-              {/* Services Display - Now appears after location */}
-              {providerServices.length > 0 && (
+              {/* Categories Display - Now appears after location */}
+              {providerCategories.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-sm text-gray-600 font-medium mb-2">Services offered:</p>
-                  <ul className="space-y-2">
-                    {providerServices.map((service, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="text-indigo-500 mt-1.5 flex-shrink-0">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </span>
-                        <span className="text-sm text-gray-700 leading-relaxed">
-                          {service.name}
-                        </span>
-                      </li>
+                  <p className="text-sm text-gray-600 font-medium mb-2">Categories:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {providerCategories.map((category, index) => (
+                      <span
+                        key={category.id}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
+                      >
+                        {category.name}
+                      </span>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
@@ -290,15 +302,14 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
           <button
             onClick={() => !isBlacklisting && onSelect(provider.id)}
             disabled={isBlacklisting}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-              isSelected
-                ? "bg-indigo-500 text-white shadow-md hover:bg-indigo-600"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            } ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all ${isSelected
+              ? "bg-indigo-500 text-white shadow-md hover:bg-indigo-600"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              } ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {isSelected ? "Selected" : "View Services"}
           </button>
-          
+
           {userEmail ? (
             <button
               onClick={(e) => {
@@ -306,9 +317,8 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
                 !isBlacklisting && onBlacklist(provider.id);
               }}
               disabled={isBlacklisting}
-              className={`flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-medium transition-all group/blacklist ${
-                isBlacklisting ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-medium transition-all group/blacklist ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               {isBlacklisting ? (
                 <>

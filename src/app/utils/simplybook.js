@@ -127,6 +127,11 @@ export async function getLocations() {
   return callSimplyBook("getLocationsList", {}, token);
 }
 
+export async function getCategories() {
+  const token = await getToken();
+  return callSimplyBook("getCategoriesList", {}, token);
+}
+
 export async function getEvents() {
   const token = await getToken();
   return callSimplyBook("getEventList", {}, token);

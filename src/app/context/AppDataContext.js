@@ -6,6 +6,7 @@ const AppDataContext = createContext();
 export const AppDataProvider = ({ children }) => {
   const [providers, setProviders] = useState([]);
   const [events, setEvents] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,18 +16,20 @@ export const AppDataProvider = ({ children }) => {
     try {
       const base = process.env.NEXT_PUBLIC_BASE_URL;
 
-      const [providersRes, eventsRes, locationsRes, clientsRes] = await Promise.all([
+      const [providersRes, eventsRes, locationsRes, clientsRes, categoriesRes] = await Promise.all([
         fetch(`${base}/api/providers`, { cache: "no-store" }),
         fetch(`${base}/api/events`, { cache: "no-store" }),
         fetch(`${base}/api/locations`, { cache: "no-store" }),
         fetch(`${base}/api/clients`, { cache: "no-store" }),
+        fetch(`${base}/api/categories`, { cache: "no-store" }),
       ]);
 
-      const [providersJson, eventsJson, locationsJson, clientsJson] = await Promise.all([
+      const [providersJson, eventsJson, locationsJson, clientsJson, categoriesJson] = await Promise.all([
         providersRes.ok ? providersRes.json() : [],
         eventsRes.ok ? eventsRes.json() : [],
         locationsRes.ok ? locationsRes.json() : [],
         clientsRes.ok ? clientsRes.json() : [],
+        categoriesRes.ok ? categoriesRes.json() : [],
       ]);
 
       // 🧠 Convert object to array safely
@@ -52,6 +55,7 @@ export const AppDataProvider = ({ children }) => {
       setEvents(normalize(eventsJson));
       setLocations(normalize(locationsJson));
       setClients(normalize(clientsJson));
+      setCategories(normalize(categoriesJson))
     } catch (err) {
       console.error("Error fetching in app data:", err);
     } finally {
@@ -68,6 +72,10 @@ export const AppDataProvider = ({ children }) => {
   },[events]);
 
   useEffect(()=>{
+    console.log("categories updated:", categories);
+  },[categories]);
+
+  useEffect(()=>{
     console.log("location updated:", locations);
   },[locations]);
 
@@ -80,6 +88,7 @@ export const AppDataProvider = ({ children }) => {
       value={{
         providers,
         events,
+        categories,
         locations,
         clients,
         loading,

@@ -9,7 +9,7 @@ export default function BlacklistedProvidersClient({ allProviders }) {
   const [userEmail, setUserEmail] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Get email from URL parameters on component mount
   useEffect(() => {
     const emailFromUrl = searchParams.get('email');
@@ -22,17 +22,16 @@ export default function BlacklistedProvidersClient({ allProviders }) {
     }
   }, [searchParams, router]);
 
-  // Fetch blacklisted providers
   const fetchBlacklistedProviders = async (email) => {
     if (!email) return;
-    
+
     setLoading(true);
     try {
       console.log("Fetching blacklist for email:", email);
       const response = await fetch(`/api/blacklist?email=${email}`);
       const data = await response.json();
       console.log("Blacklist API response:", data);
-      
+
       if (data.success) {
         setBlacklistedProviders(data.blockedProviderIds || []);
       } else {
@@ -45,14 +44,20 @@ export default function BlacklistedProvidersClient({ allProviders }) {
     }
   };
 
+
+  const handleBackToBooking = () => {
+
+    router.back();
+  };
+
   // Get provider details from the allProviders prop
   const getProviderDetails = (providerId) => {
     const provider = allProviders.find(p => p.id.toString() === providerId.toString());
-    
-    return provider || { 
-      id: providerId, 
-      name: `Provider ${providerId}`, 
-      picture_path: null 
+
+    return provider || {
+      id: providerId,
+      name: `Provider ${providerId}`,
+      picture_path: null
     };
   };
 
@@ -104,7 +109,7 @@ export default function BlacklistedProvidersClient({ allProviders }) {
         const result = await res.json();
         console.log(`Unblacklist result for ${providerId}:`, result);
       }
-      
+
       setBlacklistedProviders([]);
       alert("All providers have been unblacklisted successfully!");
     } catch (error) {
@@ -148,11 +153,11 @@ export default function BlacklistedProvidersClient({ allProviders }) {
                 These providers are currently hidden from your search results
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Back to Booking Button */}
               <button
-                onClick={() => router.push('/')}
+                onClick={handleBackToBooking}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +165,7 @@ export default function BlacklistedProvidersClient({ allProviders }) {
                 </svg>
                 Back to Booking
               </button>
-              
+
               {blacklistedProviders.length > 0 && (
                 <button
                   onClick={handleUnblacklistAll}
@@ -197,8 +202,8 @@ export default function BlacklistedProvidersClient({ allProviders }) {
               <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
               <p className="text-gray-600 mb-6">You haven't hidden any providers yet.</p>
               <button
-                onClick={() => router.push('/')}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                onClick={handleBackToBooking}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -237,7 +242,7 @@ export default function BlacklistedProvidersClient({ allProviders }) {
                         <p className="text-gray-600 text-sm">Provider ID: {providerId}</p>
                       </div>
                     </div>
-                    
+
                     <button
                       onClick={() => handleUnblacklist(providerId)}
                       disabled={unblacklisting === providerId}

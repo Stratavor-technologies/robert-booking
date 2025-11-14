@@ -228,7 +228,8 @@ function BookingForm({
       placeholder: "+1 (555) 123-4567",
       required: true,
       icon: Phone,
-      disabled: submittingBooking, // normal disable rule
+      disabled: submittingBooking,
+      maxLength: 10, 
     },
   ];
 
@@ -319,6 +320,7 @@ function FormField({
   required,
   icon,
   disabled = false,
+   maxLength,
 }) {
   return (
     <div className="space-y-2 ">
@@ -337,6 +339,7 @@ function FormField({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          maxLength={maxLength}
           className={`w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl 
               focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 
               focus:outline-none transition-all duration-200 bg-white/50 shadow-sm 

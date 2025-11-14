@@ -12,6 +12,7 @@ export default function Home() {
     locations,
     clients,
     fetchAllData,
+    categories
   } = useAppData();
 
   // ✅ Fetch all global data when the page loads (only once)
@@ -29,6 +30,7 @@ export default function Home() {
         events={events}
         locations={locations}
         clients={clients}
+        categories={categories}
       />
     </>
   );

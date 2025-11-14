@@ -30,13 +30,13 @@ export default function SearchSection({
   const [searchText, setSearchText] = useState(address.state || "");
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
-  // Clear address fields when coming from login/OTP verification
-  onFieldChange({ target: { name: "city", value: "" } });
-  onFieldChange({ target: { name: "state", value: "" } });
-  onFieldChange({ target: { name: "zip", value: "" } });
-  setSearchText("");
-}, []);
+  /* useEffect(() => {
+    // Clear address fields when coming from login/OTP verification
+    onFieldChange({ target: { name: "city", value: "" } });
+    onFieldChange({ target: { name: "state", value: "" } });
+    onFieldChange({ target: { name: "zip", value: "" } });
+    setSearchText("");
+  }, []); */
 
 
   const filteredStates = usStates.filter((state) =>
@@ -110,64 +110,71 @@ export default function SearchSection({
           </div>
 
           {/* State (Custom Combo Box) */}
-          <div className="space-y-2 relative" ref={dropdownRef}>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
-              Enter Your State
-            </label>
+          {/* State (Custom Combo Box) */}
+<div className="space-y-2 relative" ref={dropdownRef}>
+  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+      />
+    </svg>
+    Enter Your State
+  </label>
 
-            <div className="relative">
-              <input
-                type="text"
-                name="state"
-                value={searchText}
-                onChange={(e) => {
-                  setSearchText(e.target.value);
-                  setShowDropdown(true);
-                  onFieldChange({ target: { name: "state", value: e.target.value.toUpperCase() } });
-                }}
-                onFocus={() => setShowDropdown(true)}
-                placeholder="state"
-                disabled={loadingAddress}
-                className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-              />
-              <svg
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+  <div className="relative">
+    <input
+      type="text"
+      name="state"
+      value={searchText} // lowercase displayed
+      onChange={(e) => {
+        const value = e.target.value.toLowerCase();
+        setSearchText(value);
+        setShowDropdown(true);
+        onFieldChange({ target: { name: "state", value: value.toUpperCase() } }); // uppercase sent
+      }}
+      onFocus={() => setShowDropdown(true)}
+      placeholder="state"
+      disabled={loadingAddress}
+      className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
+        }`}
+    />
+    <svg
+      onClick={() => setShowDropdown(!showDropdown)}
+      className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
 
-              {showDropdown && (
-                <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                  {filteredStates.length > 0 ? (
-                    filteredStates.map((state) => (
-                      <li
-                        key={state}
-                        onClick={() => handleSelect(state)}
-                        className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
-                      >
-                        {state}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-4 py-2 text-gray-400">No results found</li>
-                  )}
-                </ul>
-              )}
-            </div>
-          </div>
+    {showDropdown && (
+      <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+        {filteredStates.length > 0 ? (
+          filteredStates.map((state) => (
+            <li
+              key={state}
+              onClick={() => {
+                setSearchText(state.toLowerCase()); // display lowercase in input
+                setShowDropdown(false);
+                onFieldChange({ target: { name: "state", value: state.toUpperCase() } }); // send uppercase
+              }}
+              className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
+            >
+              {state} {/* dropdown shows uppercase */}
+            </li>
+          ))
+        ) : (
+          <li className="px-4 py-2 text-gray-400">No results found</li>
+        )}
+      </ul>
+    )}
+  </div>
+</div>
+
 
           {/* ZIP */}
           <div className="space-y-2">
@@ -175,7 +182,7 @@ export default function SearchSection({
               <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z" />
               </svg>
-              Enter Your ZIP 
+              Enter Your ZIP
             </label>
             <input
               type="text"

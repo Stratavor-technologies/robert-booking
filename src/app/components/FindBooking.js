@@ -20,7 +20,7 @@ const dayMap = {
   6: "Saturday",
 };
 
-export default function FindBooking({ providers, events, locations, clients }) {
+export default function FindBooking({ providers, events, locations, clients, categories }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
   const [userFlow, setUserFlow] = useState("entry");
@@ -82,15 +82,15 @@ export default function FindBooking({ providers, events, locations, clients }) {
     getSelectedServiceNames,
     resetBooking,
     setFormData
-  } = useBooking({ providers, events, locations, clients });
+  } = useBooking({ providers, events, locations, clients, categories});
 
   // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
   // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
+  
   useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
         const savedAuth = sessionStorage.getItem('userAuth');
-        console.log(savedAuth)
         if (savedAuth) {
           try {
             const parsed = JSON.parse(savedAuth);
@@ -110,18 +110,28 @@ export default function FindBooking({ providers, events, locations, clients }) {
               setUserEmail(parsed.userEmail);
               setFormData(prev => ({ ...prev, email: parsed.userEmail }));
 
-              // 🔥 CLEAR CITY AND STATE FIELDS FOR VERIFIED USERS
-              handleFieldChange({
-                target: { name: "city", value: "" }
-              });
-              handleFieldChange({
-                target: { name: "state", value: "" }
-              });
+              // Restore address if available
+              if (parsed.userData?.lastAddress) {
+                const addr = parsed.userData.lastAddress;
 
-              // Don't restore address for verified users - they should search fresh
-              console.log('🧹 Cleared city/state for verified user');
+                if (addr.fullAddress) {
+                  handleFieldChange({
+                    target: { name: "fullAddress", value: addr.fullAddress }
+                  });
+                }
+                if (addr.city) {
+                  handleFieldChange({
+                    target: { name: "city", value: addr.city }
+                  });
+                }
+                if (addr.state) {
+                  handleFieldChange({
+                    target: { name: "state", value: addr.state }
+                  });
+                }
+              }
             }
-          } catch (error) {
+          }  catch (error) {
             console.error('❌ Error loading auth state:', error);
             sessionStorage.removeItem('userAuth');
           }
@@ -780,6 +790,7 @@ export default function FindBooking({ providers, events, locations, clients }) {
                     onProviderSelect={setSelectedProvider}
                     onBlacklist={handleBlacklist}
                     events={events}
+                    categories={categories}
                   />
                 )
               )}

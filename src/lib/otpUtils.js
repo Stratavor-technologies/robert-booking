@@ -6,7 +6,7 @@ import nodemailer from "nodemailer";
  * @param {number} length - Number of digits for OTP (default 6)
  * @returns {string} - Random numeric OTP
  */
-export function generateOTP(length = 6) {
+export function generateOTP(length = 4) {
   let otp = "";
   const digits = "0123456789";
   for (let i = 0; i < length; i++) {
