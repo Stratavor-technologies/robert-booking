@@ -88,17 +88,15 @@ export default function ProvidersSection({
 
             {/* Manage Hidden Providers Button */}
             {userEmail && (
-              // In ProvidersSection component, update the Link to pass current state
-              <Link
-                href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
-                onClick={onManageHidden} // ADD THIS onClick
+              <button
+                onClick={onManageHidden}
                 className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Manage Hidden
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -144,15 +142,15 @@ export default function ProvidersSection({
 
             {/* Show Manage Hidden button in empty state too */}
             {userEmail && (
-              <Link
-                href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
+              <button
+                onClick={onManageHidden}
                 className="inline-flex items-center gap-2 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Manage Hidden Providers
-              </Link>
+              </button>
             )}
           </div>
         )}
