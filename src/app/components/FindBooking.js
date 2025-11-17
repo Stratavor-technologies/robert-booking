@@ -34,7 +34,25 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [otpError, setOtpError] = useState("");
   const [currentEmail, setCurrentEmail] = useState(false);
 
-
+// Add this function inside the FindBooking component, after all the useState declarations
+const saveBookingState = () => {
+  const bookingState = {
+    clientLocation,
+    searchWithin,
+    selectedProvider,
+    selectedEvent,
+    selectedDate,
+    selectedTime,
+    address,
+    userEmail,
+    formData,
+    isSearchedAddress,
+    timestamp: Date.now()
+  };
+  
+  sessionStorage.setItem('bookingState', JSON.stringify(bookingState));
+  console.log('💾 Saved booking state for navigation');
+};
 
   // Get all hook functions FIRST
   const {
@@ -82,11 +100,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
     getSelectedServiceNames,
     resetBooking,
     setFormData
-  } = useBooking({ providers, events, locations, clients, categories});
+  } = useBooking({ providers, events, locations, clients, categories });
 
-  // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
-  // 🔥 AUTH PERSISTENCE: Load saved auth state AFTER hook is initialized
-  
   useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
@@ -131,7 +146,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                 }
               }
             }
-          }  catch (error) {
+          } catch (error) {
             console.error('❌ Error loading auth state:', error);
             sessionStorage.removeItem('userAuth');
           }
@@ -140,24 +155,36 @@ export default function FindBooking({ providers, events, locations, clients, cat
     };
 
     loadAuthState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty array - only run once on mount// Empty array - only run once on mount
 
-  /* useEffect(() => {
-    if (userFlow === "new-user") {
-      // Clear city and state fields when entering the door-to-door services flow
-      console.log('🧹 Clearing city and state fields for fresh search');
-      
-      handleFieldChange({
-        target: { name: "city", value: "" }
-      });
-      
-      handleFieldChange({
-        target: { name: "state", value: "" }
-      });
+  }, []);
 
+  // 🔥 ADD THESE PHONE UTILITY FUNCTIONS HERE
+  const formatPhoneNumber = (value) => {
+    // Remove all non-digit characters
+    const phoneNumber = value.replace(/\D/g, '');
+
+    // Remove leading "1" if it's the first digit (US country code)
+    let processedNumber = phoneNumber;
+    if (phoneNumber.length > 0 && phoneNumber[0] === '1') {
+      processedNumber = phoneNumber.substring(1);
     }
-  }, [userFlow, handleFieldChange]);  */
+
+    // Limit to 10 digits
+    const limitedNumber = processedNumber.substring(0, 10);
+
+    // Apply formatting
+    if (limitedNumber.length === 0) return '';
+    if (limitedNumber.length <= 3) return `(${limitedNumber}`;
+    if (limitedNumber.length <= 6) return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3)}`;
+
+    return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3, 6)}-${limitedNumber.substring(6)}`;
+  };
+
+  const normalizePhoneNumber = (formattedNumber) => {
+    // Remove all formatting and return just the 10 digits
+    return formattedNumber.replace(/\D/g, '').substring(0, 10);
+  };
+
 
 
   const currentStep = selectedTime
@@ -206,6 +233,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
     // Clear auth state from session storage
     sessionStorage.removeItem('userAuth');
+    sessionStorage.removeItem('bookingState');
     console.log('🗑️ Cleared auth state from session storage');
   };
 
@@ -223,15 +251,15 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setOtpError("");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[0-9]{10,15}$/;
 
     if (!loginData.email || !emailRegex.test(loginData.email)) {
       setOtpError("Please enter a valid email address.");
       return;
     }
 
-    if (!loginData.phonenumber ) {
-      setOtpError("Please enter a valid phone number.");
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!loginData.phonenumber || !phoneRegex.test(loginData.phonenumber)) {
+      setOtpError("Please enter a valid 10-digit phone number.");
       return;
     }
 
@@ -292,6 +320,14 @@ export default function FindBooking({ providers, events, locations, clients, cat
     e.preventDefault();
     setOtpLoading(true);
     setOtpError("");
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(loginData.phonenumber)) {
+      setOtpError("Invalid phone number format");
+      setOtpLoading(false);
+      return;
+    }
+
 
     try {
       const response = await fetch('/api/auth/verify-otp', {
@@ -509,13 +545,22 @@ export default function FindBooking({ providers, events, locations, clients, cat
               </label>
               <input
                 type="tel"
-                value={loginData.phonenumber}
-                onChange={(e) => setLoginData(prev => ({ ...prev, phonenumber: e.target.value }))}
+                value={formatPhoneNumber(loginData.phonenumber)}
+                onChange={(e) => {
+                  const formattedValue = formatPhoneNumber(e.target.value);
+                  const normalizedValue = normalizePhoneNumber(formattedValue);
+
+                  setLoginData(prev => ({
+                    ...prev,
+                    phonenumber: normalizedValue
+                  }));
+                }}
                 placeholder="Enter your phone number"
-                className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("phone") ? "border-red-500" : "border-gray-300"
+                className={`w-full px-4 py-3 border rounded-2xl text-black placeholder-black  transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${otpError.includes("phone") ? "border-red-500" : "border-gray-300"
                   }`}
                 required
               />
+      
             </div>
 
             {/* Error Message */}
@@ -791,6 +836,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                     onBlacklist={handleBlacklist}
                     events={events}
                     categories={categories}
+                     onManageHidden={saveBookingState}
                   />
                 )
               )}

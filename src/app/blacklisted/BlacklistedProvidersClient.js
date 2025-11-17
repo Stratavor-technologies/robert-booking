@@ -44,13 +44,13 @@ export default function BlacklistedProvidersClient({ allProviders }) {
     }
   };
 
-
   const handleBackToBooking = () => {
-
     router.back();
+    setTimeout(() => {
+      sessionStorage.removeItem('bookingState');
+    }, 1000);
   };
 
-  // Get provider details from the allProviders prop
   const getProviderDetails = (providerId) => {
     const provider = allProviders.find(p => p.id.toString() === providerId.toString());
 

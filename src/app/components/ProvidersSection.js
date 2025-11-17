@@ -13,7 +13,8 @@ export default function ProvidersSection({
   onBlacklist,
   loadingProviders = false,
   events = [],
-  categories = []
+  categories = [],
+  onManageHidden
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
 
@@ -87,8 +88,10 @@ export default function ProvidersSection({
 
             {/* Manage Hidden Providers Button */}
             {userEmail && (
+              // In ProvidersSection component, update the Link to pass current state
               <Link
                 href={`/blacklisted?email=${encodeURIComponent(userEmail)}`}
+                onClick={onManageHidden} // ADD THIS onClick
                 className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -320,8 +320,62 @@ function FormField({
   required,
   icon,
   disabled = false,
-   maxLength,
+  maxLength,
 }) {
+  const handlePhoneChange = (e) => {
+    if (name === 'phone') {
+      let input = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+      
+      // Remove leading "1" if it's the first digit (US country code)
+      if (input.length > 0 && input[0] === '1') {
+        input = input.substring(1);
+      }
+      
+      // Limit to 10 digits
+      if (input.length > 10) {
+        input = input.substring(0, 10);
+      }
+      
+      // Format the phone number
+      let formattedValue = input;
+      if (input.length > 6) {
+        formattedValue = `(${input.substring(0, 3)}) ${input.substring(3, 6)}-${input.substring(6)}`;
+      } else if (input.length > 3) {
+        formattedValue = `(${input.substring(0, 3)}) ${input.substring(3)}`;
+      } else if (input.length > 0) {
+        formattedValue = `(${input}`;
+      }
+      
+      // Create a synthetic event with the raw digits for the onChange handler
+      const syntheticEvent = {
+        ...e,
+        target: {
+          ...e.target,
+          name: 'phone',
+          value: input // Pass raw digits to parent onChange
+        }
+      };
+      
+      onChange(syntheticEvent);
+    } else {
+      onChange(e);
+    }
+  };
+
+  const displayValue = name === 'phone' && value 
+    ? (() => {
+        const digits = value.replace(/\D/g, '');
+        if (digits.length > 6) {
+          return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+        } else if (digits.length > 3) {
+          return `(${digits.substring(0, 3)}) ${digits.substring(3)}`;
+        } else if (digits.length > 0) {
+          return `(${digits}`;
+        }
+        return value;
+      })()
+    : value;
+
   return (
     <div className="space-y-2 ">
       <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -335,11 +389,11 @@ function FormField({
         <input
           type={type}
           name={name}
-          value={value}
-          onChange={onChange}
+          value={displayValue}
+          onChange={name === 'phone' ? handlePhoneChange : onChange}
           placeholder={placeholder}
           disabled={disabled}
-          maxLength={maxLength}
+          maxLength={name === 'phone' ? 14 : maxLength} // (999) 999-9999 = 14 chars
           className={`w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl 
               focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 
               focus:outline-none transition-all duration-200 bg-white/50 shadow-sm 

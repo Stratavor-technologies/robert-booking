@@ -19,18 +19,18 @@ export default function Banner() {
         </p>
 
         <div className="flex gap-4 justify-center">
-          <Link
+         {/*  <Link
             href="#map"
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition"
           >
             View Map
-          </Link>
-          <Link
+          </Link> */}
+          {/* <Link
             href="#book"
             className="bg-white text-blue-600 hover:bg-gray-100 px-6 py-3 rounded-xl font-medium transition"
           >
             Book Now
-          </Link>
+          </Link> */}
         </div>
       </div>
     </section>
