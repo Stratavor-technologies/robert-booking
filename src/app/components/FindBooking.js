@@ -714,7 +714,7 @@ const BlacklistedProvidersView = () => {
             </svg>
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Book Your Appointment
+            Find Door-To-Door Services
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Find the perfect service provider near you and schedule your appointment in just a few clicks
@@ -966,27 +966,11 @@ const BlacklistedProvidersView = () => {
           </svg>
         </div>
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          Book Your Appointment
+          Find Door-To-Door Services
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Find the perfect service provider near you and schedule your appointment in just a few clicks
         </p>
-
-        {/* Progress Bar - Only show if not in success state */}
-        {!showSuccess && (
-          <div className="max-w-2xl mx-auto pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-semibold text-indigo-600">{Math.round((currentStep / 4) * 100)}% Complete</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(currentStep / 4) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Show booking form only if not in success state */}

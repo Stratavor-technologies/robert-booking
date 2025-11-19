@@ -10,30 +10,30 @@ export default function Header() {
   const [hasUser, setHasUser] = useState(false);
   const router = useRouter();
 
-/*   useEffect(() => {
-    // Check if user exists in sessionStorage
-  
-    const user = sessionStorage.getItem("userAuth");
-    console.log(user)
-    setHasUser(!!user);
-  }, []); */
+  /*   useEffect(() => {
+      // Check if user exists in sessionStorage
+    
+      const user = sessionStorage.getItem("userAuth");
+      console.log(user)
+      setHasUser(!!user);
+    }, []); */
 
-useEffect(() => {
-  const checkUser = () => {
-    const user = sessionStorage.getItem("userAuth");
-    setHasUser(!!user);
-  };
+  useEffect(() => {
+    const checkUser = () => {
+      const user = sessionStorage.getItem("userAuth");
+      setHasUser(!!user);
+    };
 
-  checkUser();
+    checkUser();
 
-  // Listen for changes to sessionStorage (from other parts of app)
-  window.addEventListener("storage", checkUser);
-  window.addEventListener("session-changed", checkUser); // custom event trigger
-  return () => {
-    window.removeEventListener("storage", checkUser);
-    window.removeEventListener("session-changed", checkUser);
-  };
-}, []);
+    // Listen for changes to sessionStorage (from other parts of app)
+    window.addEventListener("storage", checkUser);
+    window.addEventListener("session-changed", checkUser); // custom event trigger
+    return () => {
+      window.removeEventListener("storage", checkUser);
+      window.removeEventListener("session-changed", checkUser);
+    };
+  }, []);
 
 
 
@@ -58,13 +58,13 @@ useEffect(() => {
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-        {/* Logo */}
         <button
-          onClick={() => router.push("/")}
+          onClick={handleBackToHome}
           className="text-2xl font-bold text-blue-600"
         >
           BellyCast
         </button>
+
 
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6">
