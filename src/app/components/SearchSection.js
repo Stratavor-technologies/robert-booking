@@ -37,6 +37,11 @@ export default function SearchSection({
   const zipRef = useRef(null);
   const searchWithinRef = useRef(null);
 
+  const handleBackToHome = () => {
+    sessionStorage.clear();
+    window.location.reload();
+  };
+
 
 
   const filteredStates = usStates.filter((st) =>
@@ -70,6 +75,14 @@ export default function SearchSection({
       {/* Gradient header bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
 
+      {/* Home Button - Top Right */}
+      <button
+        onClick={handleBackToHome}
+        className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl z-10 flex items-center gap-2"
+      >
+        Home
+      </button>
+
       {/* Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-2">
@@ -90,101 +103,101 @@ export default function SearchSection({
         {/* City, State, ZIP Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* City */}
-        {/* City */}
-<div className="space-y-2">
-  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-    Enter Your City
-  </label>
-  <input
-    ref={cityRef}
-    type="text"
-    name="city"
-    value={address.city}
-    onChange={(e) => {
-      const value = e.target.value;
+          {/* City */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Enter Your City
+            </label>
+            <input
+              ref={cityRef}
+              type="text"
+              name="city"
+              value={address.city}
+              onChange={(e) => {
+                const value = e.target.value;
 
-      
-      if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
-      onFieldChange(e);
+                if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
-      if (value.trim() === "") {
-        setCityError("");
-        return;
-      } 
-      const isValidCityName = (cityName) => {
-        if (!cityName || cityName.trim() === "") return true;
-        const name = cityName.trim();
-        if (name.length < 2) return false;
-        if (!/^[A-Za-z\s\-']+$/.test(name)) return false;
-        if (!/^[A-Za-z]/.test(name)) return false; 
-        const vowels = (name.match(/[aeiou]/gi) || []).length;
-        const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
-        if (vowels === 0) return false;
-        
-        const totalLetters = vowels + consonants;
-        if (totalLetters > 3 && vowels / totalLetters < 0.2) return false;
+                onFieldChange(e);
 
-        if (/([a-z])\1\1/i.test(name)) return false;
- 
-        if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
+                if (value.trim() === "") {
+                  setCityError("");
+                  return;
+                }
+                const isValidCityName = (cityName) => {
+                  if (!cityName || cityName.trim() === "") return true;
+                  const name = cityName.trim();
+                  if (name.length < 2) return false;
+                  if (!/^[A-Za-z\s\-']+$/.test(name)) return false;
+                  if (!/^[A-Za-z]/.test(name)) return false;
+                  const vowels = (name.match(/[aeiou]/gi) || []).length;
+                  const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
+                  if (vowels === 0) return false;
 
-        const commonPatterns = [
-          'qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '123456',
-          'abcdef', 'qweasd', 'yxcvbn', 'poiuyt', 'lkjhgf',
-          'jib', 'wjib', 'bwivbf', 'qihkfbwhef', 'qyvcfefvgqbab', 'bbeuadb'
-        ];
-        
-        if (commonPatterns.some(pattern => name.toLowerCase().includes(pattern))) {
-          return false;
-        }
+                  const totalLetters = vowels + consonants;
+                  if (totalLetters > 3 && vowels / totalLetters < 0.2) return false;
 
-        const alternatingPattern = /^([bcdfghjklmnpqrstvwxyz][aeiou])+[bcdfghjklmnpqrstvwxyz]?$|^([aeiou][bcdfghjklmnpqrstvwxyz])+[aeiou]?$/i;
-        if (name.length > 6 && alternatingPattern.test(name)) {
-          return false;
-        }
+                  if (/([a-z])\1\1/i.test(name)) return false;
 
-        if (name.length <= 8) {
-          const uniqueChars = new Set(name.toLowerCase().replace(/[^a-z]/g, ''));
-          const uniqueConsonants = Array.from(uniqueChars).filter(char => !'aeiou'.includes(char)).length;
-          if (uniqueConsonants > name.length * 0.7) return false;
-        }
+                  if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
 
-        return true;
-      };
+                  const commonPatterns = [
+                    'qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '123456',
+                    'abcdef', 'qweasd', 'yxcvbn', 'poiuyt', 'lkjhgf',
+                    'jib', 'wjib', 'bwivbf', 'qihkfbwhef', 'qyvcfefvgqbab', 'bbeuadb'
+                  ];
 
-      if (!isValidCityName(value)) {
-        setCityError("Please enter a valid city name");
-      } else {
-        setCityError("");
-      }
-    }}
-    placeholder="City"
-    maxLength={50}
-    disabled={loadingAddress}
-    onKeyDown={(e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        stateRef.current?.focus();
-      }
-    }}
-    className={`w-full border border-gray-200 rounded-xl px-4 py-3.5
+                  if (commonPatterns.some(pattern => name.toLowerCase().includes(pattern))) {
+                    return false;
+                  }
+
+                  const alternatingPattern = /^([bcdfghjklmnpqrstvwxyz][aeiou])+[bcdfghjklmnpqrstvwxyz]?$|^([aeiou][bcdfghjklmnpqrstvwxyz])+[aeiou]?$/i;
+                  if (name.length > 6 && alternatingPattern.test(name)) {
+                    return false;
+                  }
+
+                  if (name.length <= 8) {
+                    const uniqueChars = new Set(name.toLowerCase().replace(/[^a-z]/g, ''));
+                    const uniqueConsonants = Array.from(uniqueChars).filter(char => !'aeiou'.includes(char)).length;
+                    if (uniqueConsonants > name.length * 0.7) return false;
+                  }
+
+                  return true;
+                };
+
+                if (!isValidCityName(value)) {
+                  setCityError("Please enter a valid city name");
+                } else {
+                  setCityError("");
+                }
+              }}
+              placeholder="City"
+              maxLength={50}
+              disabled={loadingAddress}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  stateRef.current?.focus();
+                }
+              }}
+              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5
       focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
       bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
       ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
       ${cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : ""}
     `}
-  />
+            />
 
-  {/* ERROR MESSAGE BELOW CITY INPUT */}
-  {cityError && (
-    <p className="text-red-500 text-sm mt-1">{cityError}</p>
-  )}
-</div>
+            {/* ERROR MESSAGE BELOW CITY INPUT */}
+            {cityError && (
+              <p className="text-red-500 text-sm mt-1">{cityError}</p>
+            )}
+          </div>
 
 
           {/* State (Custom Combo Box) */}

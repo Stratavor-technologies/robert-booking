@@ -9,6 +9,7 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
+import { Calendar, Clock, CheckCircle  } from "lucide-react";
 
 const dayMap = {
   0: "Sunday",
@@ -38,6 +39,10 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [unblacklisting, setUnblacklisting] = useState(null);
+  const [showServicesSection, setShowServicesSection] = useState(true);
+  const [showDatePickerSection, setShowDatePickerSection] = useState(true);
+  const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
+  const [showBookingSummary, setShowBookingSummary] = useState(true);
 
   // Add this function inside the FindBooking component, after all the useState declarations
   const saveBookingState = () => {
@@ -162,6 +167,50 @@ export default function FindBooking({ providers, events, locations, clients, cat
     loadAuthState();
 
   }, []);
+
+  // Add this handler function
+  const handleCloseServicesSection = () => {
+    console.log('Closing ServicesSection');
+    setShowServicesSection(false);
+  };
+
+  // Add this function to reopen if needed
+  const handleReopenServicesSection = () => {
+    setShowServicesSection(true);
+  };
+
+
+  // Add these handler functions
+  const handleCloseDatePickerSection = () => {
+    console.log('Closing DatePickerSection');
+    setShowDatePickerSection(false);
+  };
+
+  const handleReopenDatePickerSection = () => {
+    setShowDatePickerSection(true);
+  };
+
+  // Add these handler functions
+  const handleCloseTimeSlotsSection = () => {
+    console.log('Closing TimeSlotsSection');
+    setShowTimeSlotsSection(false);
+  };
+
+  const handleReopenTimeSlotsSection = () => {
+    setShowTimeSlotsSection(true);
+  };
+
+
+  // Add these handler functions
+  const handleCloseBookingSummary = () => {
+    console.log('Closing BookingSummary');
+    setShowBookingSummary(false);
+  };
+
+  const handleReopenBookingSummary = () => {
+    setShowBookingSummary(true);
+  };
+
 
   // 🔥 ADD THESE PHONE UTILITY FUNCTIONS HERE
   const formatPhoneNumber = (value) => {
@@ -463,42 +512,42 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
   // Function to unblacklist a provider
   // Function to unblacklist a provider
-const handleUnblacklist = async (providerId) => {
-  if (!userEmail) return;
+  const handleUnblacklist = async (providerId) => {
+    if (!userEmail) return;
 
-  setUnblacklisting(providerId);
-  try {
-    console.log("Unblacklisting provider:", providerId);
-    const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
-      method: "DELETE",
-    });
+    setUnblacklisting(providerId);
+    try {
+      console.log("Unblacklisting provider:", providerId);
+      const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
+        method: "DELETE",
+      });
 
-    const result = await res.json();
-    console.log("Unblacklist response:", result);
+      const result = await res.json();
+      console.log("Unblacklist response:", result);
 
-    if (result.success) {
-      // Remove from local state
-      setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
-      
-      // 🔥 REFRESH PROVIDERS DATA - Trigger a re-fetch of providers
-      if (clientLocation && searchWithin) {
-        console.log("Refreshing providers after unblacklist...");
-        // You might need to add a refresh function to your useBooking hook
-        // or trigger the search again
-        getLatLngFromAddress(); // This will re-fetch providers with updated blacklist
+      if (result.success) {
+        // Remove from local state
+        setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
+
+        // 🔥 REFRESH PROVIDERS DATA - Trigger a re-fetch of providers
+        if (clientLocation && searchWithin) {
+          console.log("Refreshing providers after unblacklist...");
+          // You might need to add a refresh function to your useBooking hook
+          // or trigger the search again
+          getLatLngFromAddress(); // This will re-fetch providers with updated blacklist
+        }
+
+        alert("Provider has been unblacklisted successfully!");
+      } else {
+        alert(result.message || "Failed to unblacklist provider.");
       }
-      
-      alert("Provider has been unblacklisted successfully!");
-    } else {
-      alert(result.message || "Failed to unblacklist provider.");
+    } catch (error) {
+      console.error("Unblacklist error:", error);
+      alert("Something went wrong while unblacklisting the provider.");
+    } finally {
+      setUnblacklisting(null);
     }
-  } catch (error) {
-    console.error("Unblacklist error:", error);
-    alert("Something went wrong while unblacklisting the provider.");
-  } finally {
-    setUnblacklisting(null);
-  }
-};
+  };
 
   // Function to unblacklist all providers
   const handleUnblacklistAll = async () => {
@@ -532,169 +581,169 @@ const handleUnblacklist = async (providerId) => {
 
   // Blacklisted Providers View Component
 
-const BlacklistedProvidersView = () => {
-  // Get provider details from the providers prop
-  const getProviderDetails = (providerId) => {
-    const provider = providers.find(p => p.id.toString() === providerId.toString());
-    return provider || {
-      id: providerId,
-      name: `Provider ${providerId}`,
-      picture_path: null
+  const BlacklistedProvidersView = () => {
+    // Get provider details from the providers prop
+    const getProviderDetails = (providerId) => {
+      const provider = providers.find(p => p.id.toString() === providerId.toString());
+      return provider || {
+        id: providerId,
+        name: `Provider ${providerId}`,
+        picture_path: null
+      };
     };
-  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-3xl shadow-lg mb-6">
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Hidden Providers
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Manage providers you've hidden from your search results
-          </p>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Header with actions */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
-                Hidden Providers ({blacklistedProviders.length})
-              </h2>
-              <p className="text-gray-600 mt-1">
-                For: {userEmail}
-              </p>
-              <p className="text-gray-500 text-sm">
-                These providers are currently hidden from your search results
-              </p>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-3xl shadow-lg mb-6">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
             </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Hidden Providers
+            </h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Manage providers you've hidden from your search results
+            </p>
+          </div>
 
-            <div className="flex items-center gap-4">
-              {/* Back to Providers Button */}
-              <button
-                onClick={showProviders}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Booking
-              </button>
+          {/* Main Content */}
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            {/* Header with actions */}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Hidden Providers ({blacklistedProviders.length})
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  For: {userEmail}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  These providers are currently hidden from your search results
+                </p>
+              </div>
 
-              {blacklistedProviders.length > 0 && (
+              <div className="flex items-center gap-4">
+                {/* Back to Providers Button */}
                 <button
-                  onClick={handleUnblacklistAll}
-                  disabled={loadingBlacklist}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                  onClick={showProviders}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
-                  Show All Again
+                  Back to Booking
                 </button>
-              )}
-            </div>
-          </div>
 
-          {/* Loading State */}
-          {loadingBlacklist && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-              </div>
-              <p className="text-gray-600">Loading hidden providers...</p>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loadingBlacklist && blacklistedProviders.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
-              <p className="text-gray-600 mb-6">You haven't hidden any providers yet.</p>
-              <button
-                onClick={showProviders}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Booking
-              </button>
-            </div>
-          )}
-
-          {/* Providers List */}
-          {!loadingBlacklist && blacklistedProviders.length > 0 && (
-            <div className="space-y-4">
-              {blacklistedProviders.map((providerId) => {
-                const provider = getProviderDetails(providerId);
-                return (
-                  <div
-                    key={providerId}
-                    className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-200"
+                {blacklistedProviders.length > 0 && (
+                  <button
+                    onClick={handleUnblacklistAll}
+                    disabled={loadingBlacklist}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex-shrink-0">
-                        <img
-                          src={
-                            provider.picture_path
-                              ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
-                              : "/images/placeholder.jpg"
-                          }
-                          alt={provider.name}
-                          className="w-12 h-12 object-cover rounded-2xl shadow-md"
-                        />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          {provider.name}
-                        </h3>
-                        <p className="text-gray-600 text-sm">Provider ID: {providerId}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleUnblacklist(providerId)}
-                      disabled={unblacklisting === providerId}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-                    >
-                      {unblacklisting === providerId ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Showing...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Show Again
-                        </>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Show All Again
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Loading State */}
+            {loadingBlacklist && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p className="text-gray-600">Loading hidden providers...</p>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loadingBlacklist && blacklistedProviders.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
+                <p className="text-gray-600 mb-6">You haven't hidden any providers yet.</p>
+                <button
+                  onClick={showProviders}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to Booking
+                </button>
+              </div>
+            )}
+
+            {/* Providers List */}
+            {!loadingBlacklist && blacklistedProviders.length > 0 && (
+              <div className="space-y-4">
+                {blacklistedProviders.map((providerId) => {
+                  const provider = getProviderDetails(providerId);
+                  return (
+                    <div
+                      key={providerId}
+                      className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-200"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex-shrink-0">
+                          <img
+                            src={
+                              provider.picture_path
+                                ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
+                                : "/images/placeholder.jpg"
+                            }
+                            alt={provider.name}
+                            className="w-12 h-12 object-cover rounded-2xl shadow-md"
+                          />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {provider.name}
+                          </h3>
+                          <p className="text-gray-600 text-sm">Provider ID: {providerId}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleUnblacklist(providerId)}
+                        disabled={unblacklisting === providerId}
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                      >
+                        {unblacklisting === providerId ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Showing...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Show Again
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 
 
@@ -1008,10 +1057,10 @@ const BlacklistedProvidersView = () => {
           )}
 
           {/* Results Header - Only show when not loading */}
-          {isSearchedAddress && !loadingAddress && !loadingProviders && (
+          {/*  {isSearchedAddress && !loadingAddress && !loadingProviders && (
             <div className="my-12 max-w-4xl mx-auto">
               <div className="relative bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 shadow-lg border border-indigo-100">
-                {/* Decorative Elements */}
+                
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                   <div className="bg-white rounded-full p-3 shadow-lg border border-indigo-100">
                     <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -1022,13 +1071,13 @@ const BlacklistedProvidersView = () => {
                   </div>
                 </div>
 
-                {/* Content */}
+             
                 <div className="text-center space-y-4 pt-4">
                   <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     {filteredProviders.length} Service Provider{filteredProviders.length !== 1 ? 's' : ''} Found Near You
                   </h2>
 
-                  {/* Subtitle with dynamic messaging */}
+                
                   <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
                     {filteredProviders.length > 0 ? (
                       <>We found the perfect professionals ready to serve you in your area</>
@@ -1037,7 +1086,7 @@ const BlacklistedProvidersView = () => {
                     )}
                   </p>
 
-                  {/* Stats Bar */}
+                  
                   {filteredProviders.length > 0 && (
                     <div className="flex justify-center items-center gap-6 pt-4">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -1055,20 +1104,20 @@ const BlacklistedProvidersView = () => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
-          {/* No Providers Found - UPDATED WITH onNoThanks PROP */}
+
           {isSearchedAddress && !loadingAddress && !loadingProviders && filteredProviders.length === 0 && (
             <NoProvidersSection
               address={address}
               userEmail={userEmail}
               onFieldChange={handleFieldChange}
               onSubmit={handleNotFoundSubmit}
-              onNoThanks={handleNoThanks} // Use the new handler
+              onNoThanks={handleNoThanks}
             />
           )}
 
-          {/* Providers Section with Loading */}
+
           {isSearchedAddress && clientLocation && !loadingAddress && (
             <div className="relative">
               {loadingProviders ? (
@@ -1098,7 +1147,7 @@ const BlacklistedProvidersView = () => {
                       onBlacklist={handleBlacklist}
                       events={events}
                       categories={categories}
-                      onManageHidden={showBlacklistedProviders} // Changed from saveBookingState
+                      onManageHidden={showBlacklistedProviders}
                     />
                   ) : (
                     <BlacklistedProvidersView />
@@ -1108,8 +1157,8 @@ const BlacklistedProvidersView = () => {
             </div>
           )}
 
-          {/* Services Section */}
-          {filteredProviders.length > 0 && selectedProvider && (
+
+          {filteredProviders.length > 0 && selectedProvider && showServicesSection && (
             <div className="relative">
               {loadingServices ? (
                 <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
@@ -1126,13 +1175,29 @@ const BlacklistedProvidersView = () => {
                   selectedProvider={selectedProvider}
                   providers={providers}
                   events={events}
+                  onClose={handleCloseServicesSection}
                 />
               )}
             </div>
           )}
 
+          {/* Show reopen button if ServicesSection is closed but conditions are met */}
+          {filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
+            <div className="text-center">
+              <button
+                onClick={handleReopenServicesSection}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                Show Services
+              </button>
+            </div>
+          )}
+
           {/* Date Picker Section */}
-          {filteredProviders.length > 0 && selectedProvider && (
+          {filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
             <DatePickerSection
               selectedDate={selectedDate}
               workCalandar={workCalandar}
@@ -1141,11 +1206,26 @@ const BlacklistedProvidersView = () => {
               onDateSelect={setSelectedDate}
               onTimeReset={() => setSelectedTime("")}
               onMonthChange={handleMonthChange}
+              onClose={handleCloseDatePickerSection}
             />
           )}
 
+          {/* Show reopen button if DatePickerSection is closed but conditions are met */}
+          {filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
+            <div className="text-center">
+              <button
+                onClick={handleReopenDatePickerSection}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Calendar className="w-5 h-5" />
+                Show Date Picker
+              </button>
+            </div>
+          )}
+
           {/* Time Slots Section with Loading */}
-          {filteredProviders.length > 0 && selectedDate && (
+          {/* Time Slots Section with Loading */}
+          {filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
             <div className="relative">
               {loadingTimeSlots ? (
                 <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
@@ -1162,13 +1242,28 @@ const BlacklistedProvidersView = () => {
                   slots={slots}
                   dayMap={dayMap}
                   onTimeSelect={setSelectedTime}
+                  onClose={handleCloseTimeSlotsSection}
                 />
               )}
             </div>
           )}
 
+          {/* Show reopen button if TimeSlotsSection is closed but conditions are met */}
+          {filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
+            <div className="text-center">
+              <button
+                onClick={handleReopenTimeSlotsSection}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Clock className="w-5 h-5" />
+                Show Time Slots
+              </button>
+            </div>
+          )}
+
           {/* Booking Summary & Form with Loading */}
-          {filteredProviders.length > 0 && selectedTime && (
+          {/* Booking Summary & Form with Loading */}
+          {filteredProviders.length > 0 && selectedTime && showBookingSummary && (
             <BookingSummary
               selectedEvent={selectedEvent}
               selectedProvider={selectedProvider}
@@ -1183,7 +1278,21 @@ const BlacklistedProvidersView = () => {
               getSelectedServiceNames={getSelectedServiceNames}
               submittingBooking={submittingBooking}
               currentEmail={currentEmail}
+              onClose={handleCloseBookingSummary}
             />
+          )}
+
+          {/* Show reopen button if BookingSummary is closed but conditions are met */}
+          {filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
+            <div className="text-center">
+              <button
+                onClick={handleReopenBookingSummary}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <CheckCircle className="w-5 h-5" />
+                Show Booking Summary
+              </button>
+            </div>
           )}
         </>
       ) : (

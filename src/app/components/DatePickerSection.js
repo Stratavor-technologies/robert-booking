@@ -8,7 +8,8 @@ export default function DatePickerSection({
   loadingCalendar,
   onDateSelect,
   onTimeReset,
-  onMonthChange
+  onMonthChange,
+  onClose // Add this prop for cross functionality
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [availableDatesCount, setAvailableDatesCount] = useState(0);
@@ -37,36 +38,43 @@ export default function DatePickerSection({
     onMonthChange(date);
   };
 
-  // const getDayAvailability = (date) => {
-  //   const y = date.getFullYear();
-  //   const m = String(date.getMonth() + 1).padStart(2, "0");
-  //   const d = String(date.getDate()).padStart(2, "0");
-  //   const key = `${y}-${m}-${d}`;
-    
-  //   // Check if the date exists in workCalendar and is not a day off
-  //   return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
-  // };
-
   const getDayAvailability = (date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const key = `${y}-${m}-${d}`;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const key = `${y}-${m}-${d}`;
 
-  // Disable all past dates
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isPast = date < today;
+    // Disable all past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isPast = date < today;
 
-  if (isPast) return false; // ❌ past days disabled
+    if (isPast) return false; // ❌ past days disabled
 
-  // Check if the date exists in workCalendar and is not a day off
-  return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
-};
-
+    // Check if the date exists in workCalendar and is not a day off
+    return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
+  };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100">
+    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
+      {/* Cross Button */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors duration-200 group"
+          aria-label="Close date picker section"
+        >
+          <svg 
+            className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center">

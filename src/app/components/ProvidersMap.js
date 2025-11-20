@@ -102,11 +102,12 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
           )
             .addTo(map)
             .bindPopup(
-              `<b>${locationText}</b>` +
-                (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "") +
-                (loc.maxDistanceTravel
-                  ? `<br/><b>Max Travel:</b> ${loc.maxDistanceTravel} miles`
-                  : "")
+              `<b>${loc.providerName}</b><br/>` +
+              `<span>${locationText}</span>` +
+              (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "") +
+              (loc.maxDistanceTravel
+                ? `<br/><b>Max Travel:</b> ${loc.maxDistanceTravel} miles`
+                : "")
             );
 
           markersRef.current.push(marker);

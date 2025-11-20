@@ -14,7 +14,8 @@ export default function ProvidersSection({
   loadingProviders = false,
   events = [],
   categories = [],
-  onManageHidden
+  onManageHidden,
+  onClose
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
 
@@ -36,7 +37,28 @@ export default function ProvidersSection({
   return (
     <div className="space-y-8">
       {/* Map Section */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border border-gray-100">
+      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border border-gray-100 ">
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 bg-black hover:bg-black rounded-full flex items-center justify-center transition-all duration-200 z-10 group"
+            aria-label="Close providers section"
+          >
+            <svg
+              className="w-4 h-4 text-gray-600 group-hover:text-gray-800 transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        )}
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,11 +76,13 @@ export default function ProvidersSection({
           userLocation={clientLocation}
           searchWithin={searchWithin}
         />
+
       </div>
 
       {/* Providers List */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100">
+      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
         {/* Header */}
+
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
@@ -123,7 +147,7 @@ export default function ProvidersSection({
                 isBlacklisting={blacklistingProvider === provider.id}
                 userEmail={userEmail}
                 events={events}
-                categories={categories} // Pass events to ProviderCard
+                categories={categories}
               />
             ))}
           </div>
@@ -161,33 +185,31 @@ export default function ProvidersSection({
 
 function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false, userEmail, events = [], categories = [] }) {
   const getProviderCategories = () => {
-    if (!categories || categories.length === 0) return [];
+    if (!categories || categories.length === 0 || !provider.services) return [];
+
     return categories.filter(category => {
+      if (!category.events || !Array.isArray(category.events)) return false;
+      const providerServiceIds = provider.services.map(serviceId =>
+        typeof serviceId === 'string' ? parseInt(serviceId) : serviceId
+      );
 
-      if (!category.units) return false;
+      const categoryEventIds = category.events.map(eventId =>
+        typeof eventId === 'string' ? parseInt(eventId) : eventId
+      );
 
-      const unitsArray = Array.isArray(category.units)
-        ? category.units
-        : typeof category.units === 'object' && category.units !== null
-          ? Object.values(category.units)
-          : [category.units];
-
-      const providerId = parseInt(provider.id);
-
-      return unitsArray.some(unitId => parseInt(unitId) === providerId);
+      return providerServiceIds.some(serviceId =>
+        categoryEventIds.includes(serviceId)
+      );
     });
   };
 
-  // Add this function after the getProviderCategories function
   const getLocationDisplay = () => {
     if (!provider.nearestLocation) return null;
 
-    // Extract city and state from title (last two parts after comma)
     if (provider.nearestLocation.title) {
       return provider.nearestLocation.title.split(',').slice(-2).join(',').trim();
     }
 
-    // Fallback to just city if no title
     return provider.nearestLocation.city;
   };
 
@@ -196,7 +218,7 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
   return (
     <div
       className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${isSelected
-        ? "border-indigo-500 bg-gradient-to-r from-indigo-50 to-blue-50 shadow-lg"
+        ? " bg-white shadow-lg"
         : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md"
         } ${isBlacklisting ? "opacity-50" : ""}`}
     >
@@ -233,7 +255,7 @@ function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklist
               className="w-24 h-24 object-cover rounded-xl shadow-md group-hover:shadow-lg transition-all"
             />
             {isSelected && (
-              <div className="absolute inset-0 border-2 border-indigo-500 rounded-xl"></div>
+              <div className="absolute inset-0 border-2 rounded-xl"></div>
             )}
           </div>
         </div>

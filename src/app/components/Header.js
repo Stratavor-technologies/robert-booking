@@ -1,31 +1,31 @@
 "use client";
-
+ 
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-
+ 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [hasUser, setHasUser] = useState(false);
   const router = useRouter();
-
+ 
   /*   useEffect(() => {
       // Check if user exists in sessionStorage
-    
+   
       const user = sessionStorage.getItem("userAuth");
       console.log(user)
       setHasUser(!!user);
     }, []); */
-
+ 
   useEffect(() => {
     const checkUser = () => {
       const user = sessionStorage.getItem("userAuth");
       setHasUser(!!user);
     };
-
+ 
     checkUser();
-
+ 
     // Listen for changes to sessionStorage (from other parts of app)
     window.addEventListener("storage", checkUser);
     window.addEventListener("session-changed", checkUser); // custom event trigger
@@ -34,9 +34,9 @@ export default function Header() {
       window.removeEventListener("session-changed", checkUser);
     };
   }, []);
-
-
-
+ 
+ 
+ 
   const navItems = [
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
@@ -44,17 +44,17 @@ export default function Header() {
     { label: "Contact", href: "/contact" },
     { label: "Notify-Users", href: "/notify" },
   ];
-
+ 
   // Add "Past Bookings" if user is logged in
   const updatedNavItems = hasUser
     ? [...navItems, { label: "Past Bookings", href: "/past-bookings" }]
     : navItems;
-
+ 
   const handleBackToHome = () => {
     sessionStorage.clear(); // clear user/session data
     window.location.reload(); // reload page
   };
-
+ 
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
@@ -64,8 +64,8 @@ export default function Header() {
         >
           BellyCast
         </button>
-
-
+ 
+ 
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6">
           {updatedNavItems.map((item, idx) => (
@@ -78,7 +78,7 @@ export default function Header() {
             </Link>
           ))}
         </nav>
-
+ 
         {/* CTA Button */}
         <div className="hidden md:block">
           <button
@@ -88,7 +88,7 @@ export default function Header() {
             Back to Home
           </button>
         </div>
-
+ 
         {/* Mobile Menu Button */}
         <button
           className="md:hidden text-gray-700"
@@ -97,7 +97,7 @@ export default function Header() {
           {isOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
-
+ 
       {/* Mobile Dropdown */}
       {isOpen && (
         <div className="md:hidden bg-white shadow-md px-6 py-4 space-y-4">
