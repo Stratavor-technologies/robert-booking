@@ -65,11 +65,15 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
       }
 
       // Provider locations
-      const providerLocations = providers.flatMap((p) =>
-        (p.providerLocations || [])
-          .filter((loc) => loc.lat && loc.lng)
-          .map((loc) => ({ ...loc, providerName: p.name }))
-      );
+     const providerLocations = providers.flatMap((p) =>
+  (p.providerLocations || [])
+    .filter((loc) => loc.lat && loc.lng)
+    .map((loc) => ({ 
+      ...loc, 
+      providerName: p.name,
+      maxDistanceTravel: loc.maxDistanceTravel || p.maxDistanceTravel
+    }))
+);
 
       // Collect all valid markers for bounds calculation
       const allMarkers = [];
@@ -104,11 +108,16 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
             : `${city} ${address2}${state ? ", " + state : ""}`;
 
         // Display only if within distance
-        if (!userLocation || dist <= searchWithin) {
-          const marker = L.marker(
-            [parseFloat(loc.lat), parseFloat(loc.lng)],
-            { icon: providerIcon }
-          )
+       // Check if provider is within both search radius AND their max travel distance
+const isWithinSearchRadius = !userLocation || dist <= searchWithin;
+const isWithinMaxTravel = !loc.maxDistanceTravel || dist <= parseInt(loc.maxDistanceTravel);
+
+// Only show provider if they're within both distances
+if (isWithinSearchRadius && isWithinMaxTravel) {
+  const marker = L.marker(
+    [parseFloat(loc.lat), parseFloat(loc.lng)],
+    { icon: providerIcon }
+  )
             .addTo(map)
             .bindPopup(
               `<b>${loc.providerName}</b><br/>` +

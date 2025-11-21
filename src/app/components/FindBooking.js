@@ -9,7 +9,7 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
-import { Calendar, Clock, CheckCircle  } from "lucide-react";
+import { Calendar, Clock, CheckCircle } from "lucide-react";
 
 const dayMap = {
   0: "Sunday",
@@ -43,7 +43,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [showDatePickerSection, setShowDatePickerSection] = useState(true);
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
-
+  const [isUnverifiedUser, setIsUnverifiedUser] = useState(false);
   // Add this function inside the FindBooking component, after all the useState declarations
   const saveBookingState = () => {
     const bookingState = {
@@ -276,20 +276,21 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   // 🔥 AUTH PERSISTENCE: Enhanced reset that clears session storage
-  const handleFullReset = () => {
-    resetBooking();
-    setShowSuccess(false);
-    setBookingDetails(null);
-    setUserFlow("entry");
-    setOtpVerified(false);
-    setOtp("");
-    setLoginData({ email: "", phonenumber: "" });
+ const handleFullReset = () => {
+  resetBooking();
+  setShowSuccess(false);
+  setBookingDetails(null);
+  setUserFlow("entry");
+  setOtpVerified(false);
+  setOtp("");
+  setLoginData({ email: "", phonenumber: "" });
+  setIsUnverifiedUser(false); // Add this line
 
-    // Clear auth state from session storage
-    sessionStorage.removeItem('userAuth');
-    sessionStorage.removeItem('bookingState');
-    console.log('🗑️ Cleared auth state from session storage');
-  };
+  // Clear auth state from session storage
+  sessionStorage.removeItem('userAuth');
+  sessionStorage.removeItem('bookingState');
+  console.log('🗑️ Cleared auth state from session storage');
+};
 
   // NEW: Handler for "No Thanks" that goes back to ENTRY point
   const handleNoThanks = () => {
@@ -794,6 +795,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                   target: { name: "fullAddress", value: "" }
                 });
                 setUserFlow("new-user");
+                setIsUnverifiedUser(true); // Add this line
               }}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
@@ -1197,7 +1199,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Date Picker Section */}
-          {filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
             <DatePickerSection
               selectedDate={selectedDate}
               workCalandar={workCalandar}
@@ -1211,7 +1213,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if DatePickerSection is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenDatePickerSection}
@@ -1225,7 +1227,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
           {/* Time Slots Section with Loading */}
           {/* Time Slots Section with Loading */}
-          {filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
             <div className="relative">
               {loadingTimeSlots ? (
                 <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
@@ -1249,7 +1251,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if TimeSlotsSection is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
+         {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenTimeSlotsSection}
@@ -1263,7 +1265,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
           {/* Booking Summary & Form with Loading */}
           {/* Booking Summary & Form with Loading */}
-          {filteredProviders.length > 0 && selectedTime && showBookingSummary && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedTime && showBookingSummary && (
             <BookingSummary
               selectedEvent={selectedEvent}
               selectedProvider={selectedProvider}
@@ -1283,7 +1285,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if BookingSummary is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
             <div className="text-center">
               <button
                 onClick={handleReopenBookingSummary}
