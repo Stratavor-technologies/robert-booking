@@ -22,7 +22,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   });
   const [touched, setTouched] = useState({
     name: false,
-    email: false,
+    email: false, 
     phone: false,
     category: false
   });
@@ -235,6 +235,16 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
       {/* Header */}
       <div className="text-center space-y-4">
+        <button
+    onClick={() => {
+      sessionStorage.clear();
+      window.location.reload();
+    }}
+    className="absolute top-4 right-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black px-4 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl z-10 flex items-center gap-2 font-bold"
+  >
+    Home
+  </button>
+        
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl shadow-lg">
           <svg
             className="w-8 h-8 text-white"
