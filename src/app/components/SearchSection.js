@@ -102,7 +102,8 @@ export default function SearchSection({
       <div className="space-y-6">
         {/* City, State, ZIP Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* City */}
+
+    
           {/* City */}
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -120,7 +121,7 @@ export default function SearchSection({
               onChange={(e) => {
                 const value = e.target.value;
 
-
+                // Allow only letters, spaces, hyphens, and apostrophes
                 if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
                 onFieldChange(e);
@@ -129,42 +130,53 @@ export default function SearchSection({
                   setCityError("");
                   return;
                 }
+
                 const isValidCityName = (cityName) => {
                   if (!cityName || cityName.trim() === "") return true;
                   const name = cityName.trim();
-                  if (name.length < 2) return false;
-                  if (!/^[A-Za-z\s\-']+$/.test(name)) return false;
-                  if (!/^[A-Za-z]/.test(name)) return false;
-                  const vowels = (name.match(/[aeiou]/gi) || []).length;
-                  const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
-                  if (vowels === 0) return false;
 
-                  const totalLetters = vowels + consonants;
-                  if (totalLetters > 3 && vowels / totalLetters < 0.2) return false;
+                  // For 1 letter - always valid (no error)
+                  if (name.length === 1) return true;
 
-                  if (/([a-z])\1\1/i.test(name)) return false;
+                  // For 2-3 letters - check if it looks like a real city name
+                  if (name.length >= 2 && name.length <= 3) {
+                    // Must contain at least one vowel
+                    const hasVowel = /[aeiou]/i.test(name);
+                    // Must not be all consonants
+                    const allConsonants = /^[bcdfghjklmnpqrstvwxyz]+$/i.test(name);
 
-                  if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
-
-                  const commonPatterns = [
-                    'qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '123456',
-                    'abcdef', 'qweasd', 'yxcvbn', 'poiuyt', 'lkjhgf',
-                    'jib', 'wjib', 'bwivbf', 'qihkfbwhef', 'qyvcfefvgqbab', 'bbeuadb'
-                  ];
-
-                  if (commonPatterns.some(pattern => name.toLowerCase().includes(pattern))) {
-                    return false;
+                    if (!hasVowel || allConsonants) {
+                      return false;
+                    }
                   }
 
-                  const alternatingPattern = /^([bcdfghjklmnpqrstvwxyz][aeiou])+[bcdfghjklmnpqrstvwxyz]?$|^([aeiou][bcdfghjklmnpqrstvwxyz])+[aeiou]?$/i;
-                  if (name.length > 6 && alternatingPattern.test(name)) {
-                    return false;
-                  }
+                  // For longer names, use your existing validation
+                  if (name.length >= 4) {
+                    // Must contain at least one vowel
+                    const vowels = (name.match(/[aeiou]/gi) || []).length;
+                    const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
+                    if (vowels === 0) return false;
 
-                  if (name.length <= 8) {
-                    const uniqueChars = new Set(name.toLowerCase().replace(/[^a-z]/g, ''));
-                    const uniqueConsonants = Array.from(uniqueChars).filter(char => !'aeiou'.includes(char)).length;
-                    if (uniqueConsonants > name.length * 0.7) return false;
+                    const totalLetters = vowels + consonants;
+                    // Vowel-to-consonant ratio check
+                    if (totalLetters > 3 && vowels / totalLetters < 0.2) return false;
+
+                    // No triple consecutive identical letters
+                    if (/([a-z])\1\1/i.test(name)) return false;
+
+                    // No more than 3 consecutive consonants
+                    if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
+
+                    // Common keyboard patterns and gibberish detection
+                    const commonPatterns = [
+                      'qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '123456',
+                      'abcdef', 'qweasd', 'yxcvbn', 'poiuyt', 'lkjhgf',
+                      'jib', 'wjib', 'bwivbf', 'qihkfbwhef', 'qyvcfefvgqbab', 'bbeuadb'
+                    ];
+
+                    if (commonPatterns.some(pattern => name.toLowerCase().includes(pattern))) {
+                      return false;
+                    }
                   }
 
                   return true;

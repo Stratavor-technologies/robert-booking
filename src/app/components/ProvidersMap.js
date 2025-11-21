@@ -55,13 +55,13 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
       });
 
       // User marker
+      let userMarker = null;
       if (userLocation) {
-        const userMarker = L.marker(userLocation, { icon: userIcon })
+        userMarker = L.marker(userLocation, { icon: userIcon })
           .addTo(map)
           .bindPopup("<b>You are here</b>");
 
         markersRef.current.push(userMarker);
-        map.setView(userLocation, 10);
       }
 
       // Provider locations
@@ -71,6 +71,15 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
           .map((loc) => ({ ...loc, providerName: p.name }))
       );
 
+      // Collect all valid markers for bounds calculation
+      const allMarkers = [];
+
+      // Add user marker to bounds if available
+      if (userMarker) {
+        allMarkers.push(userMarker);
+      }
+
+      // Add provider markers
       providerLocations.forEach((loc) => {
         const dist = userLocation
           ? getDistance(
@@ -111,8 +120,21 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
             );
 
           markersRef.current.push(marker);
+          allMarkers.push(marker);
         }
       });
+
+    
+      if (allMarkers.length > 0) {
+        const group = new L.featureGroup(allMarkers);
+        map.fitBounds(group.getBounds(), { 
+          padding: [20, 20], 
+          maxZoom: 15
+        });
+      } else if (userLocation) {
+        map.setView(userLocation, 12);
+      }
+     
     });
 
     return () => {

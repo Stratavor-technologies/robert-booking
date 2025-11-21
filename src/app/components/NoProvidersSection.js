@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useAppData } from "../context/AppDataContext";
 
 export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
+  const { categories } = useAppData();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [localName, setLocalName] = useState("");
@@ -8,10 +10,54 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   const [localPhone, setLocalPhone] = useState(address?.phone || "");
   const [localCategory, setLocalCategory] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [filteredCategories, setFilteredCategories] = useState([]); 
+  
+  // Validation states
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    category: ""
+  });
+  const [touched, setTouched] = useState({
+    name: false,
+    email: false,
+    phone: false,
+    category: false
+  });
 
   useEffect(() => {
     console.log("📍 Enquiry Address Data:", address);
   }, [address]);
+
+  useEffect(() => {
+    if (localCategory) {
+      const filtered = categories.filter(category =>
+        category.name?.toLowerCase().includes(localCategory.toLowerCase())
+      );
+      setFilteredCategories(filtered);
+    } else {
+      setFilteredCategories(categories);
+    }
+  }, [localCategory, categories]);
+
+
+    // ADD THIS NEW USEEFFECT - START
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.category-dropdown-container')) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  // ADD THIS NEW USEEFFECT - END
 
   // --- 📞 Auto-format phone input ---
   const handlePhoneChange = (e) => {
@@ -27,31 +73,110 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       input = `(${input}`;
     }
     setLocalPhone(input);
+    
+    // Clear phone error when user starts typing
+    if (errors.phone && input.trim() !== "") {
+      setErrors(prev => ({ ...prev, phone: "" }));
+    }
   };
 
-  // --- ✉️ Simple email validation ---
-  const isValidEmail = (email) => email.includes("@");
+ // ADD THIS NEW FUNCTION - START
+  // Handle category selection
+  const handleCategorySelect = (category) => {
+    setLocalCategory(category.name);
+    setShowCategoryDropdown(false);
+    
+    // Clear category error when a category is selected
+    if (errors.category) {
+      setErrors(prev => ({ ...prev, category: "" }));
+    }
+  };
 
+  // Handle category input change
+  const handleCategoryChange = (e) => {
+    setLocalCategory(e.target.value);
+    setShowCategoryDropdown(true);
+    
+    // Clear error when user starts typing
+    if (errors.category && e.target.value.trim() !== "") {
+      setErrors(prev => ({ ...prev, category: "" }));
+    }
+  };
+  // ADD THIS NEW FUNCTION - END
+
+
+  // --- ✉️ Email validation ---
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // --- ✅ Validation functions ---
+  const validateField = (name, value) => {
+    switch (name) {
+      case "name":
+        return value.trim() === "" ? "Name is required" : "";
+      case "email":
+        if (value.trim() === "") return "Email is required";
+        if (!isValidEmail(value)) return "Please enter a valid email address";
+        return "";
+      case "phone":
+        if (value.trim() === "") return "Phone number is required";
+        const cleanedPhone = value.replace(/\D/g, "");
+        if (cleanedPhone.length !== 10) return "Phone number must be exactly 10 digits";
+        return "";
+      case "category":
+        return value.trim() === "" ? "Service category is required" : "";
+      default:
+        return "";
+    }
+  };
+
+  // --- 🎯 Handle field blur (when user leaves a field) ---
+  const handleBlur = (fieldName) => (e) => {
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
+    
+    const error = validateField(fieldName, e.target.value);
+    setErrors(prev => ({ ...prev, [fieldName]: error }));
+  };
+
+  // --- 📤 Handle form submission ---
   const handleSubmit = async () => {
-    if (localName.trim() === "" || localEmail.trim() === "" || localPhone.trim() === "" || localCategory.trim() === "") {
-      alert("Name, Email, Phone, and Category are required...");
-      return;
-    }
+    // Mark all fields as touched to show all errors
+    const allTouched = {
+      name: true,
+      email: true,
+      phone: true,
+      category: true
+    };
+    setTouched(allTouched);
 
-    if (!isValidEmail(localEmail)) {
-      alert("Please enter a valid email address containing '@'.");
-      return;
-    }
+    // Validate all fields
+    const newErrors = {
+      name: validateField("name", localName),
+      email: validateField("email", localEmail),
+      phone: validateField("phone", localPhone),
+      category: validateField("category", localCategory)
+    };
 
-    const cleanedPhone = localPhone.replace(/\D/g, ""); // remove formatting
+    setErrors(newErrors);
 
-    if (cleanedPhone.length !== 10) {
-      alert("Phone number must be exactly 10 digits.");
+    // Check if there are any errors
+    const hasErrors = Object.values(newErrors).some(error => error !== "");
+    if (hasErrors) {
+      // Scroll to first error
+      const firstErrorField = Object.keys(newErrors).find(key => newErrors[key] !== "");
+      if (firstErrorField) {
+        const element = document.querySelector(`[data-field="${firstErrorField}"]`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const cleanedPhone = localPhone.replace(/\D/g, ""); // remove formatting
+
       const payload = {
         fullAddress: address?.fullAddress || "",
         city: address?.city || "",
@@ -62,7 +187,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         enquiredBy: localName,
         email: localEmail,
         phoneNumber: cleanedPhone,
-        category: localCategory, // Added category to payload
+        category: localCategory,
       };
 
       console.log("📤 Sending enquiry payload:", payload);
@@ -89,17 +214,22 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     }
   };
 
-  // Handle "No Thanks" button click - UPDATED
+  // Handle "No Thanks" button click
   const handleNoThanks = () => {
     console.log("User declined notification");
-    // Call the onNoThanks callback if provided
     if (onNoThanks) {
       onNoThanks();
     }
   };
 
+  // Helper function to get input border color based on validation
+  const getInputBorderColor = (fieldName) => {
+    if (!touched[fieldName]) return "border-gray-200";
+    return errors[fieldName] ? "border-red-400" : "border-green-400";
+  };
+
   return (
-    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-amber-100 relative overflow-hidden">
+    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-amber-100 relative">
       {/* Top Gradient Bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
@@ -211,7 +341,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         // Form View (shown when user clicks "Notify Me")
         <div className="space-y-6">
           {/* 🧍 Name Field */}
-          <div className="space-y-2">
+          <div className="space-y-2" data-field="name">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg
                 className="w-4 h-4 text-amber-500"
@@ -236,18 +366,34 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             <input
               type="text"
               value={localName}
-              onChange={(e) => setLocalName(e.target.value)}
-              placeholder="John Doe"
+              onChange={(e) => {
+                setLocalName(e.target.value);
+                // Clear error when user starts typing
+                if (errors.name && e.target.value.trim() !== "") {
+                  setErrors(prev => ({ ...prev, name: "" }));
+                }
+              }}
+              onBlur={handleBlur("name")}
               disabled={isSubmitting}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
-      bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-      focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`w-full border ${getInputBorderColor("name")} rounded-xl px-4 py-3.5 
+                bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+                focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${
+                isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              
             />
+            {touched.name && errors.name && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.name}
+              </div>
+            )}
           </div>
 
           {/* Email Field */}
-          <div className="space-y-2">
+          <div className="space-y-2" data-field="email">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg
                 className="w-4 h-4 text-amber-500"
@@ -273,18 +419,34 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             <input
               type="email"
               value={localEmail}
-              onChange={(e) => setLocalEmail(e.target.value)}
-              placeholder="your.email@example.com"
+              onChange={(e) => {
+                setLocalEmail(e.target.value);
+                // Clear error when user starts typing
+                if (errors.email && e.target.value.trim() !== "") {
+                  setErrors(prev => ({ ...prev, email: "" }));
+                }
+              }}
+              onBlur={handleBlur("email")}
               disabled={isSubmitting}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
-              bg-white/50 text-gray-600 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`w-full border ${getInputBorderColor("email")} rounded-xl px-4 py-3.5 
+                bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+                focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${
+                isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+             
             />
+            {touched.email && errors.email && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.email}
+              </div>
+            )}
           </div>
 
           {/* Phone Field */}
-          <div className="space-y-2">
+          <div className="space-y-2" data-field="phone">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg
                 className="w-4 h-4 text-amber-500"
@@ -314,17 +476,27 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               type="tel"
               value={localPhone}
               onChange={handlePhoneChange}
-              placeholder="+1 (555) 123-4567"
+              onBlur={handleBlur("phone")}
               disabled={isSubmitting}
-              className={`w-full border text-black border-gray-200 rounded-xl px-4 py-3.5 
-              bg-white/50 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`w-full border ${getInputBorderColor("phone")} rounded-xl px-4 py-3.5 
+                bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+                focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${
+                isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              
             />
+            {touched.phone && errors.phone && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.phone}
+              </div>
+            )}
           </div>
 
-          {/* Category Field - NEW */}
-          <div className="space-y-2">
+                   {/* Category Field */}
+          <div className="space-y-2 category-dropdown-container" data-field="category">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg
                 className="w-4 h-4 text-amber-500"
@@ -344,19 +516,76 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 Required
               </span>
             </label>
-            <input
-              type="text"
-              value={localCategory}
-              onChange={(e) => setLocalCategory(e.target.value)}
-              placeholder="e.g., wax,nail polish"
-              disabled={isSubmitting}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 
-              bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-              focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+            
+            <div className="relative">
+              <input
+                type="text"
+                value={localCategory}
+                onChange={handleCategoryChange}
+                onFocus={() => setShowCategoryDropdown(true)}
+                onBlur={handleBlur("category")}
+                disabled={isSubmitting}
+                className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 
+                  bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+                  focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${
+                  isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
-            />
+                
+              />
+              
+              {/* Dropdown arrow */}
+              <div 
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              >
+                <svg 
+                  className={`w-5 h-5 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+
+              {/* Dropdown menu */}
+              {showCategoryDropdown && filteredCategories.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                  {filteredCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0"
+                      onClick={() => handleCategorySelect(category)}
+                    >
+                      <div className="font-medium text-gray-800">{category.name}</div>
+                      {category.description && (
+                        <div className="text-sm text-gray-500 mt-1">{category.description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* No results message */}
+              {showCategoryDropdown && localCategory && filteredCategories.length === 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4">
+                  <div className="text-gray-500 text-center">
+                    No categories found matching "{localCategory}"
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {touched.category && errors.category && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.category}
+              </div>
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              What type of service are you looking for?
+              What type of service are you looking for? Type to search or select from the dropdown.
             </p>
           </div>
 
@@ -366,8 +595,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             disabled={isSubmitting}
             className={`w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
             font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
-            flex items-center justify-center gap-3 group relative overflow-hidden ${isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02]"
-              }`}
+            flex items-center justify-center gap-3 group relative overflow-hidden ${
+              isSubmitting ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02]"
+            }`}
           >
             {isSubmitting && (
               <div className="absolute inset-0 bg-amber-500 flex items-center justify-center">
@@ -375,8 +605,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               </div>
             )}
             <svg
-              className={`w-5 h-5 text-white transition-transform ${isSubmitting ? "opacity-0" : "group-hover:scale-110"
-                }`}
+              className={`w-5 h-5 text-white transition-transform ${
+                isSubmitting ? "opacity-0" : "group-hover:scale-110"
+              }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

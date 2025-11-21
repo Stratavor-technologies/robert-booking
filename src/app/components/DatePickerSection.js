@@ -56,7 +56,11 @@ export default function DatePickerSection({
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
+    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative ">
+      
+      
+      
+      
       {/* Cross Button */}
       {onClose && (
         <button
