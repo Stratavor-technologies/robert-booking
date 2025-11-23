@@ -9,14 +9,7 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [hasUser, setHasUser] = useState(false);
   const router = useRouter();
- 
-  /*   useEffect(() => {
-      // Check if user exists in sessionStorage
-   
-      const user = sessionStorage.getItem("userAuth");
-      console.log(user)
-      setHasUser(!!user);
-    }, []); */
+
  
   useEffect(() => {
     const checkUser = () => {
@@ -51,9 +44,20 @@ export default function Header() {
     : navItems;
  
   const handleBackToHome = () => {
-    sessionStorage.clear(); // clear user/session data
-    window.location.reload(); // reload page
-  };
+  // Clear all session storage
+  sessionStorage.clear();
+  
+  // Dispatch a custom event that the FindBooking component can listen to
+  window.dispatchEvent(new CustomEvent('reset-booking-form'));
+  
+  // If we're already on the home page, just reload to reset state
+  if (window.location.pathname === '/') {
+    window.location.reload();
+  } else {
+    // Otherwise navigate to home
+    window.location.href = '/';
+  }
+};
  
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">

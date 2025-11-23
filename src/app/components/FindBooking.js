@@ -44,6 +44,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
   const [isUnverifiedUser, setIsUnverifiedUser] = useState(false);
+  const [resetForm, setResetForm] = useState(false);
   // Add this function inside the FindBooking component, after all the useState declarations
   const saveBookingState = () => {
     const bookingState = {
@@ -168,6 +169,23 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
   }, []);
 
+
+
+  // Add this useEffect to listen for reset events from Header and NoProvidersSection
+  useEffect(() => {
+    const handleResetBookingForm = () => {
+      console.log('🔄 Received reset request from header/no-thanks');
+      handleFullReset();
+    };
+
+    // Listen for the custom reset event
+    window.addEventListener('reset-booking-form', handleResetBookingForm);
+
+    return () => {
+      window.removeEventListener('reset-booking-form', handleResetBookingForm);
+    };
+  }, []);
+
   // Add this handler function
   const handleCloseServicesSection = () => {
     console.log('Closing ServicesSection');
@@ -276,26 +294,37 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   // 🔥 AUTH PERSISTENCE: Enhanced reset that clears session storage
- const handleFullReset = () => {
-  resetBooking();
-  setShowSuccess(false);
-  setBookingDetails(null);
-  setUserFlow("entry");
-  setOtpVerified(false);
-  setOtp("");
-  setLoginData({ email: "", phonenumber: "" });
-  setIsUnverifiedUser(false); // Add this line
+  const handleFullReset = () => {
+    resetBooking();
+    setShowSuccess(false);
+    setBookingDetails(null);
+    setUserFlow("entry");
+    setOtpVerified(false);
+    setOtp("");
+    setLoginData({ email: "", phonenumber: "" });
+    setIsUnverifiedUser(false);
+    setResetForm(true); // Trigger form reset in SearchSection
 
-  // Clear auth state from session storage
-  sessionStorage.removeItem('userAuth');
-  sessionStorage.removeItem('bookingState');
-  console.log('🗑️ Cleared auth state from session storage');
-};
+    // Reset all section visibility states
+    setShowServicesSection(true);
+    setShowDatePickerSection(true);
+    setShowTimeSlotsSection(true);
+    setShowBookingSummary(true);
+
+    // Reset the form reset flag after a short delay
+    setTimeout(() => setResetForm(false), 100);
+
+    // Clear auth state from session storage
+    sessionStorage.removeItem('userAuth');
+    sessionStorage.removeItem('bookingState');
+    console.log('🗑️ Cleared auth state from session storage');
+  };
 
   // NEW: Handler for "No Thanks" that goes back to ENTRY point
   const handleNoThanks = () => {
     // Reset everything and go back to the entry point with two buttons
     resetBooking();
+    
     setUserFlow("entry");
     console.log('🔙 Returning to entry point (Find Door-to-Door Services)');
   };
@@ -427,6 +456,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
         handleFieldChange({
           target: { name: "state", value: "" }
         });
+
+       
 
         handleFieldChange({
           target: { name: "fullAddress", value: "" }
@@ -1038,7 +1069,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
             onSearchClick={getLatLngFromAddress}
             loadingAddress={loadingAddress}
             currentEmail={currentEmail}
-
+            onBackToHome={handleFullReset} // Add this line
+            resetForm={resetForm}
           />
 
           {/* Loading State for Address Search */}
@@ -1251,7 +1283,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if TimeSlotsSection is closed but conditions are met */}
-         {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
+          {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenTimeSlotsSection}

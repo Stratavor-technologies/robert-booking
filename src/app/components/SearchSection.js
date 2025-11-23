@@ -11,6 +11,7 @@ export default function SearchSection({
   onSearchClick,
   loadingAddress = false,
   currentEmail,
+  onBackToHome,
 }) {
 
   const usStates = [
@@ -36,18 +37,21 @@ export default function SearchSection({
   const stateRef = useRef(null);
   const zipRef = useRef(null);
   const searchWithinRef = useRef(null);
+  const searchButtonRef = useRef(null);
 
-  const handleBackToHome = () => {
-    sessionStorage.clear();
-    window.location.reload();
+   const handleBackToHome = () => {
+    if (onBackToHome) {
+      onBackToHome();
+    } else {
+      // Fallback if prop not provided
+      sessionStorage.clear();
+      window.location.reload();
+    }
   };
-
-
 
   const filteredStates = usStates.filter((st) =>
     st.startsWith(searchText)
   );
-
 
   const handleSelect = (state) => {
     const abbr = state.match(/\((.*?)\)/)?.[1] || state;
@@ -70,6 +74,28 @@ export default function SearchSection({
     };
   }, []);
 
+  // Handle Enter key navigation
+  const handleEnterNavigation = (currentField, nextField) => {
+    return (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (nextField === "search") {
+          searchButtonRef.current?.click();
+        } else {
+          nextField?.current?.focus();
+        }
+      }
+    };
+  };
+
+  // Handle Tab key to close dropdown and navigate
+  const handleTabNavigation = (e) => {
+    if (e.key === "Tab") {
+      setShowDropdown(false);
+      // Let the default Tab behavior happen
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative overflow-hidden">
       {/* Gradient header bar */}
@@ -77,7 +103,7 @@ export default function SearchSection({
 
       {/* Home Button - Top Right */}
       <button
-        onClick={handleBackToHome}
+        onClick={onBackToHome}
         className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl z-10 flex items-center gap-2"
       >
         Home
@@ -103,7 +129,6 @@ export default function SearchSection({
         {/* City, State, ZIP Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-    
           {/* City */}
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -191,12 +216,7 @@ export default function SearchSection({
               placeholder="City"
               maxLength={50}
               disabled={loadingAddress}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  stateRef.current?.focus();
-                }
-              }}
+              onKeyDown={handleEnterNavigation("city", stateRef)}
               className={`w-full border border-gray-200 rounded-xl px-4 py-3.5
       focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
       bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
@@ -210,7 +230,6 @@ export default function SearchSection({
               <p className="text-red-500 text-sm mt-1">{cityError}</p>
             )}
           </div>
-
 
           {/* State (Custom Combo Box) */}
           <div className="space-y-2 relative" ref={dropdownRef}>
@@ -246,14 +265,15 @@ export default function SearchSection({
                   });
                 }}
                 onFocus={() => setShowDropdown(true)}
-                placeholder="State"
-                disabled={loadingAddress}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     zipRef.current?.focus();
                   }
+                  handleTabNavigation(e);
                 }}
+                placeholder="State"
+                disabled={loadingAddress}
                 className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}`}
               />
 
@@ -277,6 +297,7 @@ export default function SearchSection({
                           setSearchText(state.toUpperCase());
                           setShowDropdown(false);
                           onFieldChange({ target: { name: "state", value: state.toUpperCase() } });
+                          zipRef.current?.focus(); // Auto-focus next field after selection
                         }}
                         className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
                       >
@@ -290,7 +311,6 @@ export default function SearchSection({
               )}
             </div>
           </div>
-
 
           {/* ZIP */}
           <div className="space-y-2">
@@ -308,29 +328,32 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="ZIP code"
               disabled={loadingAddress}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  searchWithinRef.current?.focus();
-                }
-              }}
+              onKeyDown={handleEnterNavigation("zip", searchWithinRef)}
               className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             />
           </div>
         </div>
 
-        {/* Search Area + Email + Button remain unchanged */}
+        {/* Search Area + Button */}
         <SearchWithinInput
           searchWithin={searchWithin}
           onChange={onSearchWithinChange}
           disabled={loadingAddress}
           searchWithinRef={searchWithinRef}
+          onKeyDown={handleEnterNavigation("searchWithin", "search")}
         />
         <button
+          ref={searchButtonRef}
           onClick={onSearchClick}
           id="searchButton"
           disabled={loadingAddress}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Tab") {
+              e.preventDefault();
+              onSearchClick();
+            }
+          }}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200"
         >
           {loadingAddress ? "Searching..." : "Search Service Providers"}
@@ -340,7 +363,7 @@ export default function SearchSection({
   );
 }
 
-function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef }) {
+function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown }) {
   return (
     <div
       className={`flex items-center bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 ${disabled ? "opacity-50 cursor-not-allowed" : ""
@@ -365,12 +388,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           }
         }}
         disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            document.getElementById("searchButton")?.focus();
-          }
-        }}
+        onKeyDown={onKeyDown}
         className="flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
         placeholder="1–20"
       />
