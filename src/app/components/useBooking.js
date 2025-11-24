@@ -112,7 +112,7 @@ function getStateFromLocation(location, userState = '') {
     if (normalizedUserState && normalizedState === normalizedUserState) {
       return { state: normalizedState, address2: extractedAddress2 };
     }
- 
+
     if (!normalizedUserState) {
       return { state: normalizedState, address2: extractedAddress2 };
     }
@@ -699,22 +699,27 @@ export function useBooking({ providers, events, locations, clients }) {
     // Function to extract numeric limit from provider description
     const getProviderDistanceLimit = (provider) => {
       try {
-        // Extract numeric value from description HTML
-        console.log(provider?.locations[0]);
+        // First check if provider has explicit maxDistanceTravel
+        if (provider.maxDistanceTravel) {
+          const limit = parseInt(provider.maxDistanceTravel);
+          console.log(`Provider ${provider.id} distance limit from maxDistanceTravel: ${limit} miles`);
+          return isNaN(limit) ? 0 : limit; // 0 means unlimited
+        }
+
+        // Fallback: Extract numeric value from description HTML
         const description = provider.description || "";
         // Match numbers in the description (looking for distance limits)
         const matches = description.match(/\b\d+\b/);
         if (matches && matches.length > 0) {
           const limit = parseInt(matches[0]);
-          console.log(`Provider ${provider.id} distance limit: ${limit} miles`);
-
-          return limit;
+          console.log(`Provider ${provider.id} distance limit from description: ${limit} miles`);
+          return isNaN(limit) ? 0 : limit;
         }
-        // If no numeric value found, return a default high value (no limit)
-        return Infinity;
+        // If no numeric value found, return 0 (unlimited service radius)
+        return 0;
       } catch (error) {
         console.error(`Error parsing limit for provider ${provider.id}:`, error);
-        return Infinity;
+        return 0; // Default to unlimited on error
       }
     };
 
@@ -800,7 +805,8 @@ export function useBooking({ providers, events, locations, clients }) {
       .filter((p) => {
         // Filter based on both user's search radius AND provider's distance limit
         const withinUserRadius = p.distance <= searchWithin;
-        const withinProviderLimit = p.distance <= p.distanceLimit;
+        // If provider distanceLimit is 0, it means unlimited service radius
+        const withinProviderLimit = p.distanceLimit === 0 || p.distance <= p.distanceLimit;
 
         if (!withinUserRadius) {
           console.log(`❌ Provider ${p.id} filtered out - exceeds user search radius: ${p.distance} > ${searchWithin}`);

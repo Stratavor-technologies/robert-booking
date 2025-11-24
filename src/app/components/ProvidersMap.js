@@ -9,8 +9,8 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -65,15 +65,15 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
       }
 
       // Provider locations
-     const providerLocations = providers.flatMap((p) =>
-  (p.providerLocations || [])
-    .filter((loc) => loc.lat && loc.lng)
-    .map((loc) => ({ 
-      ...loc, 
-      providerName: p.name,
-      maxDistanceTravel: loc.maxDistanceTravel || p.maxDistanceTravel
-    }))
-);
+      const providerLocations = providers.flatMap((p) =>
+        (p.providerLocations || [])
+          .filter((loc) => loc.lat && loc.lng)
+          .map((loc) => ({
+            ...loc,
+            providerName: p.name,
+            maxDistanceTravel: loc.maxDistanceTravel || p.maxDistanceTravel
+          }))
+      );
 
       // Collect all valid markers for bounds calculation
       const allMarkers = [];
@@ -87,11 +87,11 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
       providerLocations.forEach((loc) => {
         const dist = userLocation
           ? getDistance(
-              userLocation[0],
-              userLocation[1],
-              parseFloat(loc.lat),
-              parseFloat(loc.lng)
-            )
+            userLocation[0],
+            userLocation[1],
+            parseFloat(loc.lat),
+            parseFloat(loc.lng)
+          )
           : 0;
 
         // Build location text
@@ -108,16 +108,29 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
             : `${city} ${address2}${state ? ", " + state : ""}`;
 
         // Display only if within distance
-       // Check if provider is within both search radius AND their max travel distance
-const isWithinSearchRadius = !userLocation || dist <= searchWithin;
-const isWithinMaxTravel = !loc.maxDistanceTravel || dist <= parseInt(loc.maxDistanceTravel);
+        // Check if provider is within both search radius AND their max travel distance
+        const isWithinSearchRadius = !userLocation || dist <= searchWithin;
 
-// Only show provider if they're within both distances
-if (isWithinSearchRadius && isWithinMaxTravel) {
-  const marker = L.marker(
-    [parseFloat(loc.lat), parseFloat(loc.lng)],
-    { icon: providerIcon }
-  )
+        // 2. Check if within provider's max service radius
+        // If provider has maxDistanceTravel = 0 or undefined, they serve unlimited distance
+        const providerMaxRadius = parseInt(loc.maxDistanceTravel || 0);
+        const isWithinProviderRadius = providerMaxRadius === 0 || dist <= providerMaxRadius;
+
+        console.log(`Provider ${loc.providerName}:`, {
+          distance: dist,
+          clientSearchRadius: searchWithin,
+          providerMaxRadius: providerMaxRadius,
+          withinSearchRadius: isWithinSearchRadius,
+          withinProviderRadius: isWithinProviderRadius,
+          showOnMap: isWithinSearchRadius && isWithinProviderRadius
+        });
+
+        // Only show provider if they're within both distances
+        if (isWithinSearchRadius && isWithinProviderRadius) {
+          const marker = L.marker(
+            [parseFloat(loc.lat), parseFloat(loc.lng)],
+            { icon: providerIcon }
+          )
             .addTo(map)
             .bindPopup(
               `<b>${loc.providerName}</b><br/>` +
@@ -133,17 +146,17 @@ if (isWithinSearchRadius && isWithinMaxTravel) {
         }
       });
 
-    
+
       if (allMarkers.length > 0) {
         const group = new L.featureGroup(allMarkers);
-        map.fitBounds(group.getBounds(), { 
-          padding: [20, 20], 
+        map.fitBounds(group.getBounds(), {
+          padding: [20, 20],
           maxZoom: 15
         });
       } else if (userLocation) {
         map.setView(userLocation, 12);
       }
-     
+
     });
 
     return () => {
