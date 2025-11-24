@@ -39,7 +39,31 @@ export default function SearchSection({
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
 
-   const handleBackToHome = () => {
+
+
+  const [resetTrigger, setResetTrigger] = useState(false);
+
+  const resetForm = () => {
+    setSearchText("");
+    setCityError("");
+    setShowDropdown(false);
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "city", value: "" } });
+      onFieldChange({ target: { name: "state", value: "" } });
+      onFieldChange({ target: { name: "zip", value: "" } });
+    }
+    if (onSearchWithinChange) {
+      onSearchWithinChange(10);
+    }
+  };
+  useEffect(() => {
+    resetForm();
+  }, [resetTrigger]);
+
+
+
+  const handleBackToHome = () => {
+    resetForm(); // Add this line to clear form when going home
     if (onBackToHome) {
       onBackToHome();
     } else {
@@ -74,7 +98,9 @@ export default function SearchSection({
     };
   }, []);
 
-  // Handle Enter key navigation
+  
+
+  
   const handleEnterNavigation = (currentField, nextField) => {
     return (e) => {
       if (e.key === "Enter") {
@@ -88,11 +114,11 @@ export default function SearchSection({
     };
   };
 
-  // Handle Tab key to close dropdown and navigate
+
   const handleTabNavigation = (e) => {
     if (e.key === "Tab") {
       setShowDropdown(false);
-      // Let the default Tab behavior happen
+    
     }
   };
 
@@ -268,6 +294,7 @@ export default function SearchSection({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
+                    setShowDropdown(false);
                     zipRef.current?.focus();
                   }
                   handleTabNavigation(e);

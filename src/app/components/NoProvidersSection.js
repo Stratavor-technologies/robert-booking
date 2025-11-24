@@ -307,16 +307,18 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
   // Handle "No Thanks" button click
   const handleNoThanks = () => {
-  console.log("User declined notification");
-  // Clear session storage and trigger form reset
-  sessionStorage.clear();
-  
-  if (onNoThanks) {
-    onNoThanks();
-  }
-  window.dispatchEvent(new CustomEvent('reset-booking-form'));
-  
-};
+    console.log("User declined notification");
+    // Clear session storage and trigger form reset
+    sessionStorage.clear();
+    
+    // Dispatch custom event to reset search form
+    window.dispatchEvent(new CustomEvent('reset-search-form'));
+    
+    if (onNoThanks) {
+      onNoThanks();
+    }
+    window.dispatchEvent(new CustomEvent('reset-booking-form'));
+  };
 
   // Helper function to get input border color based on validation
   const getInputBorderColor = (fieldName) => {
