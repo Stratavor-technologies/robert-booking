@@ -792,6 +792,7 @@ export function useBooking({ providers, events, locations, clients }) {
             minDist = dist;
             nearestLocation = loc;
           } 
+          console.log(loc.address2, "distance limit")
         });
 
         console.log(`Provider ${p.id} - actual distance: ${minDist} miles, provider limit: ${p.distanceLimit} miles`);
@@ -805,9 +806,10 @@ export function useBooking({ providers, events, locations, clients }) {
       .filter((p) => {
         console.log(p)
         
-        const providerServiceDistance = parseInt(p.nearestLocation?.address2 || 0);
+        const providerServiceDistance = p.nearestLocation?.address2 || 0;
+       
         const withinUserRadius = p.distance <= searchWithin;
-        const withinProviderServiceArea = providerServiceDistance === 0 || p.distance <= providerServiceDistance;
+        const withinProviderServiceArea = providerServiceDistance === 0 || p.distance <= providerServiceDistance ;
         if (!withinUserRadius) {
           console.log(`❌ Provider ${p.id} filtered out - exceeds user search radius: ${p.distance} > ${searchWithin}`);
         } else if (!withinProviderServiceArea) {
