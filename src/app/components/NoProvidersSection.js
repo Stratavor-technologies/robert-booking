@@ -54,7 +54,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         category => category.name.toLowerCase() === localCategory.toLowerCase()
       );
       setIsCustomCategory(!isExistingCategory && localCategory.trim() !== "");
-      
+
       // Only show dropdown if there are matching categories
       setShowCategoryDropdown(filtered.length > 0);
     } else {
@@ -99,7 +99,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       input = `(${input}`;
     }
     setLocalPhone(input);
-    
+
     // Clear phone error when user starts typing
     if (errors.phone) {
       setErrors(prev => ({ ...prev, phone: "" }));
@@ -117,7 +117,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     // Capitalize first letter of each word
     const capitalizedValue = capitalizeWords(value);
     setLocalCategory(capitalizedValue);
-    
+
     // Clear category error when user starts typing
     if (errors.category) {
       setErrors(prev => ({ ...prev, category: "" }));
@@ -182,6 +182,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     }
   };
 
+
   // --- 🔤 Handle key navigation (Tab and Enter) ---
   const handleKeyDown = (fieldName) => (e) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
@@ -214,9 +215,14 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
   // Handle Enter and Tab key on submit button
   const handleSubmitButtonKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if (e.key === 'Enter') {
       e.preventDefault();
       handleSubmit();
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      // Circular navigation: from submit button back to name field
+      nameInputRef.current?.focus();
     }
   };
 
@@ -310,10 +316,10 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     console.log("User declined notification");
     // Clear session storage and trigger form reset
     sessionStorage.clear();
-    
+
     // Dispatch custom event to reset search form
     window.dispatchEvent(new CustomEvent('reset-search-form'));
-    
+
     if (onNoThanks) {
       onNoThanks();
     }
@@ -333,7 +339,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
       {/* Header */}
       <div className="text-center space-y-4">
-          <button
+        <button
           onClick={handleGoToHome}
           className="absolute top-4 right-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black px-4 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl z-10 flex items-center gap-2 font-bold"
         >
@@ -631,7 +637,15 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                     setShowCategoryDropdown(true);
                   }
                 }}
-                onKeyDown={handleKeyDown("category")}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    // Circular navigation: from category to submit button
+                    submitButtonRef.current?.focus();
+                  } else {
+                    handleKeyDown("category")(e);
+                  }
+                }}
                 disabled={isSubmitting}
                 className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 
                   bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
@@ -692,7 +706,17 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
           <button
             ref={submitButtonRef}
             onClick={handleSubmit}
-            onKeyDown={handleSubmitButtonKeyDown}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                // Circular navigation: from submit button back to name field
+                nameInputRef.current?.focus();
+              }
+            }}
             disabled={isSubmitting}
             className={`w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
             font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 

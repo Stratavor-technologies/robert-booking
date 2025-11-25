@@ -98,9 +98,9 @@ export default function SearchSection({
     };
   }, []);
 
-  
 
-  
+
+
   const handleEnterNavigation = (currentField, nextField) => {
     return (e) => {
       if (e.key === "Enter") {
@@ -115,10 +115,25 @@ export default function SearchSection({
   };
 
 
-  const handleTabNavigation = (e) => {
+  const handleTabNavigation = (e, currentField, nextField) => {
     if (e.key === "Tab") {
-      setShowDropdown(false);
-    
+      e.preventDefault(); // Prevent default tab behavior
+
+      if (currentField === "searchWithin" && nextField === "city") {
+        // Circular navigation: from searchWithin back to city
+        cityRef.current?.focus();
+      } else if (nextField === "search") {
+        // From search button, go to city (circular)
+        cityRef.current?.focus();
+      } else {
+        // Normal tab navigation
+        nextField?.current?.focus();
+      }
+
+      // Close dropdown when tabbing away from state
+      if (currentField === "state") {
+        setShowDropdown(false);
+      }
     }
   };
 
@@ -242,7 +257,14 @@ export default function SearchSection({
               placeholder="City"
               maxLength={50}
               disabled={loadingAddress}
-              onKeyDown={handleEnterNavigation("city", stateRef)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleEnterNavigation("city", stateRef)(e);
+                }
+                if (e.key === "Tab") {
+                  handleTabNavigation(e, "city", stateRef);
+                }
+              }}
               className={`w-full border border-gray-200 rounded-xl px-4 py-3.5
       focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
       bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
@@ -297,7 +319,9 @@ export default function SearchSection({
                     setShowDropdown(false);
                     zipRef.current?.focus();
                   }
-                  handleTabNavigation(e);
+                  if (e.key === "Tab") {
+                    handleTabNavigation(e, "state", zipRef);
+                  }
                 }}
                 placeholder="State"
                 disabled={loadingAddress}
@@ -355,7 +379,14 @@ export default function SearchSection({
               onChange={onFieldChange}
               placeholder="ZIP code"
               disabled={loadingAddress}
-              onKeyDown={handleEnterNavigation("zip", searchWithinRef)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleEnterNavigation("zip", searchWithinRef)(e);
+                }
+                if (e.key === "Tab") {
+                  handleTabNavigation(e, "zip", searchWithinRef);
+                }
+              }}
               className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             />
@@ -368,7 +399,14 @@ export default function SearchSection({
           onChange={onSearchWithinChange}
           disabled={loadingAddress}
           searchWithinRef={searchWithinRef}
-          onKeyDown={handleEnterNavigation("searchWithin", "search")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleEnterNavigation("searchWithin", "search")(e);
+            }
+            if (e.key === "Tab") {
+              handleTabNavigation(e, "searchWithin", "city");
+            }
+          }}
         />
         <button
           ref={searchButtonRef}
@@ -376,9 +414,12 @@ export default function SearchSection({
           id="searchButton"
           disabled={loadingAddress}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Tab") {
+            if (e.key === "Enter") {
               e.preventDefault();
               onSearchClick();
+            }
+            if (e.key === "Tab") {
+              handleTabNavigation(e, "search", "city");
             }
           }}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200"
