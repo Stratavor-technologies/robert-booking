@@ -788,10 +788,10 @@ export function useBooking({ providers, events, locations, clients }) {
             parseFloat(loc.lat),
             parseFloat(loc.lng)
           );
-          if (dist < minDist) {
+           if (dist < minDist) {
             minDist = dist;
             nearestLocation = loc;
-          }
+          } 
         });
 
         console.log(`Provider ${p.id} - actual distance: ${minDist} miles, provider limit: ${p.distanceLimit} miles`);
@@ -803,18 +803,18 @@ export function useBooking({ providers, events, locations, clients }) {
         };
       })
       .filter((p) => {
-        // Filter based on both user's search radius AND provider's distance limit
+        console.log(p)
+        
+        const providerServiceDistance = parseInt(p.nearestLocation?.address2 || 0);
         const withinUserRadius = p.distance <= searchWithin;
-        // If provider distanceLimit is 0, it means unlimited service radius
-        const withinProviderLimit = p.distanceLimit === 0 || p.distance <= p.distanceLimit;
-
+        const withinProviderServiceArea = providerServiceDistance === 0 || p.distance <= providerServiceDistance;
         if (!withinUserRadius) {
           console.log(`❌ Provider ${p.id} filtered out - exceeds user search radius: ${p.distance} > ${searchWithin}`);
-        } else if (!withinProviderLimit) {
-          console.log(`❌ Provider ${p.id} filtered out - exceeds provider distance limit: ${p.distance} > ${p.distanceLimit}`);
+        } else if (!withinProviderServiceArea) {
+          console.log(`❌ Provider ${p.id} filtered out - exceeds provider service distance: ${p.distance} > ${providerServiceDistance}`);
         }
 
-        return withinUserRadius && withinProviderLimit;
+        return withinUserRadius && withinProviderServiceArea;
       })
       .sort((a, b) => a.distance - b.distance);
 
