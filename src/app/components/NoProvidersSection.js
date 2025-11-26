@@ -479,8 +479,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               type="text"
               value={localName}
               onChange={(e) => {
-                setLocalName(e.target.value);
-                // Clear name error when user starts typing
+                const capitalizedValue = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
+                setLocalName(capitalizedValue);
                 if (errors.name && e.target.value.trim() !== "") {
                   setErrors(prev => ({ ...prev, name: "" }));
                 }
