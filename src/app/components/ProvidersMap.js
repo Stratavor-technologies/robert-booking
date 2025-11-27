@@ -71,7 +71,7 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
           .map((loc) => ({
             ...loc,
             providerName: p.name,
-            maxDistanceTravel: loc.maxDistanceTravel || p.maxDistanceTravel
+            maxDistanceTravel: loc.address2  || p.maxDistanceTravel
           }))
       );
 
@@ -113,7 +113,7 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
 
         // 2. Check if within provider's max service radius
         // If provider has maxDistanceTravel = 0 or undefined, they serve unlimited distance
-        const providerMaxRadius = parseInt(loc.maxDistanceTravel || 0);
+        const providerMaxRadius = parseInt(loc.address2  || 0);
         const isWithinProviderRadius = providerMaxRadius === 0 || dist <= providerMaxRadius;
 
         console.log(`Provider ${loc.providerName}:`, {
@@ -136,9 +136,9 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
               `<b>${loc.providerName}</b><br/>` +
               `<span>${locationText}</span>` +
               (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "") +
-              (loc.maxDistanceTravel
-                ? `<br/><b>Max Travel:</b> ${loc.maxDistanceTravel} miles`
-                : "")
+              (loc.address2 && parseInt(loc.address2) > 0
+  ? `<br/><b>Max Travel:</b> ${loc.address2} miles`
+  : "")
             );
 
           markersRef.current.push(marker);
