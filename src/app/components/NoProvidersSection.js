@@ -604,8 +604,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
           </div>
 
 
-          {/* Category Field */}
-          {/* Category Field */}
+          
+{/* Category Field */}
 <div className="space-y-2 category-dropdown-container" data-field="category">
   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
     <svg
@@ -634,8 +634,11 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       value={localCategory}
       onChange={handleCategoryChange}
       onFocus={() => {
-        // DON'T open dropdown when input is focused (via click or tab)
-        setShowCategoryDropdown(false);
+        // OPEN dropdown when input is focused (via click or tab)
+        if (categories.length > 0) {
+          setFilteredCategories(categories);
+          setShowCategoryDropdown(true);
+        }
       }}
       onKeyDown={(e) => {
         if (e.key === 'Tab') {
@@ -658,9 +661,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       <div
         className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
         onClick={() => {
-          // Toggle dropdown only when icon is clicked
+          // Toggle dropdown when icon is clicked
           if (!showCategoryDropdown) {
-            // Show all categories when dropdown icon is clicked
             setFilteredCategories(categories);
             setShowCategoryDropdown(true);
           } else {
@@ -733,7 +735,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     </div>
   )}
   <p className="text-xs text-gray-500 mt-1">
-    What type of service are you looking for? Type to search or click the dropdown icon to see all categories.
+    What type of service are you looking for? Click the input field or dropdown icon to see all categories.
   </p>
 </div>
 
