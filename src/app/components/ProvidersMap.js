@@ -27,8 +27,10 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
 
       // Initialize map
       if (!mapRef.current) {
-        const center = userLocation || [40.1, -75.1];
-        mapRef.current = L.map("map").setView(center, 10);
+  const center = userLocation || [40.1, -75.1];
+  mapRef.current = L.map("map", {
+    minZoom: 2  // Add this line to allow more zoom out
+  }).setView(center, 10);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap contributors",
@@ -135,10 +137,7 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
             .bindPopup(
               `<b>${loc.providerName}</b><br/>` +
               `<span>${locationText}</span>` +
-              (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "") +
-              (loc.address2 && parseInt(loc.address2) > 0
-  ? `<br/><b>Max Travel:</b> ${loc.address2} miles`
-  : "")
+              (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "")
             );
 
           markersRef.current.push(marker);
@@ -151,10 +150,11 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
         const group = new L.featureGroup(allMarkers);
         map.fitBounds(group.getBounds(), {
           padding: [20, 20],
-          maxZoom: 15
+          maxZoom: 15,
+           minZoom: 2 
         });
       } else if (userLocation) {
-        map.setView(userLocation, 12);
+        map.setView(userLocation, 10);
       }
 
     });
