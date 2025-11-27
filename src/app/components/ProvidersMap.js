@@ -9,14 +9,19 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) ** 2;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
-export default function ProvidersMap({ providers = [], locations, userLocation, searchWithin }) {
+export default function ProvidersMap({
+  providers = [],
+  locations,
+  userLocation,
+  searchWithin,
+}) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
@@ -25,12 +30,10 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
       const mapContainer = document.getElementById("map");
       if (!mapContainer) return;
 
-      // Initialize map
+      /* ---------- INIT MAP ---------- */
       if (!mapRef.current) {
-  const center = userLocation || [40.1, -75.1];
-  mapRef.current = L.map("map", {
-    minZoom: 2  // Add this line to allow more zoom out
-  }).setView(center, 10);
+        const center = userLocation || [40.1, -75.1];
+        mapRef.current = L.map("map", { minZoom: 2 }).setView(center, 10);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap contributors",
@@ -39,11 +42,11 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
 
       const map = mapRef.current;
 
-      // Clear old markers
+      /* ---------- CLEAR OLD MARKERS ---------- */
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
 
-      // Icons
+      /* ---------- ICONS ---------- */
       const userIcon = L.icon({
         iconUrl: "https://cdn-icons-png.flaticon.com/512/64/64113.png",
         iconSize: [32, 32],
@@ -56,88 +59,69 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
         iconAnchor: [15, 30],
       });
 
-      // User marker
+      /* ---------- USER MARKER ---------- */
       let userMarker = null;
       if (userLocation) {
         userMarker = L.marker(userLocation, { icon: userIcon })
           .addTo(map)
           .bindPopup("<b>You are here</b>");
-
         markersRef.current.push(userMarker);
       }
 
-      // Provider locations
+      /* ---------- FLATTEN PROVIDER LOCATIONS ---------- */
       const providerLocations = providers.flatMap((p) =>
         (p.providerLocations || [])
           .filter((loc) => loc.lat && loc.lng)
           .map((loc) => ({
             ...loc,
             providerName: p.name,
-            maxDistanceTravel: loc.address2  || p.maxDistanceTravel
           }))
       );
 
-      // Collect all valid markers for bounds calculation
       const allMarkers = [];
+      if (userMarker) allMarkers.push(userMarker);
 
-      // Add user marker to bounds if available
-      if (userMarker) {
-        allMarkers.push(userMarker);
-      }
-
-      // Add provider markers
+      /* ---------- ADD PROVIDER MARKERS WITH EXACT RULE ---------- */
       providerLocations.forEach((loc) => {
         const dist = userLocation
           ? getDistance(
-            userLocation[0],
-            userLocation[1],
-            parseFloat(loc.lat),
-            parseFloat(loc.lng)
-          )
+              userLocation[0],
+              userLocation[1],
+              parseFloat(loc.lat),
+              parseFloat(loc.lng)
+            )
           : 0;
 
-        // Build location text
-        const title = loc.title || "";
-        const parts = title.split(",");
-        const state = parts[parts.length - 1]?.trim();
+        /* ------------ PROVIDER RADIUS STRICT RULE ------------ */
+        const providerMaxRadius = Number(loc.address2);
 
-        const city = loc.city || "";
-        const address2 = loc.address2 || "";
+        const withinProviderRadius =
+          Number.isFinite(providerMaxRadius) && providerMaxRadius > 0
+            ? dist <= providerMaxRadius
+            : dist === 0; // address2 = 0 → do not show anywhere
 
-        const locationText =
-          city === address2
-            ? `${city}${state ? ", " + state : ""}`
-            : `${city} ${address2}${state ? ", " + state : ""}`;
+        /* ------------ USER SEARCH RADIUS ------------ */
+        const withinSearchRadius = !userLocation || dist <= searchWithin;
 
-        // Display only if within distance
-        // Check if provider is within both search radius AND their max travel distance
-        const isWithinSearchRadius = !userLocation || dist <= searchWithin;
+        const canShow = withinProviderRadius && withinSearchRadius;
 
-        // 2. Check if within provider's max service radius
-        // If provider has maxDistanceTravel = 0 or undefined, they serve unlimited distance
-        const providerMaxRadius = parseInt(loc.address2  || 0);
-        const isWithinProviderRadius = providerMaxRadius === 0 || dist <= providerMaxRadius;
-
-        console.log(`Provider ${loc.providerName}:`, {
-          distance: dist,
-          clientSearchRadius: searchWithin,
-          providerMaxRadius: providerMaxRadius,
-          withinSearchRadius: isWithinSearchRadius,
-          withinProviderRadius: isWithinProviderRadius,
-          showOnMap: isWithinSearchRadius && isWithinProviderRadius
+        console.log(`Provider: ${loc.providerName}`, {
+          dist,
+          providerMaxRadius,
+          withinProviderRadius,
+          withinSearchRadius,
+          showOnMap: canShow,
         });
 
-        // Only show provider if they're within both distances
-        if (isWithinSearchRadius && isWithinProviderRadius) {
+        if (canShow) {
           const marker = L.marker(
             [parseFloat(loc.lat), parseFloat(loc.lng)],
             { icon: providerIcon }
           )
             .addTo(map)
             .bindPopup(
-              `<b>${loc.providerName}</b><br/>` +
-              `<span>${locationText}</span>` +
-              (userLocation ? `<br/><i>${dist.toFixed(1)} miles away</i>` : "")
+              `<b>${loc.providerName}</b>` +
+                (userLocation ? `<br/>${dist.toFixed(1)} miles away` : "")
             );
 
           markersRef.current.push(marker);
@@ -145,18 +129,17 @@ export default function ProvidersMap({ providers = [], locations, userLocation, 
         }
       });
 
-
+      /* ---------- AUTO FIT ---------- */
       if (allMarkers.length > 0) {
         const group = new L.featureGroup(allMarkers);
         map.fitBounds(group.getBounds(), {
           padding: [20, 20],
           maxZoom: 15,
-           minZoom: 2 
+          minZoom: 2,
         });
       } else if (userLocation) {
         map.setView(userLocation, 10);
       }
-
     });
 
     return () => {

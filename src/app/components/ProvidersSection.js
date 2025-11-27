@@ -1,9 +1,9 @@
 import ProvidersMap from "./ProvidersMap";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 
 export default function ProvidersSection({
-  providers,
+  providers = [],
   locations,
   clientLocation,
   searchWithin,
@@ -15,51 +15,40 @@ export default function ProvidersSection({
   events = [],
   categories = [],
   onManageHidden,
-  onClose
+  onClose,
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
 
+  useEffect(() => {
+    console.log("✅ Providers received in ProvidersSection:", providers);
+  }, [providers]);
 
-  const getProviderCategories = (provider, categories) => {
-    if (!categories || !Array.isArray(categories) || categories.length === 0) return [];
-    if (!provider.services || !Array.isArray(provider.services)) return [];
+  const getProviderCategories = (provider) => {
+    if (!categories?.length || !provider?.services?.length) return [];
 
-    return categories.filter(category => {
-      if (!category || !category.events || !Array.isArray(category.events)) return false;
-      
-      const providerServiceIds = provider.services.map(serviceId =>
-        typeof serviceId === 'string' ? parseInt(serviceId) : serviceId
-      ).filter(id => !isNaN(id));
+    const providerServiceIds = provider.services
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id));
 
-      const categoryEventIds = category.events.map(eventId =>
-        typeof eventId === 'string' ? parseInt(eventId) : eventId
-      ).filter(id => !isNaN(id));
+    return categories.filter((category) => {
+      if (!Array.isArray(category.events)) return false;
 
-      return providerServiceIds.some(serviceId =>
-        categoryEventIds.includes(serviceId)
+      const categoryEventIds = category.events
+        .map((id) => Number(id))
+        .filter((id) => !isNaN(id));
+
+      return providerServiceIds.some((sid) =>
+        categoryEventIds.includes(sid)
       );
     });
   };
 
-  // ADD THIS FILTERED PROVIDERS VARIABLE
-  const filteredProviders = providers ? providers.filter(provider => {
-    // Check if provider has services
-    if (!provider.services || !Array.isArray(provider.services) || provider.services.length === 0) {
-      return false;
-    }
-    
-    // Check if provider has at least one category
-    const providerCategories = getProviderCategories(provider, categories);
-    return providerCategories.length > 0;
-  }) : [];
-
-
-
-  if (providers) {
-    console.log("userEmail raw of your data:", JSON.stringify(userEmail));
-    console.log("isEmpty?", userEmail === "");
-    console.log(providers);
-  }
+  const filteredProviders = useMemo(() => {
+    return providers.filter((provider) => {
+      const providerCategories = getProviderCategories(provider);
+      return providerCategories.length > 0;
+    });
+  }, [providers, categories]);
 
   const handleBlacklist = async (providerId) => {
     setBlacklistingProvider(providerId);
@@ -72,12 +61,12 @@ export default function ProvidersSection({
 
   return (
     <div className="space-y-8">
-      {/* Map Section */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border border-gray-100 relative overflow-hidden">
-        {/* Gradient header bar - matching the SearchSection */}
+      {/* MAP CONTAINER */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative">
+
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
 
-        {/* Home Button - Top Right */}
+        {/* Home Button - top right */}
         <button
           onClick={() => {
             sessionStorage.clear();
@@ -88,76 +77,48 @@ export default function ProvidersSection({
           Home
         </button>
 
-        {/* Close Button - Moved to left side to avoid conflict with Home button */}
+        {/* Close Button */}
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 left-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-all duration-200 z-10 group"
-            aria-label="Close providers section"
+            className="absolute top-4 left-4 w-8 h-8 bg-gray-100 rounded-full"
           >
-            <svg
-              className="w-4 h-4 text-gray-600 group-hover:text-gray-800 transition-colors"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            ✕
           </button>
         )}
 
-        <div className="flex items-center gap-3 mb-4 mt-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">Provider Locations</h3>
-            <p className="text-sm text-gray-600">View all available providers in your currently area</p>
-          </div>
-        </div>
+        <h3 className="text-lg font-semibold mb-4 text-black">Provider Locations</h3>
+
         <ProvidersMap
-          providers={providers}
+          providers={filteredProviders}
           locations={locations}
           userLocation={clientLocation}
           searchWithin={searchWithin}
         />
       </div>
 
-      {/* Providers List */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
-        {/* Header */}
+      {/* PROVIDER LIST */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border relative">
 
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">{providers.length}</span>
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Select Your Provider
-              </h2>
-              <p className="text-gray-600 mt-1">
-                {loadingProviders ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    Loading providers...
-                  </span>
-                ) : (
-                  `Choose from ${filteredProviders.length} available professional${filteredProviders.length !== 1 ? 's' : ''}`
-                )}
-              </p>
-            </div>
+
+          {/* LEFT SIDE */}
+          <div>
+            <h2 className="text-2xl font-bold text-black">Select Your Provider</h2>
+            <p className="text-gray-600">
+              {loadingProviders
+                ? "Loading providers..."
+                : `Choose from ${filteredProviders.length} available professional${
+                    filteredProviders.length !== 1 ? "s" : ""
+                  }`}
+            </p>
           </div>
 
-          <div className="flex items-center gap-6">
-            {/* Home Button - Added here */}
+          {/* RIGHT SIDE → Home button + Search Radius */}
+          <div className="flex items-center gap-4">
+
+            {/* HOME BUTTON (now left of search radius) */}
             <button
               onClick={() => {
                 sessionStorage.clear();
@@ -166,53 +127,36 @@ export default function ProvidersSection({
               className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
               </svg>
               Home
             </button>
 
+            {/* SEARCH RADIUS */}
             <div className="text-right">
               <div className="text-sm text-gray-500">Search radius</div>
-              <div className="text-lg font-semibold text-indigo-600">{searchWithin} miles</div>
+              <div className="text-lg font-semibold text-indigo-600">
+                {searchWithin} miles
+              </div>
             </div>
 
-            {/* Manage Hidden Providers Button */}
-            {userEmail && (
-              <button
-                onClick={onManageHidden}
-                className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Manage Hidden
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Loading State */}
-        {loadingProviders ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Finding Providers</h3>
-            <p className="text-gray-600">Searching for the best professionals near you...</p>
-          </div>
-        ) : (
-          /* Providers Grid */
-          <div className="grid gap-4">
-            {providers.filter(provider => {
-              // Check if provider has services
-              if (!provider.services || !Array.isArray(provider.services) || provider.services.length === 0) {
-                return false;
-              }
+        {/* LOADING */}
+        {loadingProviders && (
+          <div className="text-center py-12">Finding providers…</div>
+        )}
 
-              // Check if provider has at least one category
-              const providerCategories = getProviderCategories(provider, categories);
-              return providerCategories.length > 0;
-            }).map((provider) => (
+        {/* PROVIDER GRID */}
+        {!loadingProviders && filteredProviders.length > 0 && (
+          <div className="grid gap-4">
+            {filteredProviders.map((provider) => (
               <ProviderCard
                 key={provider.id}
                 provider={provider}
@@ -221,232 +165,109 @@ export default function ProvidersSection({
                 onBlacklist={handleBlacklist}
                 isBlacklisting={blacklistingProvider === provider.id}
                 userEmail={userEmail}
-                events={events}
                 categories={categories}
-                getProviderCategories={getProviderCategories}
               />
             ))}
           </div>
         )}
 
-        {/* Empty State */}
-        {!loadingProviders && providers.filter(provider => {
-          if (!provider.services || !Array.isArray(provider.services) || provider.services.length === 0) {
-            return false;
-          }
-          const providerCategories = getProviderCategories(provider, categories);
-          return providerCategories.length > 0;
-        }).length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                {providers.length > 0 ? 'No Available Providers' : 'No Providers Found'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {providers.length > 0
-                  ? 'All providers are currently unavailable or have no services configured.'
-                  : 'Try expanding your search radius or check back later.'
-                }
-              </p>
+        {/* NO PROVIDERS */}
+        {!loadingProviders && filteredProviders.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold mb-2">No Available Providers</h3>
+            <p className="text-gray-600 mb-4">
+              Try increasing your search radius or choosing another location.
+            </p>
 
-              {/* Show Manage Hidden button in empty state too */}
-              {userEmail && (
-                <button
-                  onClick={onManageHidden}
-                  className="inline-flex items-center gap-2 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400 hover:shadow-md"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Manage Hidden Providers
-                </button>
-              )}
-            </div>
-          )}
+            {userEmail && (
+              <button
+                onClick={onManageHidden}
+                className="px-6 py-3 bg-gray-100 rounded-xl"
+              >
+                Manage Hidden Providers
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ProviderCard({ provider, isSelected, onSelect, onBlacklist, isBlacklisting = false, userEmail, events = [], categories = [],  }) {
-  const getProviderCategories = () => {
-    if (!categories || categories.length === 0 || !provider.services) return [];
-
-    return categories.filter(category => {
-      if (!category.events || !Array.isArray(category.events)) return false;
-      const providerServiceIds = provider.services.map(serviceId =>
-        typeof serviceId === 'string' ? parseInt(serviceId) : serviceId
-      );
-
-      const categoryEventIds = category.events.map(eventId =>
-        typeof eventId === 'string' ? parseInt(eventId) : eventId
-      );
-
-      return providerServiceIds.some(serviceId =>
-        categoryEventIds.includes(serviceId)
-      );
-    });
-  };
-
+/* PROVIDER CARD */
+function ProviderCard({
+  provider,
+  isSelected,
+  onSelect,
+  onBlacklist,
+  isBlacklisting,
+  userEmail,
+  categories = [],
+}) {
   const getLocationDisplay = () => {
-    if (!provider.nearestLocation) return null;
-
+    if (!provider.nearestLocation) return "";
     if (provider.nearestLocation.title) {
-      return provider.nearestLocation.title.split(',').slice(-2).join(',').trim();
+      return provider.nearestLocation.title
+        .split(",")
+        .slice(-2)
+        .join(",")
+        .trim();
     }
-
-    return provider.nearestLocation.city;
+    return provider.nearestLocation.city || "";
   };
-
-  const providerCategories = getProviderCategories();
 
   return (
     <div
-      className={`relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer group ${isSelected
-        ? " bg-white shadow-lg"
-        : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md"
-        } ${isBlacklisting ? "opacity-50" : ""}`}
+      className={`p-6 rounded-2xl border cursor-pointer transition ${
+        isSelected ? "border-indigo-500" : "border-gray-200"
+      }`}
+      onClick={() => !isBlacklisting && onSelect(provider.id)}
     >
-      {/* Selection Indicator */}
-      {isSelected && (
-        <div className="absolute top-4 right-4 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-      )}
+      <div className="flex gap-4">
+        <img
+          src={
+            provider.picture_path
+              ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
+              : "/images/placeholder.jpg"
+          }
+          className="w-20 h-20 rounded-xl object-cover"
+        />
 
-      {/* Blacklisting Overlay */}
-      {isBlacklisting && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600 font-medium">Hiding provider...</p>
-          </div>
-        </div>
-      )}
+        <div className="flex-1">
+          <h3 className="text-xl font-bold text-black">{provider.name}</h3>
 
-      <div className="flex gap-6">
-        {/* Provider Image */}
-        <div className="flex-shrink-0">
-          <div className="relative">
-            <img
-              src={
-                provider.picture_path
-                  ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
-                  : "/images/placeholder.jpg"
-              }
-              alt={provider.name}
-              className="w-24 h-24 object-cover rounded-xl shadow-md group-hover:shadow-lg transition-all"
-            />
-            {isSelected && (
-              <div className="absolute inset-0 border-2 rounded-xl"></div>
-            )}
-          </div>
+          {provider.nearestLocation && (
+            <p className="text-sm text-gray-600 mt-1">📍 {getLocationDisplay()}</p>
+          )}
+
+          {provider.distance != null && (
+            <p className="text-sm text-green-600 mt-2">
+              {provider.distance.toFixed(1)} miles away
+            </p>
+          )}
         </div>
 
-        {/* Provider Info */}
-        <div
-          className="flex-1 min-w-0"
-          onClick={() => !isBlacklisting && onSelect(provider.id)}
-        >
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                {provider.name}
-              </h3>
-
-              {/* Location - Moved to appear right after name */}
-              {/* Location with State */}
-              {/* Location with State */}
-              {provider.nearestLocation && (
-                <p className="text-gray-600 text-sm mt-2 flex items-center gap-2 font-bold">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  </svg>
-                  {getLocationDisplay()}
-                </p>
-              )}
-              {/* Categories Display - Now appears after location */}
-              {providerCategories.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 font-medium mb-2">Categories:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {providerCategories.map((category, index) => (
-                      <span
-                        key={category.id}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      >
-                        {category.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Distance and Status */}
-            <div className="flex items-center gap-4">
-              {provider.distance && (
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                  {provider.distance.toFixed(1)} miles away
-                </div>
-              )}
-              <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Available Now
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-3 justify-center">
+        {/* ACTIONS */}
+        <div className="flex flex-col gap-2 text-black">
           <button
-            onClick={() => !isBlacklisting && onSelect(provider.id)}
-            disabled={isBlacklisting}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all ${isSelected
-              ? "bg-indigo-500 text-white shadow-md hover:bg-indigo-600"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              } ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`px-4 py-2 rounded-xl ${
+              isSelected ? "bg-indigo-500 text-black" : "bg-gray-300"
+            }`}
           >
             {isSelected ? "Selected" : "View Services"}
           </button>
 
-          {userEmail ? (
+          {userEmail && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                !isBlacklisting && onBlacklist(provider.id);
+                onBlacklist(provider.id);
               }}
-              disabled={isBlacklisting}
-              className={`flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-sm font-medium transition-all group/blacklist ${isBlacklisting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className="text-red-600 text-sm"
             >
-              {isBlacklisting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                  Hiding...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 group-hover/blacklist:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Hide
-                </>
-              )}
+              Hide
             </button>
-          ) : <></>}
+          )}
         </div>
       </div>
     </div>

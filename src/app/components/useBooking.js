@@ -97,17 +97,14 @@ function normalizeState(state) {
 function getStateFromLocation(location, userState = '') {
   if (!location) return { state: '', address2: '' };
 
-  console.log("Extracting state from location:", location);
-  console.log("User state to match:", userState);
-
   const extractedAddress2 = location.address2 || '';
 
   const normalizedUserState = normalizeState(userState);
 
   if (location.state) {
-    console.log("Found state in location.state:", location.state);
+    
     const normalizedState = normalizeState(location.state);
-    console.log("Normalized state:", normalizedState);
+   
 
     if (normalizedUserState && normalizedState === normalizedUserState) {
       return { state: normalizedState, address2: extractedAddress2 };
@@ -119,9 +116,9 @@ function getStateFromLocation(location, userState = '') {
   }
 
   if (location.address2) {
-    console.log("Found state in location.address2:", location.address2);
+    
     const normalizedState = normalizeState(location.address2);
-    console.log("Normalized state from address2:", normalizedState);
+    
 
     if (normalizedUserState && normalizedState === normalizedUserState) {
       return { state: normalizedState, address2: extractedAddress2 };
@@ -132,16 +129,16 @@ function getStateFromLocation(location, userState = '') {
   }
 
   if (location.title) {
-    console.log("Extracting state from location.title:", location.title);
+    
 
     // e.g. "729 Stryker Avenue, Doylestown, PA" → "PA"
     const parts = location.title.split(',');
     if (parts.length >= 3) {
       const statePart = parts[parts.length - 1].trim();
-      console.log("Extracted state part from title:", statePart);
+      
 
       const normalizedState = normalizeState(statePart);
-      console.log("Normalized state from title:", normalizedState);
+     
 
       // If user provided a state, check if it matches
       if (normalizedUserState && normalizedState === normalizedUserState) {
@@ -154,29 +151,29 @@ function getStateFromLocation(location, userState = '') {
     }
   }
 
-  console.log("No matching state found in location object");
+  
   return { state: '', address2: extractedAddress2 };
 }
 // Improved function to extract state from LocationIQ place object
 function extractStateFromPlace(place) {
-  console.log("Extracting state from place:", place);
+
 
   // First try to get state from address object (LocationIQ usually has this)
   if (place.address) {
     // Try different possible state fields in LocationIQ response
     if (place.address.state) {
-      console.log("Found state in address.state:", place.address.state);
+      
       return normalizeState(place.address.state);
     }
     if (place.address.state_code) {
-      console.log("Found state in address.state_code:", place.address.state_code);
+      
       return normalizeState(place.address.state_code);
     }
   }
 
   // Try to extract from display_name as fallback
   if (place.display_name) {
-    console.log("Trying to extract from display_name:", place.display_name);
+    
     const parts = place.display_name.split(',');
 
     // Look for state in the last few parts
@@ -185,20 +182,19 @@ function extractStateFromPlace(place) {
 
       // If it's a 2-letter uppercase code, it's likely a state
       if (part.length === 2 && /^[A-Z]{2}$/.test(part)) {
-        console.log("Extracted state code from display_name:", part);
+       
         return part;
       }
 
       // If it's a state name, convert to code
       const stateCode = stateNameToCode(part);
       if (stateCode) {
-        console.log("Converted state name to code:", part, "->", stateCode);
+       
         return stateCode;
       }
     }
   }
 
-  console.log("No state found in place object");
   return '';
 }
 
@@ -272,7 +268,7 @@ export function useBooking({ providers, events, locations, clients }) {
       });
 
       setServices(initialServices);
-      console.log('Dynamic services state initialized:', initialServices);
+     
     }
   }, [events]);
 
@@ -363,7 +359,7 @@ export function useBooking({ providers, events, locations, clients }) {
       services, // This now contains the dynamic service keys
     };
 
-    console.log('Submitting booking with services:', services);
+   
 
     try {
       const res = await fetch("/api/bookings", {
@@ -674,258 +670,208 @@ export function useBooking({ providers, events, locations, clients }) {
     setLoadingTimeSlots(false);
   }, [selectedDate, workCalandar]);
 
-  useEffect(() => {
-    console.log("🔍 Filtering providers...");
-    console.log("Client location of that country:", clientLocation);
-    console.log("Client state of that country:", address.state);
-    console.log("Total providers of that country:", providerArray?.length);
-    console.log("Total locations of that country:", locationArray?.length);
+useEffect(() => {
+  console.log("🔍 Filtering providers...");
+  console.log("Client location:", clientLocation);
+  console.log("Client state:", address.state);
 
-    if (!providerArray || providerArray.length === 0) {
-      setFilteredProviders([]);
-      return;
-    }
+  if (!providerArray || providerArray.length === 0) {
+    setFilteredProviders([]);
+    return;
+  }
 
-    if (!clientLocation) {
-      console.log("No client location, showing all providers");
-      setFilteredProviders(providerArray);
-      return;
-    }
+  if (!clientLocation) {
+    console.log("No client location, showing all providers");
+    setFilteredProviders(providerArray);
+    return;
+  }
 
-    setLoadingProviders(true);
+  setLoadingProviders(true);
 
-    const [userLat, userLng] = clientLocation;
+  const [userLat, userLng] = clientLocation;
 
-    // Function to extract numeric limit from provider description
-    const getProviderDistanceLimit = (provider) => {
-      try {
-        // First check if provider has explicit maxDistanceTravel
-        if (provider.maxDistanceTravel) {
-          const limit = parseInt(provider.maxDistanceTravel);
-          console.log(`Provider ${provider.id} distance limit from maxDistanceTravel: ${limit} miles`);
-          return isNaN(limit) ? 0 : limit; // 0 means unlimited
+  /* ---------------------------------------------
+     STEP 1: STATE-BASED FILTERING (STRICT)
+  ---------------------------------------------- */
+
+  let stateFilteredProviders = providerArray;
+
+  if (address.state && address.state.length === 2) {
+    stateFilteredProviders = providerArray
+      .map((p) => {
+        const providerLocations = p.locations
+          ?.map((locId) => locationArray.find((l) => l.id === locId))
+          .filter(Boolean);
+
+        if (!providerLocations?.length) return null;
+
+        let matchesState = false;
+
+        for (const loc of providerLocations) {
+          const { state } = getStateFromLocation(loc, address.state);
+          if (state === address.state) {
+            matchesState = true;
+            break;
+          }
         }
 
-        // Fallback: Extract numeric value from description HTML
-        const description = provider.description || "";
-        // Match numbers in the description (looking for distance limits)
-        const matches = description.match(/\b\d+\b/);
-        if (matches && matches.length > 0) {
-          const limit = parseInt(matches[0]);
-          console.log(`Provider ${provider.id} distance limit from description: ${limit} miles`);
-          return isNaN(limit) ? 0 : limit;
-        }
-        // If no numeric value found, return 0 (unlimited service radius)
-        return 0;
-      } catch (error) {
-        console.error(`Error parsing limit for provider ${provider.id}:`, error);
-        return 0; // Default to unlimited on error
-      }
-    };
-
-    // STEP 1: STATE-BASED FILTERING FIRST (STRICT REQUIREMENT)
-    let stateFilteredProviders = providerArray;
-    if (address.state && address.state.length === 2) {
-      stateFilteredProviders = providerArray
-        .map((p) => {
-          const providerLocations = p.locations
-            ?.map((locId) => locationArray.find((l) => l.id === locId))
-            .filter(Boolean);
-
-          if (!providerLocations?.length) return null;
-
-          // Get provider state from first location
-          let providerState = '';
-          let providerAddress2 = '';
-          for (const loc of providerLocations) {
-            const { state, address2 } = getStateFromLocation(loc, address.state);
-            if (state) {
-              providerState = state;
-              providerAddress2 = address2;
-              break;
-            }
-          }
-
-          console.log(`Provider ${p.id} state match: ${providerState}, Client state: ${address.state}`);
-
-          // Only include providers that have a location matching the user's state
-          if (providerState === address.state) {
-            return {
-              ...p,
-              providerState: providerState,
-              providerLocations: providerLocations, // Store all locations for distance calculation
-              distanceLimit: getProviderDistanceLimit(p) // Extract provider's distance limit
-            };
-          }
-          console.log(`❌ Provider ${p.id} filtered out - state mismatch: ${providerState} !== ${address.state}`);
+        if (!matchesState) {
+          console.log(`❌ Provider ${p.id} filtered - state mismatch`);
           return null;
-        })
-        .filter(Boolean);
+        }
 
-      console.log("Providers after state filtering out:", stateFilteredProviders.length);
-    } else {
-      console.log("No valid client state code, showing all providers (no state filtering)");
-      // If no state, prepare providers for distance calculation
-      stateFilteredProviders = providerArray.map(p => ({
+        return {
+          ...p,
+          providerLocations,
+        };
+      })
+      .filter(Boolean);
+
+    console.log(
+      "Providers after state filtering:",
+      stateFilteredProviders.length
+    );
+  } else {
+    // If no valid state, keep providers with valid locations
+    stateFilteredProviders = providerArray
+      .map((p) => ({
         ...p,
         providerLocations: p.locations
           ?.map((locId) => locationArray.find((l) => l.id === locId))
           .filter(Boolean),
-        distanceLimit: getProviderDistanceLimit(p) // Extract provider's distance limit
-      })).filter(p => p.providerLocations?.length);
-    }
+      }))
+      .filter((p) => p.providerLocations?.length);
+  }
 
-    // STEP 2: Distance filtering on state-compliant providers
-    const providersWithDistance = stateFilteredProviders
-      .map((p) => {
-        let minDist = Infinity;
-        let nearestLocation = null;
+  /* ---------------------------------------------
+     STEP 2: DISTANCE FILTERING
+     address2 = service distance limit
+     address2 = "0" → NO travel allowed
+  ---------------------------------------------- */
 
-        p.providerLocations.forEach((loc) => {
-          const dist = getDistance(
-            userLat,
-            userLng,
-            parseFloat(loc.lat),
-            parseFloat(loc.lng)
-          );
-           if (dist < minDist) {
-            minDist = dist;
-            nearestLocation = loc;
-          } 
-          console.log(loc.address2, "distance limit")
-        });
+  const providersWithDistance = stateFilteredProviders
+    .map((p) => {
+      let minDistance = Infinity;
+      let nearestLocation = null;
+      let distanceLimit = 0; // default: no travel allowed
 
-        console.log(`Provider ${p.id} - actual distance: ${minDist} miles, provider limit: ${p.distanceLimit} miles`);
-
-        return {
-          ...p,
-          distance: minDist,
-          nearestLocation: nearestLocation,
-        };
-      })
-      .filter((p) => {
-        console.log(p)
-        
-        const providerServiceDistance = p.nearestLocation?.address2 || 0;
-       
-        const withinUserRadius = p.distance <= searchWithin;
-        const withinProviderServiceArea = providerServiceDistance === 0 || p.distance <= providerServiceDistance ;
-        if (!withinUserRadius) {
-          console.log(`❌ Provider ${p.id} filtered out - exceeds user search radius: ${p.distance} > ${searchWithin}`);
-        } else if (!withinProviderServiceArea) {
-          console.log(`❌ Provider ${p.id} filtered out - exceeds provider service distance: ${p.distance} > ${providerServiceDistance}`);
-        }
-
-        return withinUserRadius && withinProviderServiceArea;
-      })
-      .sort((a, b) => a.distance - b.distance);
-
-    console.log("Providers after distance filtering:", providersWithDistance.length);
-
-    // STEP 3: Limit to 4 providers
-    const limitedProviders = providersWithDistance.slice(0, 4);
-    console.log("Providers after limiting to 4:", limitedProviders.length);
-
-    // STEP 4 + 5: Apply blacklist and booking priority
-    async function filterProviders() {
-      if (!userEmail) {
-        setFilteredProviders(limitedProviders);
-        setLoadingProviders(false);
-        return;
-      }
-
-      try {
-        // Fetch blacklist data
-        const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
-        const blacklistData = await blacklistRes.json();
-        const blockedIds = blacklistData?.blockedProviderIds || [];
-
-        // Fetch booking history
-        const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
-        const bookingData = await bookingRes.json();
-
-        console.log("📊 Full booking response:", bookingData);
-
-        // Extract provider IDs with their most recent booking date
-        const providerLastBookingMap = new Map();
-
-        bookingData?.data?.forEach((booking) => {
-          const providerId = booking.provider ? booking.provider.toString() : null;
-          const bookingDate = new Date(booking.createdAt || booking.date);
-
-          if (providerId) {
-            // If we already have this provider, check if this booking is more recent
-            if (providerLastBookingMap.has(providerId)) {
-              const existingDate = providerLastBookingMap.get(providerId);
-              if (bookingDate > existingDate) {
-                providerLastBookingMap.set(providerId, bookingDate);
-              }
-            } else {
-              // First time seeing this provider
-              providerLastBookingMap.set(providerId, bookingDate);
-            }
-          }
-        });
-
-        console.log("📋 Provider last booking dates:", Object.fromEntries(providerLastBookingMap));
-
-        // Remove blacklisted providers
-        let finalList = limitedProviders.filter(
-          (p) => !blockedIds.includes(p.id.toString())
+      p.providerLocations.forEach((loc) => {
+        const dist = getDistance(
+          userLat,
+          userLng,
+          parseFloat(loc.lat),
+          parseFloat(loc.lng)
         );
 
-        console.log("After blacklist filtering:", finalList.length);
+        let locLimit = Number(loc.address2);
+        if (isNaN(locLimit) || locLimit < 0) locLimit = 0;
 
-        // Enhanced sorting: Most recently booked providers first, then by distance
-        finalList = finalList.sort((a, b) => {
-          const aId = a.id.toString();
-          const bId = b.id.toString();
+        // choose nearest location
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestLocation = loc;
+          distanceLimit = locLimit;
+        }
+      });
 
-          const aLastBooking = providerLastBookingMap.get(aId);
-          const bLastBooking = providerLastBookingMap.get(bId);
+      return {
+        ...p,
+        distance: minDistance,
+        nearestLocation,
+        distanceLimit,
+      };
+    })
+    .filter((p) => {
+      const withinUserRadius = p.distance <= searchWithin;
+      const withinProviderLimit = p.distance <= p.distanceLimit;
 
-          console.log(`Sorting: Provider ${aId} last booking: ${aLastBooking}, Provider ${bId} last booking: ${bLastBooking}`);
-
-          // Both providers have booking history - sort by most recent booking
-          if (aLastBooking && bLastBooking) {
-            return bLastBooking - aLastBooking; // Most recent first (descending order)
-          }
-          // Only provider A has booking history
-          else if (aLastBooking && !bLastBooking) {
-            return -1; // a comes first (has booking history)
-          }
-          // Only provider B has booking history
-          else if (!aLastBooking && bLastBooking) {
-            return 1; // b comes first (has booking history)
-          }
-          // Neither provider has booking history - sort by distance
-          else {
-            return a.distance - b.distance;
-          }
-        });
-
-        console.log("🎯 Final sorted providers:", finalList.map(p => {
-          const lastBooking = providerLastBookingMap.get(p.id.toString());
-          return {
-            id: p.id,
-            name: p.name,
-            lastBooking: lastBooking ? lastBooking.toISOString() : 'Never',
-            distance: p.distance,
-            distanceLimit: p.distanceLimit
-          };
-        }));
-
-        setFilteredProviders(finalList);
-      } catch (err) {
-        console.error("Provider filtering error:", err);
-        setFilteredProviders(limitedProviders);
-      } finally {
-        setLoadingProviders(false);
+      if (!withinProviderLimit) {
+        console.log(
+          `❌ Provider ${p.id} filtered - exceeds provider limit (${p.distance} > ${p.distanceLimit})`
+        );
       }
+
+      return withinUserRadius && withinProviderLimit;
+    })
+    .sort((a, b) => a.distance - b.distance);
+
+  console.log(
+    "Providers after distance filtering:",
+    providersWithDistance.length
+  );
+
+  /* ---------------------------------------------
+     STEP 3: LIMIT TO NEAREST 4
+  ---------------------------------------------- */
+
+  const limitedProviders = providersWithDistance.slice(0, 4);
+
+  /* ---------------------------------------------
+     STEP 4 + 5: BLACKLIST + BOOKING PRIORITY
+  ---------------------------------------------- */
+
+  async function filterProviders() {
+    if (!userEmail) {
+      setFilteredProviders(limitedProviders);
+      setLoadingProviders(false);
+      return;
     }
 
-    filterProviders();
-  }, [clientLocation, searchWithin, providerArray, locations, userEmail, address.state]);
+    try {
+      const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
+      const blacklistData = await blacklistRes.json();
+      const blockedIds = blacklistData?.blockedProviderIds || [];
+
+      const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
+      const bookingData = await bookingRes.json();
+
+      const providerLastBookingMap = new Map();
+
+      bookingData?.data?.forEach((booking) => {
+        const providerId = booking.provider?.toString();
+        const bookingDate = new Date(booking.createdAt || booking.date);
+
+        if (!providerId) return;
+
+        if (!providerLastBookingMap.has(providerId)) {
+          providerLastBookingMap.set(providerId, bookingDate);
+        } else if (bookingDate > providerLastBookingMap.get(providerId)) {
+          providerLastBookingMap.set(providerId, bookingDate);
+        }
+      });
+
+      let finalList = limitedProviders.filter(
+        (p) => !blockedIds.includes(p.id.toString())
+      );
+
+      finalList.sort((a, b) => {
+        const aLast = providerLastBookingMap.get(a.id.toString());
+        const bLast = providerLastBookingMap.get(b.id.toString());
+
+        if (aLast && bLast) return bLast - aLast;
+        if (aLast) return -1;
+        if (bLast) return 1;
+        return a.distance - b.distance;
+      });
+
+      setFilteredProviders(finalList);
+    } catch (err) {
+      console.error("Provider filtering error:", err);
+      setFilteredProviders(limitedProviders);
+    } finally {
+      setLoadingProviders(false);
+    }
+  }
+
+  filterProviders();
+}, [
+  clientLocation,
+  searchWithin,
+  providerArray,
+  locationArray,
+  userEmail,
+  address.state,
+]);
 
   return {
     // State
