@@ -324,7 +324,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const handleNoThanks = () => {
     // Reset everything and go back to the entry point with two buttons
     resetBooking();
-    
+    sessionStorage.clear();
+    window.dispatchEvent(new CustomEvent('reset-booking-form'));
     setUserFlow("entry");
     console.log('🔙 Returning to entry point (Find Door-to-Door Services)');
   };

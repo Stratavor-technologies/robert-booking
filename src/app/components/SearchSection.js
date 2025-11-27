@@ -447,18 +447,18 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         ref={searchWithinRef}
         type="number"
         value={searchWithin}
-        min={1}
+        min={0}
         max={40}
         onChange={(e) => {
           const value = Number(e.target.value);
-          if (value <= 40 && value >= 1) {
+          if (value <= 40 && value >= 0) {
             onChange(value);
           }
         }}
         disabled={disabled}
         onKeyDown={onKeyDown}
         className="flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
-        placeholder="1–20"
+        placeholder="0-40"
       />
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
         Miles
