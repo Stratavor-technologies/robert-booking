@@ -204,6 +204,31 @@ function ProviderCard({
   userEmail,
   categories = [],
 }) {
+
+     // ---- GET PROVIDER CATEGORIES ----
+  const getProviderCategories = () => {
+    if (!categories?.length || !provider?.services?.length) return [];
+
+    const providerServiceIds = provider.services
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id));
+
+    return categories.filter((category) => {
+      if (!Array.isArray(category.events)) return false;
+
+      const categoryEventIds = category.events
+        .map((id) => Number(id))
+        .filter((id) => !isNaN(id));
+
+      return providerServiceIds.some((sid) =>
+        categoryEventIds.includes(sid)
+      );
+    });
+  };
+
+  const providerCategories = getProviderCategories();
+
+
   const getLocationDisplay = () => {
     if (!provider.nearestLocation) return "";
     if (provider.nearestLocation.title) {
@@ -239,6 +264,33 @@ function ProviderCard({
           {provider.nearestLocation && (
             <p className="text-sm text-gray-600 mt-1">📍 {getLocationDisplay()}</p>
           )}
+
+          {/* ---- CATEGORY TAGS BELOW NAME + ADDRESS ---- */}
+{providerCategories.length > 0 && (
+  <div className="mt-3">
+    
+    {/* Label on FIRST LINE */}
+    <span className="text-xs font-semibold text-gray-600 block mb-1">
+      Category
+    </span>
+
+    {/* Tags on SECOND LINE */}
+    <div className="flex flex-wrap gap-2">
+      {providerCategories.map((cat) => (
+        <span
+          key={cat.id}
+          className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium"
+        >
+          {cat.name}
+        </span>
+      ))}
+    </div>
+
+  </div>
+)}
+
+
+
 
           {provider.distance != null && (
             <p className="text-sm text-green-600 mt-2">
