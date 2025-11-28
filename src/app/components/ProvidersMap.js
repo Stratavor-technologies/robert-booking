@@ -133,8 +133,8 @@ export default function ProvidersMap({
             .addTo(map)
             .bindPopup(
               `<b>${loc.providerName}</b>` +
-              (loc.city ? `<br/>📍 ${loc.city}, ${extractStateFromTitle(loc.title)}` : '') +
-                (userLocation ? `<br/>${dist.toFixed(1)} miles away` : "")
+               `<br/>📍 ${loc.city}${loc.address2 && loc.address2 !== "0" ? ` ${loc.address2}` : ''}, ${extractStateFromTitle(loc.title)}` +
+    (userLocation ? `<br/>${dist.toFixed(1)} miles away` : "")
             );
 
           markersRef.current.push(marker);
