@@ -150,11 +150,11 @@ if (allMarkers.length > 0) {
   const bounds = group.getBounds();
   
   // Even more padding and lower zoom
-  const paddedBounds = bounds.pad(0.2); // 20% padding
+  const paddedBounds = bounds.pad(0.1); // 20% padding
   
   map.fitBounds(paddedBounds, {
     padding: [80, 80], // Much larger padding
-    maxZoom: 8, // Even more zoomed out
+    maxZoom: 12, // Even more zoomed out
     minZoom: 2,
   });
 } else if (userLocation) {
