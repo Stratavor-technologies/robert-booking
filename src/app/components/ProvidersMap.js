@@ -33,7 +33,7 @@ export default function ProvidersMap({
       /* ---------- INIT MAP ---------- */
       if (!mapRef.current) {
         const center = userLocation || [40.1, -75.1];
-        mapRef.current = L.map("map", { minZoom: 2 }).setView(center, 10);
+        mapRef.current = L.map("map", { minZoom: 2 }).setView(center, 8);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap contributors",
@@ -143,16 +143,23 @@ export default function ProvidersMap({
       });
 
       /* ---------- AUTO FIT ---------- */
-      if (allMarkers.length > 0) {
-        const group = new L.featureGroup(allMarkers);
-        map.fitBounds(group.getBounds(), {
-          padding: [20, 20],
-          maxZoom: 15,
-          minZoom: 2,
-        });
-      } else if (userLocation) {
-        map.setView(userLocation, 10);
-      }
+      /* ---------- AUTO FIT ---------- */
+/* ---------- AUTO FIT ---------- */
+if (allMarkers.length > 0) {
+  const group = new L.featureGroup(allMarkers);
+  const bounds = group.getBounds();
+  
+  // Even more padding and lower zoom
+  const paddedBounds = bounds.pad(0.2); // 20% padding
+  
+  map.fitBounds(paddedBounds, {
+    padding: [80, 80], // Much larger padding
+    maxZoom: 8, // Even more zoomed out
+    minZoom: 2,
+  });
+} else if (userLocation) {
+  map.setView(userLocation, 8); // More zoomed out default
+}
     });
 
     return () => {

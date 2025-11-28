@@ -115,11 +115,11 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
 
   // Custom handler for provider selection that automatically opens services section
-const handleProviderSelect = (providerId) => {
-  setSelectedProvider(providerId);
-  // Automatically open services section when provider is selected
-  setShowServicesSection(true);
-};
+  const handleProviderSelect = (providerId) => {
+    setSelectedProvider(providerId);
+    // Automatically open services section when provider is selected
+    setShowServicesSection(true);
+  };
 
   useEffect(() => {
     const loadAuthState = () => {
@@ -466,7 +466,7 @@ const handleProviderSelect = (providerId) => {
           target: { name: "state", value: "" }
         });
 
-       
+
 
         handleFieldChange({
           target: { name: "fullAddress", value: "" }
@@ -590,14 +590,14 @@ const handleProviderSelect = (providerId) => {
     }
   };
 
-   const handleSearchWithReset = async () => {
-  // Reset provider selection when doing a new search
-  setSelectedProvider("");
-  setShowServicesSection(false);
-  
-  // Then perform the address search
-  await getLatLngFromAddress();
-};
+  const handleSearchWithReset = async () => {
+    // Reset provider selection when doing a new search
+    setSelectedProvider("");
+    setShowServicesSection(false);
+
+    // Then perform the address search
+    await getLatLngFromAddress();
+  };
 
 
 
@@ -1087,11 +1087,11 @@ const handleProviderSelect = (providerId) => {
             onSearchWithinChange={setSearchWithin}
             onUserEmailChange={setUserEmail}
             onSearchClick={async () => {
-    // Reset provider selection and close services section
-    setSelectedProvider("");
-    setShowServicesSection(false);
-    await getLatLngFromAddress();
-  }}
+              // Reset provider selection and close services section
+              setSelectedProvider("");
+              setShowServicesSection(false);
+              await getLatLngFromAddress();
+            }}
             loadingAddress={loadingAddress}
             currentEmail={currentEmail}
             onBackToHome={handleFullReset} // Add this line
@@ -1217,44 +1217,44 @@ const handleProviderSelect = (providerId) => {
           )}
 
 
-        {/* Services Section - Only show when provider is selected AND services section is open */}
-{filteredProviders.length > 0 && selectedProvider && showServicesSection && (
-  <div className="relative">
-    {loadingServices ? (
-      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-        </div>
-        <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
-        <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
-      </div>
-    ) : (
-      <ServicesSection
-        services={services}
-        onCheckboxChange={handleCheckboxChange}
-        selectedProvider={selectedProvider}
-        providers={providers}
-        events={events}
-        onClose={handleCloseServicesSection}
-      />
-    )}
-  </div>
-)}
+          {/* Services Section - Only show when provider is selected AND services section is open */}
+          {filteredProviders.length > 0 && selectedProvider && showServicesSection && (
+            <div className="relative">
+              {loadingServices ? (
+                <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
+                  <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
+                </div>
+              ) : (
+                <ServicesSection
+                  services={services}
+                  onCheckboxChange={handleCheckboxChange}
+                  selectedProvider={selectedProvider}
+                  providers={providers}
+                  events={events}
+                  onClose={handleCloseServicesSection}
+                />
+              )}
+            </div>
+          )}
 
-{/* Show "Select Services" button when provider is selected but services section is closed */}
-{filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
-  <div className="text-center">
-    <button
-      onClick={handleReopenServicesSection}
-      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-    >
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-      </svg>
-      Select Services
-    </button>
-  </div>
-)}
+          {/* Show "Select Services" button when provider is selected but services section is closed */}
+          {filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
+            <div className="text-center">
+              <button
+                onClick={handleReopenServicesSection}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                Select Services
+              </button>
+            </div>
+          )}
 
           {/* Date Picker Section */}
           {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
