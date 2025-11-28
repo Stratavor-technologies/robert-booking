@@ -64,7 +64,7 @@ export default function ProvidersSection({
       {/* MAP CONTAINER */}
       <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative">
 
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl"></div>
 
         {/* Home Button - top right */}
         <button
@@ -88,6 +88,7 @@ export default function ProvidersSection({
         )}
 
         <h3 className="text-lg font-semibold mb-4 text-black">Provider Locations</h3>
+        <p className=" mb-4 text-black">View all available provider in your currently area</p>
 
         <ProvidersMap
           providers={filteredProviders}
