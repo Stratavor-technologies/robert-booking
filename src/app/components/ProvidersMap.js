@@ -113,6 +113,18 @@ export default function ProvidersMap({
           showOnMap: canShow,
         });
 
+        function extractStateFromTitle(title) {
+  if (!title) return '';
+  
+  const parts = title.split(',');
+  if (parts.length > 0) {
+    const lastPart = parts[parts.length - 1].trim();
+    return lastPart;
+  }
+  
+  return '';
+}
+
         if (canShow) {
           const marker = L.marker(
             [parseFloat(loc.lat), parseFloat(loc.lng)],
@@ -121,6 +133,7 @@ export default function ProvidersMap({
             .addTo(map)
             .bindPopup(
               `<b>${loc.providerName}</b>` +
+              (loc.city ? `<br/>📍 ${loc.city}, ${extractStateFromTitle(loc.title)}` : '') +
                 (userLocation ? `<br/>${dist.toFixed(1)} miles away` : "")
             );
 
