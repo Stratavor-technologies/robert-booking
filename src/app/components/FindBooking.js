@@ -39,7 +39,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [unblacklisting, setUnblacklisting] = useState(null);
-  const [showServicesSection, setShowServicesSection] = useState(true);
+  const [showServicesSection, setShowServicesSection] = useState(false);
   const [showDatePickerSection, setShowDatePickerSection] = useState(true);
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
@@ -112,6 +112,14 @@ export default function FindBooking({ providers, events, locations, clients, cat
     resetBooking,
     setFormData
   } = useBooking({ providers, events, locations, clients, categories });
+
+
+  // Custom handler for provider selection that automatically opens services section
+const handleProviderSelect = (providerId) => {
+  setSelectedProvider(providerId);
+  // Automatically open services section when provider is selected
+  setShowServicesSection(true);
+};
 
   useEffect(() => {
     const loadAuthState = () => {
@@ -306,7 +314,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setResetForm(true); // Trigger form reset in SearchSection
 
     // Reset all section visibility states
-    setShowServicesSection(true);
+    setShowServicesSection(false);
     setShowDatePickerSection(true);
     setShowTimeSlotsSection(true);
     setShowBookingSummary(true);
@@ -581,6 +589,17 @@ export default function FindBooking({ providers, events, locations, clients, cat
       setUnblacklisting(null);
     }
   };
+
+   const handleSearchWithReset = async () => {
+  // Reset provider selection when doing a new search
+  setSelectedProvider("");
+  setShowServicesSection(false);
+  
+  // Then perform the address search
+  await getLatLngFromAddress();
+};
+
+
 
   // Function to unblacklist all providers
   const handleUnblacklistAll = async () => {
@@ -1067,7 +1086,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
             onFieldChange={handleFieldChange}
             onSearchWithinChange={setSearchWithin}
             onUserEmailChange={setUserEmail}
-            onSearchClick={getLatLngFromAddress}
+            onSearchClick={async () => {
+    // Reset provider selection and close services section
+    setSelectedProvider("");
+    setShowServicesSection(false);
+    await getLatLngFromAddress();
+  }}
             loadingAddress={loadingAddress}
             currentEmail={currentEmail}
             onBackToHome={handleFullReset} // Add this line
@@ -1178,7 +1202,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                       searchWithin={searchWithin}
                       selectedProvider={selectedProvider}
                       userEmail={userEmail}
-                      onProviderSelect={setSelectedProvider}
+                      onProviderSelect={handleProviderSelect}
                       onBlacklist={handleBlacklist}
                       events={events}
                       categories={categories}
@@ -1193,43 +1217,44 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
 
-          {filteredProviders.length > 0 && selectedProvider && showServicesSection && (
-            <div className="relative">
-              {loadingServices ? (
-                <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
-                  <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
-                </div>
-              ) : (
-                <ServicesSection
-                  services={services}
-                  onCheckboxChange={handleCheckboxChange}
-                  selectedProvider={selectedProvider}
-                  providers={providers}
-                  events={events}
-                  onClose={handleCloseServicesSection}
-                />
-              )}
-            </div>
-          )}
+        {/* Services Section - Only show when provider is selected AND services section is open */}
+{filteredProviders.length > 0 && selectedProvider && showServicesSection && (
+  <div className="relative">
+    {loadingServices ? (
+      <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
+        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
+        <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
+      </div>
+    ) : (
+      <ServicesSection
+        services={services}
+        onCheckboxChange={handleCheckboxChange}
+        selectedProvider={selectedProvider}
+        providers={providers}
+        events={events}
+        onClose={handleCloseServicesSection}
+      />
+    )}
+  </div>
+)}
 
-          {/* Show reopen button if ServicesSection is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
-            <div className="text-center">
-              <button
-                onClick={handleReopenServicesSection}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-                </svg>
-                Show Services
-              </button>
-            </div>
-          )}
+{/* Show "Select Services" button when provider is selected but services section is closed */}
+{filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
+  <div className="text-center">
+    <button
+      onClick={handleReopenServicesSection}
+      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+      </svg>
+      Select Services
+    </button>
+  </div>
+)}
 
           {/* Date Picker Section */}
           {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
