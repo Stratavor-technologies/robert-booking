@@ -329,14 +329,18 @@ export default function SearchSection({
               }}
 
               onClick={(e) => {
-                e.target.select();
-              }}
-              onDoubleClick={(e) => {
-                e.preventDefault();
+                // Only select all if this is NOT part of a double-click
+                if (e.detail === 1) { // Single click
+                  e.target.select();
+                }
               }}
               onMouseDown={(e) => {
+                // Check if this is a double click
                 if (e.detail > 1) {
-                  return;
+                  // Prevent the default double-click selection behavior
+                  e.preventDefault();
+                  // For double click, we want to allow normal text cursor placement
+                  // so we don't select all
                 }
               }}
 
@@ -400,14 +404,13 @@ export default function SearchSection({
                   });
                 }}
                 onClick={(e) => {
-                  e.target.select();
-                }}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
+                  if (e.detail === 1) { // Single click only
+                    e.target.select();
+                  }
                 }}
                 onMouseDown={(e) => {
-                  if (e.detail > 1) {
-                    return;
+                  if (e.detail > 1) { // Double click
+                    e.preventDefault();
                   }
                 }}
                 onFocus={() => setShowDropdown(true)}
@@ -483,14 +486,13 @@ export default function SearchSection({
                 setValidationErrors(prev => ({ ...prev, zip: "" }));
               }}
               onClick={(e) => {
-                e.target.select();
-              }}
-              onDoubleClick={(e) => {
-                e.preventDefault();
+                if (e.detail === 1) { // Single click only
+                  e.target.select();
+                }
               }}
               onMouseDown={(e) => {
-                if (e.detail > 1) {
-                  return;
+                if (e.detail > 1) { // Double click
+                  e.preventDefault();
                 }
               }}
               placeholder="ZIP code"
@@ -597,14 +599,13 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         onChange={handleChange}
         disabled={disabled}
         onClick={(e) => {
-          e.target.select();
-        }}
-        onDoubleClick={(e) => {
-          e.preventDefault();
+          if (e.detail === 1) { // Single click only
+            e.target.select();
+          }
         }}
         onMouseDown={(e) => {
-          if (e.detail > 1) {
-            return;
+          if (e.detail > 1) { // Double click
+            e.preventDefault();
           }
         }}
         onKeyDown={onKeyDown}
