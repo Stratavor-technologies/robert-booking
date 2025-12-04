@@ -572,12 +572,76 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       return;
     }
 
-    // Convert to number to remove leading zeros
+    // Handle the case where user types "0" followed by another digit
+    // Remove the "0" and keep only the new digit
+    if (value.startsWith('0') && value.length > 1) {
+      // Remove all leading zeros
+      const withoutLeadingZeros = value.replace(/^0+/, '');
+      // If after removing zeros we have something, use it
+      if (withoutLeadingZeros !== "") {
+        const numericValue = Number(withoutLeadingZeros);
+        // Validate range
+        if (numericValue <= 40 && numericValue >= 0) {
+          onChange(numericValue);
+        }
+      } else {
+        // If after removing zeros we have nothing, set to 0
+        onChange(0);
+      }
+      return;
+    }
+
+    // Convert to number
     const numericValue = Number(value);
 
-    // Validate range
+    // Validate range (0-40)
     if (numericValue <= 40 && numericValue >= 0) {
       onChange(numericValue);
+    }
+  };
+
+  // Handle arrow key up/down
+  const handleKeyDown = (e) => {
+    // Call the parent's onKeyDown handler first
+    if (onKeyDown) {
+      onKeyDown(e);
+    }
+
+    // If Enter or Tab was handled by parent, don't process arrow keys
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      return;
+    }
+
+    // Handle arrow up/down
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const newValue = Math.min(40, searchWithin + 1);
+      if (newValue !== searchWithin) {
+        onChange(newValue);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const newValue = Math.max(0, searchWithin - 1);
+      if (newValue !== searchWithin) {
+        onChange(newValue);
+      }
+    }
+  };
+
+  // Handle arrow button clicks
+  const handleArrowUpClick = () => {
+    if (disabled) return;
+    const newValue = Math.min(40, searchWithin + 1);
+    if (newValue !== searchWithin) {
+      onChange(newValue);
+    }
+  };
+
+  const handleArrowDownClick = () => {
+    if (disabled) return;
+    const newValue = Math.max(0, searchWithin - 1);
+    if (newValue !== searchWithin) {
+      onChange(newValue);
     }
   };
 
@@ -592,28 +656,58 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         </svg>
         Within
       </span>
-      <input
-        ref={searchWithinRef}
-        type="text"
-        value={searchWithin === 0 ? "" : searchWithin.toString()}
-        onChange={handleChange}
-        disabled={disabled}
-        onClick={(e) => {
-          if (e.detail === 1) { // Single click only
-            e.target.select();
-          }
-        }}
-        onMouseDown={(e) => {
-          if (e.detail > 1) { // Double click
-            e.preventDefault();
-          }
-        }}
-        onKeyDown={onKeyDown}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        className={`flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed`}
-
-      />
+      
+      <div className="flex-1 relative">
+        <input
+          ref={searchWithinRef}
+          type="text"
+          value={searchWithin.toString()}
+          onChange={handleChange}
+          disabled={disabled}
+          onClick={(e) => {
+            if (e.detail === 1) { // Single click only
+              e.target.select();
+            }
+          }}
+          onMouseDown={(e) => {
+            if (e.detail > 1) { // Double click
+              e.preventDefault();
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          className={`w-full p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
+          placeholder="0"
+        />
+        
+        {/* Arrow buttons */}
+        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-0.5">
+          <button
+            type="button"
+            onClick={handleArrowUpClick}
+            disabled={disabled || searchWithin >= 40}
+            className="w-6 h-5 flex items-center justify-center rounded-t-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Increase value"
+          >
+            <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={handleArrowDownClick}
+            disabled={disabled || searchWithin <= 0}
+            className="w-6 h-5 flex items-center justify-center rounded-b-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Decrease value"
+          >
+            <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
         Miles
       </span>
