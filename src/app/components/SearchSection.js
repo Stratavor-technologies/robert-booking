@@ -31,6 +31,12 @@ export default function SearchSection({
   const [searchText, setSearchText] = useState(address.state || "");
   const dropdownRef = useRef(null);
   const [cityError, setCityError] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    city: "",
+    state: "",
+    zip: "",
+    searchWithin: ""
+  });
 
 
   const cityRef = useRef(null);
@@ -47,6 +53,12 @@ export default function SearchSection({
     setSearchText("");
     setCityError("");
     setShowDropdown(false);
+    setValidationErrors({
+      city: "",
+      state: "",
+      zip: "",
+      searchWithin: ""
+    });
     if (onFieldChange) {
       onFieldChange({ target: { name: "city", value: "" } });
       onFieldChange({ target: { name: "state", value: "" } });
@@ -81,6 +93,7 @@ export default function SearchSection({
     const abbr = state.match(/\((.*?)\)/)?.[1] || state;
     setSearchText(abbr);
     setShowDropdown(false);
+    setValidationErrors(prev => ({ ...prev, state: "" }));
     onFieldChange({ target: { name: "state", value: abbr } });
   };
 
@@ -134,6 +147,65 @@ export default function SearchSection({
       if (currentField === "state") {
         setShowDropdown(false);
       }
+    }
+  };
+
+  const validateAllFields = () => {
+    const errors = {
+      city: "",
+      state: "",
+      zip: "",
+      searchWithin: ""
+    };
+
+    let isValid = true;
+
+    // Validate city
+    if (!address.city || address.city.trim() === "") {
+      errors.city = "City is required";
+      isValid = false;
+    } else if (cityError) {
+      errors.city = cityError;
+      isValid = false;
+    }
+
+    // Validate state
+    if (!address.state || address.state.trim() === "") {
+      errors.state = "State is required";
+      isValid = false;
+    } else if (!usStates.includes(address.state.toUpperCase())) {
+      errors.state = "Please select a valid state";
+      isValid = false;
+    }
+
+    // Validate ZIP code
+    if (!address.zip || address.zip.trim() === "") {
+      errors.zip = "ZIP code is required";
+      isValid = false;
+    } else if (!/^\d{5}(-\d{4})?$/.test(address.zip)) {
+      errors.zip = "Please enter a valid 5-digit ZIP code";
+      isValid = false;
+    }
+
+    // Validate search within
+    if (!searchWithin || searchWithin <= 0) {
+      errors.searchWithin = "Please enter a valid search radius";
+      isValid = false;
+    }
+
+    setValidationErrors(errors);
+    return isValid;
+  };
+
+  const handleSearchClick = () => {
+    if (validateAllFields()) {
+      onSearchClick();
+    } else {
+      // Focus on the first field with error
+      if (validationErrors.city) cityRef.current?.focus();
+      else if (validationErrors.state) stateRef.current?.focus();
+      else if (validationErrors.zip) zipRef.current?.focus();
+      else if (validationErrors.searchWithin) searchWithinRef.current?.focus();
     }
   };
 
@@ -191,6 +263,7 @@ export default function SearchSection({
                 if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
                 onFieldChange(e);
+                setValidationErrors(prev => ({ ...prev, city: "" }));
 
                 if (value.trim() === "") {
                   setCityError("");
@@ -254,6 +327,19 @@ export default function SearchSection({
                   setCityError("");
                 }
               }}
+
+              onClick={(e) => {
+                e.target.select();
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                if (e.detail > 1) {
+                  return;
+                }
+              }}
+
               placeholder="City"
               maxLength={50}
               disabled={loadingAddress}
@@ -265,17 +351,17 @@ export default function SearchSection({
                   handleTabNavigation(e, "city", stateRef);
                 }
               }}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5
+              className={`w-full border rounded-xl px-4 py-3.5
       focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
       bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
       ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
-      ${cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : ""}
+      ${validationErrors.city || cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
     `}
             />
 
             {/* ERROR MESSAGE BELOW CITY INPUT */}
-            {cityError && (
-              <p className="text-red-500 text-sm mt-1">{cityError}</p>
+            {(validationErrors.city || cityError) && (
+              <p className="text-red-500 text-sm mt-1">{validationErrors.city || cityError}</p>
             )}
           </div>
 
@@ -307,10 +393,22 @@ export default function SearchSection({
                   if (value !== "" && matches.length === 0) return;
                   setSearchText(value);
                   setShowDropdown(true);
+                  setValidationErrors(prev => ({ ...prev, state: "" }));
 
                   onFieldChange({
                     target: { name: "state", value }
                   });
+                }}
+                onClick={(e) => {
+                  e.target.select();
+                }}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                }}
+                onMouseDown={(e) => {
+                  if (e.detail > 1) {
+                    return;
+                  }
                 }}
                 onFocus={() => setShowDropdown(true)}
                 onKeyDown={(e) => {
@@ -325,7 +423,7 @@ export default function SearchSection({
                 }}
                 placeholder="State"
                 disabled={loadingAddress}
-                className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
               />
 
               <svg
@@ -347,6 +445,7 @@ export default function SearchSection({
                         onClick={() => {
                           setSearchText(state.toUpperCase());
                           setShowDropdown(false);
+                          setValidationErrors(prev => ({ ...prev, state: "" }));
                           onFieldChange({ target: { name: "state", value: state.toUpperCase() } });
                           zipRef.current?.focus(); // Auto-focus next field after selection
                         }}
@@ -361,6 +460,9 @@ export default function SearchSection({
                 </ul>
               )}
             </div>
+            {validationErrors.state && (
+              <p className="text-red-500 text-sm mt-1">{validationErrors.state}</p>
+            )}
           </div>
 
           {/* ZIP */}
@@ -376,7 +478,21 @@ export default function SearchSection({
               type="text"
               name="zip"
               value={address.zip}
-              onChange={onFieldChange}
+              onChange={(e) => {
+                onFieldChange(e);
+                setValidationErrors(prev => ({ ...prev, zip: "" }));
+              }}
+              onClick={(e) => {
+                e.target.select();
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+              }}
+              onMouseDown={(e) => {
+                if (e.detail > 1) {
+                  return;
+                }
+              }}
               placeholder="ZIP code"
               disabled={loadingAddress}
               onKeyDown={(e) => {
@@ -387,18 +503,25 @@ export default function SearchSection({
                   handleTabNavigation(e, "zip", searchWithinRef);
                 }
               }}
-              className={`w-full border border-gray-200 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
+                } ${validationErrors.zip ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
             />
+            {validationErrors.zip && (
+              <p className="text-red-500 text-sm mt-1">{validationErrors.zip}</p>
+            )}
           </div>
         </div>
 
         {/* Search Area + Button */}
         <SearchWithinInput
           searchWithin={searchWithin}
-          onChange={onSearchWithinChange}
+          onChange={(value) => {
+            onSearchWithinChange(value);
+            setValidationErrors(prev => ({ ...prev, searchWithin: "" }));
+          }}
           disabled={loadingAddress}
           searchWithinRef={searchWithinRef}
+          error={validationErrors.searchWithin}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               handleEnterNavigation("searchWithin", "search")(e);
@@ -408,21 +531,24 @@ export default function SearchSection({
             }
           }}
         />
+        {validationErrors.searchWithin && (
+          <p className="text-red-500 text-sm -mt-3">{validationErrors.searchWithin}</p>
+        )}
         <button
           ref={searchButtonRef}
-          onClick={onSearchClick}
+          onClick={handleSearchClick}
           id="searchButton"
           disabled={loadingAddress}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              onSearchClick();
+              handleSearchClick();
             }
             if (e.key === "Tab") {
               handleTabNavigation(e, "search", "city");
             }
           }}
-          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200"
+          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loadingAddress ? "Searching..." : "Search Service Providers"}
         </button>
@@ -431,11 +557,32 @@ export default function SearchSection({
   );
 }
 
-function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown }) {
+function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown, error }) {
+  const handleChange = (e) => {
+    const value = e.target.value;
+
+    // Allow only digits
+    if (!/^\d*$/.test(value)) return;
+
+    // If value is empty, set to 0
+    if (value === "") {
+      onChange(0);
+      return;
+    }
+
+    // Convert to number to remove leading zeros
+    const numericValue = Number(value);
+
+    // Validate range
+    if (numericValue <= 40 && numericValue >= 0) {
+      onChange(numericValue);
+    }
+  };
+
   return (
     <div
-      className={`flex items-center bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 ${disabled ? "opacity-50 cursor-not-allowed" : ""
-        }`}
+      className={`flex items-center border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-indigo-400 ${disabled ? "opacity-50 cursor-not-allowed" : ""
+        } ${error ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-400" : "border-gray-200"}`}
     >
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-r border-gray-200 flex items-center gap-2">
         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,20 +592,26 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       </span>
       <input
         ref={searchWithinRef}
-        type="number"
-        value={searchWithin}
-        min={0}
-        max={40}
-        onChange={(e) => {
-          const value = Number(e.target.value);
-          if (value <= 40 && value >= 0) {
-            onChange(value);
+        type="text"
+        value={searchWithin === 0 ? "" : searchWithin.toString()}
+        onChange={handleChange}
+        disabled={disabled}
+        onClick={(e) => {
+          e.target.select();
+        }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+        }}
+        onMouseDown={(e) => {
+          if (e.detail > 1) {
+            return;
           }
         }}
-        disabled={disabled}
         onKeyDown={onKeyDown}
-        className="flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
-        placeholder="0-40"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        className={`flex-1 p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed`}
+
       />
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
         Miles

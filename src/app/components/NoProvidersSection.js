@@ -41,10 +41,16 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     console.log("📍 Enquiry Address Data:", address);
   }, [address]);
 
+  // Replace the existing useEffect for category filtering with this:
   useEffect(() => {
     if (localCategory) {
+      // Sort categories alphabetically by name
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+
       // Filter categories that start with the input text (case insensitive)
-      const filtered = categories.filter(category =>
+      const filtered = sortedCategories.filter(category =>
         category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
       );
       setFilteredCategories(filtered);
@@ -58,9 +64,12 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       // Only show dropdown if there are matching categories
       setShowCategoryDropdown(filtered.length > 0);
     } else {
-      setFilteredCategories([]);
+      // When input is empty, show all categories sorted alphabetically
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      setFilteredCategories(sortedCategories);
       setIsCustomCategory(false);
-      setShowCategoryDropdown(false);
     }
   }, [localCategory, categories]);
 
@@ -453,45 +462,53 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         <div className="space-y-6">
           {/* 🧍 Name Field */}
           <div className="space-y-2" data-field="name">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <svg
-                className="w-4 h-4 text-amber-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5.121 17.804A10.97 10.97 0 0112 15c2.5 0 4.847.815 6.879 2.196M15 
-              11a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              Name
-              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-                Required
-              </span>
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <svg
+                  className="w-4 h-4 text-amber-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5.121 17.804A10.97 10.97 0 0112 15c2.5 0 4.847.815 6.879 2.196M15 
+      11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Name
+                <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                  Required
+                </span>
+              </label>
+            </div>
 
             <input
               ref={nameInputRef}
               type="text"
               value={localName}
+              maxLength={50}
               onChange={(e) => {
-                const capitalizedValue = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
-                setLocalName(capitalizedValue);
-                if (errors.name && e.target.value.trim() !== "") {
-                  setErrors(prev => ({ ...prev, name: "" }));
+                const inputValue = e.target.value;
+                if (inputValue.length <= 50) {
+                  const capitalizedValue = inputValue.replace(/\b\w/g, char => char.toUpperCase());
+                  setLocalName(capitalizedValue);
+                  if (errors.name && inputValue.trim() !== "") {
+                    setErrors(prev => ({ ...prev, name: "" }));
+                  }
                 }
               }}
               onKeyDown={handleKeyDown("name")}
               disabled={isSubmitting}
-              className={`w-full border ${getInputBorderColor("name")} rounded-xl px-4 py-3.5 
-                bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-                focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              className={`w-full border ${getInputBorderColor("name")} ${localName.length >= 50 ? 'border-red-300' : ''} rounded-xl px-4 py-3.5 
+      bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+      focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
+
             />
+
             {errors.name && (
               <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -604,140 +621,151 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
           </div>
 
 
-          
-{/* Category Field */}
-<div className="space-y-2 category-dropdown-container" data-field="category">
-  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+
+          {/* Category Field */}
+          <div className="space-y-2 category-dropdown-container" data-field="category">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              Service Category
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+
+            <div className="relative">
+              <input
+                ref={categoryInputRef}
+                type="text"
+                value={localCategory}
+                onChange={handleCategoryChange}
+                onFocus={() => {
+                  // OPEN dropdown when input is focused (via click or tab)
+                  if (categories.length > 0) {
+                    // Sort categories alphabetically
+                    const sortedCategories = [...categories].sort((a, b) =>
+                      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                    );
+                    setFilteredCategories(sortedCategories);
+                    setShowCategoryDropdown(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    submitButtonRef.current?.focus();
+                  } else {
+                    handleKeyDown("category")(e);
+                  }
+                }}
+                disabled={isSubmitting}
+                className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 pr-12
+        bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+        focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+              />
+
+              {/* Dropdown arrow - always show when there are categories available */}
+            {/* Dropdown arrow - always show when there are categories available */}
+{categories.length > 0 && (
+  <div
+    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
+    onClick={() => {
+      // Toggle dropdown when icon is clicked
+      if (!showCategoryDropdown) {
+        // Sort categories alphabetically before showing
+        const sortedCategories = [...categories].sort((a, b) =>
+          a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
+        setFilteredCategories(sortedCategories);
+        setShowCategoryDropdown(true);
+      } else {
+        setShowCategoryDropdown(false);
+      }
+    }}
+    onKeyDown={(e) => {
+      // Make dropdown icon accessible via keyboard
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (!showCategoryDropdown) {
+          // Sort categories alphabetically before showing
+          const sortedCategories = [...categories].sort((a, b) =>
+            a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+          );
+          setFilteredCategories(sortedCategories);
+          setShowCategoryDropdown(true);
+        } else {
+          setShowCategoryDropdown(false);
+        }
+      }
+    }}
+    tabIndex={0}
+    role="button"
+    aria-label="Toggle category dropdown"
+  >
     <svg
-      className="w-4 h-4 text-amber-500"
+      className={`w-5 h-5 text-gray-600 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''
+        }`}
       fill="none"
       stroke="currentColor"
-      viewBox="0 0 24 24" 
+      viewBox="0 0 24 24"
     >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
-    Service Category
-    <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-      Required
-    </span>
-  </label>
-
-  <div className="relative">
-    <input
-      ref={categoryInputRef}
-      type="text"
-      value={localCategory}
-      onChange={handleCategoryChange}
-      onFocus={() => {
-        // OPEN dropdown when input is focused (via click or tab)
-        if (categories.length > 0) {
-          setFilteredCategories(categories);
-          setShowCategoryDropdown(true);
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          submitButtonRef.current?.focus();
-        } else {
-          handleKeyDown("category")(e);
-        }
-      }}
-      disabled={isSubmitting}
-      className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 pr-12
-        bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-        focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${
-          isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-    />
-
-    {/* Dropdown arrow - always show when there are categories available */}
-    {categories.length > 0 && (
-      <div
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
-        onClick={() => {
-          // Toggle dropdown when icon is clicked
-          if (!showCategoryDropdown) {
-            setFilteredCategories(categories);
-            setShowCategoryDropdown(true);
-          } else {
-            setShowCategoryDropdown(false);
-          }
-        }}
-        onKeyDown={(e) => {
-          // Make dropdown icon accessible via keyboard
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (!showCategoryDropdown) {
-              setFilteredCategories(categories);
-              setShowCategoryDropdown(true);
-            } else {
-              setShowCategoryDropdown(false);
-            }
-          }
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="Toggle category dropdown"
-      >
-        <svg
-          className={`w-5 h-5 text-gray-600 transition-transform ${
-            showCategoryDropdown ? 'rotate-180' : ''
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    )}
-
-    {/* Dropdown menu - show when dropdown is open and there are categories */}
-    {showCategoryDropdown && filteredCategories.length > 0 && (
-      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-        {filteredCategories.map((category) => (
-          <div
-            key={category.id}
-            className="px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0"
-            onClick={() => handleCategorySelect(category)}
-            onKeyDown={(e) => {
-              // Make dropdown items accessible via keyboard
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleCategorySelect(category);
-              }
-            }}
-            tabIndex={0}
-            role="button"
-          >
-            <div className="font-medium text-gray-800">{category.name}</div>
-            {category.description && (
-              <div className="text-sm text-gray-500 mt-1">{category.description}</div>
-            )}
-          </div>
-        ))}
-      </div>
-    )}
   </div>
+)}
 
-  {errors.category && (
-    <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {errors.category}
-    </div>
-  )}
-  <p className="text-xs text-gray-500 mt-1">
-    What type of service are you looking for? Click the input field or dropdown icon to see all categories.
-  </p>
-</div>
+              {/* Dropdown menu - show when dropdown is open and there are categories */}
+              {showCategoryDropdown && filteredCategories.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                  {filteredCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0"
+                      onClick={() => handleCategorySelect(category)}
+                      onKeyDown={(e) => {
+                        // Make dropdown items accessible via keyboard
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleCategorySelect(category);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                    >
+                      <div className="font-medium text-gray-800">{category.name}</div>
+                      {category.description && (
+                        <div className="text-sm text-gray-500 mt-1">{category.description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {errors.category && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.category}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              What type of service are you looking for? Click the input field or dropdown icon to see all categories.
+            </p>
+          </div>
 
           {/* Submit Button */}
           <button
