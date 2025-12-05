@@ -560,6 +560,7 @@ export default function SearchSection({
               handleTabNavigation(e, "searchWithin", "city");
             }
           }}
+          getCaretIndexFromClick={getCaretIndexFromClick}
         />
         {validationErrors.searchWithin && (
           <p className="text-red-500 text-sm -mt-3">{validationErrors.searchWithin}</p>
@@ -587,7 +588,7 @@ export default function SearchSection({
   );
 }
 
-function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown, error }) {
+function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown, error, getCaretIndexFromClick }) {
   const handleChange = (e) => {
     const value = e.target.value;
 
