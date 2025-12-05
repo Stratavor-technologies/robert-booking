@@ -31,6 +31,7 @@ export default function SearchSection({
   const [searchText, setSearchText] = useState(address.state || "");
   const dropdownRef = useRef(null);
   const [cityError, setCityError] = useState("");
+  const isDoubleClickRef = useRef(false);
   const [validationErrors, setValidationErrors] = useState({
     city: "",
     state: "",
@@ -110,6 +111,33 @@ export default function SearchSection({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  function getCaretIndexFromClick(input, clickX) {
+    const style = window.getComputedStyle(input);
+    const font = `${style.fontSize} ${style.fontFamily}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+
+    // Remove padding from clickX
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const x = clickX - paddingLeft;
+
+    let width = 0;
+
+    for (let i = 0; i < input.value.length; i++) {
+      const charWidth = ctx.measureText(input.value[i]).width;
+
+      if (width + charWidth / 2 > x) {
+        return i;
+      }
+
+      width += charWidth;
+    }
+
+    return input.value.length;
+  }
+
 
 
 
@@ -256,64 +284,43 @@ export default function SearchSection({
               type="text"
               name="city"
               value={address.city}
+
               onChange={(e) => {
                 const value = e.target.value;
-
-                // Allow only letters, spaces, hyphens, and apostrophes
                 if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
                 onFieldChange(e);
                 setValidationErrors(prev => ({ ...prev, city: "" }));
 
-                if (value.trim() === "") {
-                  setCityError("");
-                  return;
-                }
+                if (value.trim() === "") return setCityError("");
 
                 const isValidCityName = (cityName) => {
-                  if (!cityName || cityName.trim() === "") return true;
-                  const name = cityName.trim();
+                  if (!cityName?.trim()) return true;
 
-                  // For 1 letter - always valid (no error)
+                  const name = cityName.trim();
                   if (name.length === 1) return true;
 
-                  // For 2-3 letters - check if it looks like a real city name
                   if (name.length >= 2 && name.length <= 3) {
-                    // Must contain at least one vowel
                     const hasVowel = /[aeiou]/i.test(name);
-                    // Must not be all consonants
                     const allConsonants = /^[bcdfghjklmnpqrstvwxyz]+$/i.test(name);
-
-                    if (!hasVowel || allConsonants) {
-                      return false;
-                    }
+                    if (!hasVowel || allConsonants) return false;
                   }
 
-                  // For longer names, use your existing validation
                   if (name.length >= 4) {
-                    // Must contain at least one vowel
                     const vowels = (name.match(/[aeiou]/gi) || []).length;
                     const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
                     if (vowels === 0) return false;
-
-                    const totalLetters = vowels + consonants;
-                    // Vowel-to-consonant ratio check
-                    if (totalLetters > 3 && vowels / totalLetters < 0.2) return false;
-
-                    // No triple consecutive identical letters
+                    if (vowels + consonants > 3 && vowels / (vowels + consonants) < 0.2) return false;
                     if (/([a-z])\1\1/i.test(name)) return false;
-
-                    // No more than 3 consecutive consonants
                     if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
 
-                    // Common keyboard patterns and gibberish detection
                     const commonPatterns = [
-                      'qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '123456',
-                      'abcdef', 'qweasd', 'yxcvbn', 'poiuyt', 'lkjhgf',
-                      'jib', 'wjib', 'bwivbf', 'qihkfbwhef', 'qyvcfefvgqbab', 'bbeuadb'
+                      "qwerty", "asdfgh", "zxcvbn", "qazwsx", "123456",
+                      "abcdef", "qweasd", "yxcvbn", "poiuyt", "lkjhgf",
+                      "jib", "wjib", "bwivbf", "qihkfbwhef", "qyvcfefvgqbab", "bbeuadb"
                     ];
 
-                    if (commonPatterns.some(pattern => name.toLowerCase().includes(pattern))) {
+                    if (commonPatterns.some(p => name.toLowerCase().includes(p))) {
                       return false;
                     }
                   }
@@ -329,40 +336,45 @@ export default function SearchSection({
               }}
 
               onClick={(e) => {
-                // Only select all if this is NOT part of a double-click
-                if (e.detail === 1) { // Single click
+                if (e.detail === 1) {
                   e.target.select();
                 }
               }}
+
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                const input = e.target;
+
+                const clickX = e.nativeEvent.offsetX;
+                const caretIndex = getCaretIndexFromClick(input, clickX);
+
+                input.setSelectionRange(caretIndex, caretIndex);
+              }}
+
+
               onMouseDown={(e) => {
-                // Check if this is a double click
                 if (e.detail > 1) {
-                  // Prevent the default double-click selection behavior
                   e.preventDefault();
-                  // For double click, we want to allow normal text cursor placement
-                  // so we don't select all
                 }
               }}
+
 
               placeholder="City"
               maxLength={50}
               disabled={loadingAddress}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleEnterNavigation("city", stateRef)(e);
-                }
-                if (e.key === "Tab") {
-                  handleTabNavigation(e, "city", stateRef);
-                }
-              }}
-              className={`w-full border rounded-xl px-4 py-3.5
-      focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
-      bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
-      ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
-      ${validationErrors.city || cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
-    `}
-            />
 
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleEnterNavigation("city", stateRef)(e);
+                if (e.key === "Tab") handleTabNavigation(e, "city", stateRef);
+              }}
+
+              className={`w-full border rounded-xl px-4 py-3.5
+    focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+    bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
+    ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
+    ${validationErrors.city || cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
+  `}
+            />
             {/* ERROR MESSAGE BELOW CITY INPUT */}
             {(validationErrors.city || cityError) && (
               <p className="text-red-500 text-sm mt-1">{validationErrors.city || cityError}</p>
@@ -403,16 +415,25 @@ export default function SearchSection({
                     target: { name: "state", value }
                   });
                 }}
+                // ADD THESE HANDLERS HERE:
                 onClick={(e) => {
-                  if (e.detail === 1) { // Single click only
+                  if (e.detail === 1) {
                     e.target.select();
                   }
                 }}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  const input = e.target;
+                  const clickX = e.nativeEvent.offsetX;
+                  const caretIndex = getCaretIndexFromClick(input, clickX);
+                  input.setSelectionRange(caretIndex, caretIndex);
+                }}
                 onMouseDown={(e) => {
-                  if (e.detail > 1) { // Double click
+                  if (e.detail > 1) {
                     e.preventDefault();
                   }
                 }}
+                // END OF ADDED HANDLERS
                 onFocus={() => setShowDropdown(true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -486,12 +507,19 @@ export default function SearchSection({
                 setValidationErrors(prev => ({ ...prev, zip: "" }));
               }}
               onClick={(e) => {
-                if (e.detail === 1) { // Single click only
+                if (e.detail === 1) {
                   e.target.select();
                 }
               }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                const input = e.target;
+                const clickX = e.nativeEvent.offsetX;
+                const caretIndex = getCaretIndexFromClick(input, clickX);
+                input.setSelectionRange(caretIndex, caretIndex);
+              }}
               onMouseDown={(e) => {
-                if (e.detail > 1) { // Double click
+                if (e.detail > 1) {
                   e.preventDefault();
                 }
               }}
@@ -656,7 +684,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         </svg>
         Within
       </span>
-      
+
       <div className="flex-1 relative">
         <input
           ref={searchWithinRef}
@@ -665,12 +693,19 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           onChange={handleChange}
           disabled={disabled}
           onClick={(e) => {
-            if (e.detail === 1) { // Single click only
+            if (e.detail === 1) {
               e.target.select();
             }
           }}
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            const input = e.target;
+            const clickX = e.nativeEvent.offsetX;
+            const caretIndex = getCaretIndexFromClick(input, clickX);
+            input.setSelectionRange(caretIndex, caretIndex);
+          }}
           onMouseDown={(e) => {
-            if (e.detail > 1) { // Double click
+            if (e.detail > 1) {
               e.preventDefault();
             }
           }}
@@ -680,7 +715,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           className={`w-full p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
           placeholder="0"
         />
-        
+
         {/* Arrow buttons */}
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-0.5">
           <button
@@ -707,7 +742,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           </button>
         </div>
       </div>
-      
+
       <span className="px-5 py-3.5 text-gray-600 font-semibold bg-gray-50 border-l border-gray-200">
         Miles
       </span>
