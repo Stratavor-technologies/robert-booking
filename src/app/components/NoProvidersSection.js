@@ -31,6 +31,60 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     category: ""
   });
 
+  // Helper function for caret positioning (same as in SearchSection)
+  function getCaretIndexFromClick(input, clickX) {
+    const style = window.getComputedStyle(input);
+    const font = `${style.fontSize} ${style.fontFamily}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const x = clickX - paddingLeft;
+
+    let width = 0;
+
+    for (let i = 0; i < input.value.length; i++) {
+      const charWidth = ctx.measureText(input.value[i]).width;
+
+      if (width + charWidth / 2 > x) {
+        return i;
+      }
+
+      width += charWidth;
+    }
+
+    return input.value.length;
+  }
+
+  // Helper function for phone input - remove formatting for caret positioning
+  function getCaretIndexFromClickForPhone(input, clickX) {
+    const style = window.getComputedStyle(input);
+    const font = `${style.fontSize} ${style.fontFamily}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const x = clickX - paddingLeft;
+
+    let width = 0;
+
+    for (let i = 0; i < input.value.length; i++) {
+      const charWidth = ctx.measureText(input.value[i]).width;
+
+      if (width + charWidth / 2 > x) {
+        return i;
+      }
+
+      width += charWidth;
+    }
+
+    return input.value.length;
+  }
+
   const handleGoToHome = () => {
     console.log("Redirecting to home screen");
     sessionStorage.clear();
@@ -190,7 +244,6 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         return "";
     }
   };
-
 
   // --- 🔤 Handle key navigation (Tab and Enter) ---
   const handleKeyDown = (fieldName) => (e) => {
@@ -500,13 +553,29 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   }
                 }
               }}
+              onClick={(e) => {
+                if (e.detail === 1) {
+                  e.target.select();
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                const input = e.target;
+                const clickX = e.nativeEvent.offsetX;
+                const caretIndex = getCaretIndexFromClick(input, clickX);
+                input.setSelectionRange(caretIndex, caretIndex);
+              }}
+              onMouseDown={(e) => {
+                if (e.detail > 1) {
+                  e.preventDefault();
+                }
+              }}
               onKeyDown={handleKeyDown("name")}
               disabled={isSubmitting}
               className={`w-full border ${getInputBorderColor("name")} ${localName.length >= 50 ? 'border-red-300' : ''} rounded-xl px-4 py-3.5 
       bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
       focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
-
             />
 
             {errors.name && (
@@ -519,57 +588,77 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             )}
           </div>
 
-          {/* Email Field */}
-          <div className="space-y-2" data-field="email">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <svg
-                className="w-4 h-4 text-amber-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
-                  8M5 19h14a2 2 0 002-2V7a2 2 0 
-                  00-2-2H5a2 2 0 00-2 2v10a2 
-                  2 0 002 2z"
-                />
-              </svg>
-              Email Address
-              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-                Required
-              </span>
-            </label>
-            <input
-              ref={emailInputRef}
-              type="email"
-              value={localEmail}
-              onChange={(e) => {
-                setLocalEmail(e.target.value);
-                // Clear email error when user starts typing
-                if (errors.email && e.target.value.trim() !== "") {
-                  setErrors(prev => ({ ...prev, email: "" }));
-                }
-              }}
-              onKeyDown={handleKeyDown("email")}
-              disabled={isSubmitting}
-              className={`w-full border ${getInputBorderColor("email")} rounded-xl px-4 py-3.5 
-                bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-                focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-            />
-            {errors.email && (
-              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {errors.email}
-              </div>
-            )}
-          </div>
+          {/* Email Field - CHANGED: type="text" instead of type="email" */}
+          {/* Email Field - CHANGED: type="text" instead of type="email" */}
+<div className="space-y-2" data-field="email">
+  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+    <svg
+      className="w-4 h-4 text-amber-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
+        8M5 19h14a2 2 0 002-2V7a2 2 0 
+        00-2-2H5a2 2 0 00-2 2v10a2 
+        2 0 002 2z"
+      />
+    </svg>
+    Email Address
+    <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+      Required
+    </span>
+  </label>
+  <input
+    ref={emailInputRef}
+    type="text" 
+    value={localEmail}
+    onChange={(e) => {
+      setLocalEmail(e.target.value);
+      // Clear email error when user starts typing
+      if (errors.email && e.target.value.trim() !== "") {
+        setErrors(prev => ({ ...prev, email: "" }));
+      }
+    }}
+    onClick={(e) => {
+      if (e.detail === 1) {
+        e.target.select();
+      }
+    }}
+    onDoubleClick={(e) => {
+      e.preventDefault();
+      const input = e.target;
+      const clickX = e.nativeEvent.offsetX;
+      const caretIndex = getCaretIndexFromClick(input, clickX);
+      input.setSelectionRange(caretIndex, caretIndex);
+    }}
+    onMouseDown={(e) => {
+      if (e.detail > 1) {
+        e.preventDefault();
+      }
+    }}
+    onKeyDown={handleKeyDown("email")}
+    disabled={isSubmitting}
+    className={`w-full border ${getInputBorderColor("email")} rounded-xl px-4 py-3.5 
+      bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+      focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    inputMode="email"  
+    autoComplete="email"  
+  />
+  {errors.email && (
+    <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      {errors.email}
+    </div>
+  )}
+</div>
 
           {/* Phone Field */}
           <div className="space-y-2" data-field="phone">
@@ -600,15 +689,34 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             </label>
             <input
               ref={phoneInputRef}
-              type="tel"
+              type="text"  
               value={localPhone}
               onChange={handlePhoneChange}
+              onClick={(e) => {
+                if (e.detail === 1) {
+                  e.target.select();
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                const input = e.target;
+                const clickX = e.nativeEvent.offsetX;
+                const caretIndex = getCaretIndexFromClickForPhone(input, clickX);
+                input.setSelectionRange(caretIndex, caretIndex);
+              }}
+              onMouseDown={(e) => {
+                if (e.detail > 1) {
+                  e.preventDefault();
+                }
+              }}
               onKeyDown={handleKeyDown("phone")}
               disabled={isSubmitting}
               className={`w-full border ${getInputBorderColor("phone")} rounded-xl px-4 py-3.5 
                 bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
                 focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
+              inputMode="tel"  
+              autoComplete="tel"  
             />
             {errors.phone && (
               <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
@@ -619,8 +727,6 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               </div>
             )}
           </div>
-
-
 
           {/* Category Field */}
           <div className="space-y-2 category-dropdown-container" data-field="category">
@@ -650,6 +756,23 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 type="text"
                 value={localCategory}
                 onChange={handleCategoryChange}
+                onClick={(e) => {
+                  if (e.detail === 1) {
+                    e.target.select();
+                  }
+                }}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  const input = e.target;
+                  const clickX = e.nativeEvent.offsetX;
+                  const caretIndex = getCaretIndexFromClick(input, clickX);
+                  input.setSelectionRange(caretIndex, caretIndex);
+                }}
+                onMouseDown={(e) => {
+                  if (e.detail > 1) {
+                    e.preventDefault();
+                  }
+                }}
                 onFocus={() => {
                   // OPEN dropdown when input is focused (via click or tab)
                   if (categories.length > 0) {
@@ -671,60 +794,59 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 }}
                 disabled={isSubmitting}
                 className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 pr-12
-        bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-        focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+                  focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               />
 
               {/* Dropdown arrow - always show when there are categories available */}
-            {/* Dropdown arrow - always show when there are categories available */}
-{categories.length > 0 && (
-  <div
-    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
-    onClick={() => {
-      // Toggle dropdown when icon is clicked
-      if (!showCategoryDropdown) {
-        // Sort categories alphabetically before showing
-        const sortedCategories = [...categories].sort((a, b) =>
-          a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-        );
-        setFilteredCategories(sortedCategories);
-        setShowCategoryDropdown(true);
-      } else {
-        setShowCategoryDropdown(false);
-      }
-    }}
-    onKeyDown={(e) => {
-      // Make dropdown icon accessible via keyboard
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        if (!showCategoryDropdown) {
-          // Sort categories alphabetically before showing
-          const sortedCategories = [...categories].sort((a, b) =>
-            a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-          );
-          setFilteredCategories(sortedCategories);
-          setShowCategoryDropdown(true);
-        } else {
-          setShowCategoryDropdown(false);
-        }
-      }
-    }}
-    tabIndex={0}
-    role="button"
-    aria-label="Toggle category dropdown"
-  >
-    <svg
-      className={`w-5 h-5 text-gray-600 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''
-        }`}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  </div>
-)}
+              {categories.length > 0 && (
+                <div
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
+                  onClick={() => {
+                    // Toggle dropdown when icon is clicked
+                    if (!showCategoryDropdown) {
+                      // Sort categories alphabetically before showing
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
+                      setFilteredCategories(sortedCategories);
+                      setShowCategoryDropdown(true);
+                    } else {
+                      setShowCategoryDropdown(false);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    // Make dropdown icon accessible via keyboard
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!showCategoryDropdown) {
+                        // Sort categories alphabetically before showing
+                        const sortedCategories = [...categories].sort((a, b) =>
+                          a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                        );
+                        setFilteredCategories(sortedCategories);
+                        setShowCategoryDropdown(true);
+                      } else {
+                        setShowCategoryDropdown(false);
+                      }
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label="Toggle category dropdown"
+                >
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''
+                      }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              )}
 
               {/* Dropdown menu - show when dropdown is open and there are categories */}
               {showCategoryDropdown && filteredCategories.length > 0 && (
@@ -771,17 +893,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
           <button
             ref={submitButtonRef}
             onClick={handleSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSubmit();
-              }
-              if (e.key === 'Tab') {
-                e.preventDefault();
-                // Circular navigation: from submit button back to name field
-                nameInputRef.current?.focus();
-              }
-            }}
+            onKeyDown={handleSubmitButtonKeyDown}
             disabled={isSubmitting}
             className={`w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
             font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 

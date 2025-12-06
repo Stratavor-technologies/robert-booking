@@ -30,8 +30,6 @@ export default function SearchSection({
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState(address.state || "");
   const dropdownRef = useRef(null);
-  const [cityError, setCityError] = useState("");
-  const isDoubleClickRef = useRef(false);
   const [validationErrors, setValidationErrors] = useState({
     city: "",
     state: "",
@@ -39,20 +37,16 @@ export default function SearchSection({
     searchWithin: ""
   });
 
-
   const cityRef = useRef(null);
   const stateRef = useRef(null);
   const zipRef = useRef(null);
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
 
-
-
   const [resetTrigger, setResetTrigger] = useState(false);
 
   const resetForm = () => {
     setSearchText("");
-    setCityError("");
     setShowDropdown(false);
     setValidationErrors({
       city: "",
@@ -73,14 +67,11 @@ export default function SearchSection({
     resetForm();
   }, [resetTrigger]);
 
-
-
   const handleBackToHome = () => {
-    resetForm(); // Add this line to clear form when going home
+    resetForm();
     if (onBackToHome) {
       onBackToHome();
     } else {
-      // Fallback if prop not provided
       sessionStorage.clear();
       window.location.reload();
     }
@@ -119,7 +110,6 @@ export default function SearchSection({
     const ctx = canvas.getContext("2d");
     ctx.font = font;
 
-    // Remove padding from clickX
     const paddingLeft = parseFloat(style.paddingLeft);
     const x = clickX - paddingLeft;
 
@@ -138,10 +128,6 @@ export default function SearchSection({
     return input.value.length;
   }
 
-
-
-
-
   const handleEnterNavigation = (currentField, nextField) => {
     return (e) => {
       if (e.key === "Enter") {
@@ -155,27 +141,65 @@ export default function SearchSection({
     };
   };
 
-
   const handleTabNavigation = (e, currentField, nextField) => {
     if (e.key === "Tab") {
-      e.preventDefault(); // Prevent default tab behavior
+      e.preventDefault();
 
       if (currentField === "searchWithin" && nextField === "city") {
-        // Circular navigation: from searchWithin back to city
         cityRef.current?.focus();
       } else if (nextField === "search") {
-        // From search button, go to city (circular)
         cityRef.current?.focus();
       } else {
-        // Normal tab navigation
         nextField?.current?.focus();
       }
 
-      // Close dropdown when tabbing away from state
       if (currentField === "state") {
         setShowDropdown(false);
       }
     }
+  };
+
+  // Helper function to validate city name
+  const validateCityName = (cityName) => {
+    if (!cityName?.trim()) return "City is required";
+
+    const name = cityName.trim();
+    
+    // Basic length check
+    if (name.length < 2) return "Please enter a valid city name";
+    
+    // Check for invalid characters
+    if (!/^[A-Za-z\s\-']+$/.test(name)) return "Please enter a valid city name";
+
+    // Check for at least one vowel
+    if (!/[aeiou]/i.test(name)) return "Please enter a valid city name";
+
+    // Check for consecutive consonants (max 3)
+    if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return "Please enter a valid city name";
+
+    // Check for common invalid patterns
+    const commonPatterns = [
+      "qwerty", "asdfgh", "zxcvbn", "qazwsx", "123456",
+      "abcdef", "qweasd", "yxcvbn", "poiuyt", "lkjhgf",
+      "jib", "wjib", "bwivbf", "qihkfbwhef", "qyvcfefvgqbab", "bbeuadb"
+    ];
+
+    if (commonPatterns.some(p => name.toLowerCase().includes(p))) {
+      return "Please enter a valid city name";
+    }
+
+    // Check vowel-to-consonant ratio
+    if (name.length >= 4) {
+      const vowels = (name.match(/[aeiou]/gi) || []).length;
+      const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
+      const totalLetters = vowels + consonants;
+      
+      if (totalLetters > 3 && vowels / totalLetters < 0.2) {
+        return "Please enter a valid city name";
+      }
+    }
+
+    return ""; // No error
   };
 
   const validateAllFields = () => {
@@ -188,12 +212,10 @@ export default function SearchSection({
 
     let isValid = true;
 
-    // Validate city
-    if (!address.city || address.city.trim() === "") {
-      errors.city = "City is required";
-      isValid = false;
-    } else if (cityError) {
-      errors.city = cityError;
+    // Validate city (only when search button is clicked)
+    const cityValidationError = validateCityName(address.city);
+    if (cityValidationError) {
+      errors.city = cityValidationError;
       isValid = false;
     }
 
@@ -284,100 +306,52 @@ export default function SearchSection({
               type="text"
               name="city"
               value={address.city}
-
               onChange={(e) => {
                 const value = e.target.value;
+                // Still restrict invalid characters in real-time
                 if (!/^[A-Za-z\s\-']*$/.test(value)) return;
-
-                onFieldChange(e);
-                setValidationErrors(prev => ({ ...prev, city: "" }));
-
-                if (value.trim() === "") return setCityError("");
-
-                const isValidCityName = (cityName) => {
-                  if (!cityName?.trim()) return true;
-
-                  const name = cityName.trim();
-                  if (name.length === 1) return true;
-
-                  if (name.length >= 2 && name.length <= 3) {
-                    const hasVowel = /[aeiou]/i.test(name);
-                    const allConsonants = /^[bcdfghjklmnpqrstvwxyz]+$/i.test(name);
-                    if (!hasVowel || allConsonants) return false;
-                  }
-
-                  if (name.length >= 4) {
-                    const vowels = (name.match(/[aeiou]/gi) || []).length;
-                    const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
-                    if (vowels === 0) return false;
-                    if (vowels + consonants > 3 && vowels / (vowels + consonants) < 0.2) return false;
-                    if (/([a-z])\1\1/i.test(name)) return false;
-                    if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(name)) return false;
-
-                    const commonPatterns = [
-                      "qwerty", "asdfgh", "zxcvbn", "qazwsx", "123456",
-                      "abcdef", "qweasd", "yxcvbn", "poiuyt", "lkjhgf",
-                      "jib", "wjib", "bwivbf", "qihkfbwhef", "qyvcfefvgqbab", "bbeuadb"
-                    ];
-
-                    if (commonPatterns.some(p => name.toLowerCase().includes(p))) {
-                      return false;
-                    }
-                  }
-
-                  return true;
-                };
-
-                if (!isValidCityName(value)) {
-                  setCityError("Please enter a valid city name");
-                } else {
-                  setCityError("");
+                
+                // Update the value through onFieldChange
+                if (onFieldChange) {
+                  onFieldChange(e);
                 }
+                // Clear city error when user starts typing
+                setValidationErrors(prev => ({ ...prev, city: "" }));
               }}
-
               onClick={(e) => {
                 if (e.detail === 1) {
                   e.target.select();
                 }
               }}
-
               onDoubleClick={(e) => {
                 e.preventDefault();
                 const input = e.target;
-
                 const clickX = e.nativeEvent.offsetX;
                 const caretIndex = getCaretIndexFromClick(input, clickX);
-
                 input.setSelectionRange(caretIndex, caretIndex);
               }}
-
-
               onMouseDown={(e) => {
                 if (e.detail > 1) {
                   e.preventDefault();
                 }
               }}
-
-
               placeholder="City"
               maxLength={50}
               disabled={loadingAddress}
-
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleEnterNavigation("city", stateRef)(e);
                 if (e.key === "Tab") handleTabNavigation(e, "city", stateRef);
               }}
-
               className={`w-full border rounded-xl px-4 py-3.5
     focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
     bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
     ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
-    ${validationErrors.city || cityError ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
+    ${validationErrors.city ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
   `}
             />
             {/* ERROR MESSAGE BELOW CITY INPUT */}
-            {(validationErrors.city || cityError) && (
-              <p className="text-red-500 text-sm mt-1">{validationErrors.city || cityError}</p>
+            {validationErrors.city && (
+              <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
             )}
           </div>
 
@@ -411,11 +385,12 @@ export default function SearchSection({
                   setShowDropdown(true);
                   setValidationErrors(prev => ({ ...prev, state: "" }));
 
-                  onFieldChange({
-                    target: { name: "state", value }
-                  });
+                  if (onFieldChange) {
+                    onFieldChange({
+                      target: { name: "state", value }
+                    });
+                  }
                 }}
-                // ADD THESE HANDLERS HERE:
                 onClick={(e) => {
                   if (e.detail === 1) {
                     e.target.select();
@@ -433,7 +408,6 @@ export default function SearchSection({
                     e.preventDefault();
                   }
                 }}
-                // END OF ADDED HANDLERS
                 onFocus={() => setShowDropdown(true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -470,8 +444,10 @@ export default function SearchSection({
                           setSearchText(state.toUpperCase());
                           setShowDropdown(false);
                           setValidationErrors(prev => ({ ...prev, state: "" }));
-                          onFieldChange({ target: { name: "state", value: state.toUpperCase() } });
-                          zipRef.current?.focus(); // Auto-focus next field after selection
+                          if (onFieldChange) {
+                            onFieldChange({ target: { name: "state", value: state.toUpperCase() } });
+                          }
+                          zipRef.current?.focus();
                         }}
                         className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
                       >
@@ -503,7 +479,9 @@ export default function SearchSection({
               name="zip"
               value={address.zip}
               onChange={(e) => {
-                onFieldChange(e);
+                if (onFieldChange) {
+                  onFieldChange(e);
+                }
                 setValidationErrors(prev => ({ ...prev, zip: "" }));
               }}
               onClick={(e) => {
@@ -546,7 +524,9 @@ export default function SearchSection({
         <SearchWithinInput
           searchWithin={searchWithin}
           onChange={(value) => {
-            onSearchWithinChange(value);
+            if (onSearchWithinChange) {
+              onSearchWithinChange(value);
+            }
             setValidationErrors(prev => ({ ...prev, searchWithin: "" }));
           }}
           disabled={loadingAddress}
