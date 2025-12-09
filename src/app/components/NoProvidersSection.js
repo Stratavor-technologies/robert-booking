@@ -258,16 +258,16 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       // Navigate to next field
       switch (fieldName) {
         case 'name':
-          emailInputRef.current?.focus();
+          emailInputRef.current?.select();
           break;
         case 'email':
-          phoneInputRef.current?.focus();
+          phoneInputRef.current?.select();
           break;
         case 'phone':
-          categoryInputRef.current?.focus();
+          categoryInputRef.current?.select();
           break;
         case 'category':
-          submitButtonRef.current?.focus();
+          submitButtonRef.current?.select();
           break;
         default:
           break;
@@ -284,7 +284,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     if (e.key === 'Tab') {
       e.preventDefault();
       // Circular navigation: from submit button back to name field
-      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
     }
   };
 

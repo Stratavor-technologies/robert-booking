@@ -135,7 +135,7 @@ export default function SearchSection({
         if (nextField === "search") {
           searchButtonRef.current?.click();
         } else {
-          nextField?.current?.focus();
+          nextField?.current?.select();
         }
       }
     };
@@ -146,11 +146,11 @@ export default function SearchSection({
       e.preventDefault();
 
       if (currentField === "searchWithin" && nextField === "city") {
-        cityRef.current?.focus();
+        cityRef.current?.select();
       } else if (nextField === "search") {
-        cityRef.current?.focus();
+        cityRef.current?.select();
       } else {
-        nextField?.current?.focus();
+        nextField?.current?.select();
       }
 
       if (currentField === "state") {
@@ -252,10 +252,10 @@ export default function SearchSection({
       onSearchClick();
     } else {
       // Focus on the first field with error
-      if (validationErrors.city) cityRef.current?.focus();
-      else if (validationErrors.state) stateRef.current?.focus();
-      else if (validationErrors.zip) zipRef.current?.focus();
-      else if (validationErrors.searchWithin) searchWithinRef.current?.focus();
+      if (validationErrors.city) cityRef.current?.select();
+      else if (validationErrors.state) stateRef.current?.select();
+      else if (validationErrors.zip) zipRef.current?.select();
+      else if (validationErrors.searchWithin) searchWithinRef.current?.select();
     }
   };
 
