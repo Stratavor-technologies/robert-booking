@@ -29,7 +29,9 @@ export default function SearchSection({
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState(address.state || "");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef(null);
+  const dropdownListRef = useRef(null);
   const [validationErrors, setValidationErrors] = useState({
     city: "",
     state: "",
@@ -48,6 +50,7 @@ export default function SearchSection({
   const resetForm = () => {
     setSearchText("");
     setShowDropdown(false);
+    setActiveIndex(-1);
     setValidationErrors({
       city: "",
       state: "",
@@ -78,22 +81,49 @@ export default function SearchSection({
   };
 
   const filteredStates = usStates.filter((st) =>
-    st.startsWith(searchText)
+    st.startsWith(searchText.toUpperCase())
   );
 
   const handleSelect = (state) => {
     const abbr = state.match(/\((.*?)\)/)?.[1] || state;
     setSearchText(abbr);
     setShowDropdown(false);
+    setActiveIndex(-1);
     setValidationErrors(prev => ({ ...prev, state: "" }));
     onFieldChange({ target: { name: "state", value: abbr } });
   };
+
+  // Auto-scroll to active item
+  useEffect(() => {
+    if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
+      const list = dropdownListRef.current;
+      const activeItem = list.children[activeIndex];
+      
+      if (activeItem) {
+        // Calculate scroll position
+        const itemTop = activeItem.offsetTop;
+        const itemBottom = itemTop + activeItem.offsetHeight;
+        const listTop = list.scrollTop;
+        const listBottom = listTop + list.clientHeight;
+        
+        // If item is above visible area
+        if (itemTop < listTop) {
+          list.scrollTop = itemTop;
+        }
+        // If item is below visible area
+        else if (itemBottom > listBottom) {
+          list.scrollTop = itemBottom - list.clientHeight;
+        }
+      }
+    }
+  }, [activeIndex, showDropdown]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
+        setActiveIndex(-1);
       }
     };
 
@@ -102,6 +132,7 @@ export default function SearchSection({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
   function getCaretIndexFromClick(input, clickX) {
     const style = window.getComputedStyle(input);
     const font = `${style.fontSize} ${style.fontFamily}`;
@@ -155,6 +186,7 @@ export default function SearchSection({
 
       if (currentField === "state") {
         setShowDropdown(false);
+        setActiveIndex(-1);
       }
     }
   };
@@ -237,9 +269,12 @@ export default function SearchSection({
       isValid = false;
     }
 
-    // Validate search within
-    if (!searchWithin || searchWithin <= 0) {
-      errors.searchWithin = "Please enter a valid search radius";
+    // Validate search within - Minimum value is now 1
+    if (!searchWithin || searchWithin < 1) {
+      errors.searchWithin = "Search radius must be at least 1 mile";
+      isValid = false;
+    } else if (searchWithin > 40) {
+      errors.searchWithin = "Search radius cannot exceed 40 miles";
       isValid = false;
     }
 
@@ -260,7 +295,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative overflow-hidden">
+    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative">
       {/* Gradient header bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
 
@@ -384,6 +419,7 @@ export default function SearchSection({
                   setSearchText(value);
                   setShowDropdown(true);
                   setValidationErrors(prev => ({ ...prev, state: "" }));
+                  setActiveIndex(0); // Reset active index when typing
 
                   if (onFieldChange) {
                     onFieldChange({
@@ -408,15 +444,55 @@ export default function SearchSection({
                     e.preventDefault();
                   }
                 }}
-                // onFocus={() => setShowDropdown(true)}
+                onFocus={() => {
+                  setShowDropdown(true);
+                  setActiveIndex(0); // Set first item as active when focusing
+                  if (searchText) {
+                    const matches = usStates.filter((st) =>
+                      st.toLowerCase().includes(searchText.toLowerCase())
+                    );
+                    if (matches.length > 0) {
+                      setShowDropdown(true);
+                    }
+                  } else {
+                    setShowDropdown(true);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    setShowDropdown(false);
-                    zipRef.current?.focus();
+                    if (showDropdown && filteredStates.length > 0 && activeIndex >= 0) {
+                      // Select the active item on Enter
+                      const selectedState = filteredStates[activeIndex];
+                      handleSelect(selectedState);
+                      zipRef.current?.focus();
+                    } else {
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                      zipRef.current?.focus();
+                    }
                   }
                   if (e.key === "Tab") {
                     handleTabNavigation(e, "state", zipRef);
+                  }
+                  // Handle arrow key navigation in dropdown
+                  if (showDropdown && filteredStates.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveIndex(prev =>
+                        prev < filteredStates.length - 1 ? prev + 1 : 0
+                      );
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveIndex(prev =>
+                        prev > 0 ? prev - 1 : filteredStates.length - 1
+                      );
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                      stateRef.current?.focus();
+                    }
                   }
                 }}
                 placeholder="State"
@@ -425,7 +501,15 @@ export default function SearchSection({
               />
 
               <svg
-                onClick={() => setShowDropdown(prev => !prev)}
+                onClick={() => {
+                  setShowDropdown(prev => !prev);
+                  if (!showDropdown) {
+                    stateRef.current?.focus();
+                    setActiveIndex(0);
+                  } else {
+                    setActiveIndex(-1);
+                  }
+                }}
                 className={`absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer transition-transform duration-200 ${showDropdown ? "rotate-180" : ""
                   }`}
                 fill="none"
@@ -435,29 +519,31 @@ export default function SearchSection({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
 
-
               {showDropdown && (
-                <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                <ul 
+                  ref={dropdownListRef}
+                  className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg"
+                >
                   {filteredStates.length > 0 ? (
-                    filteredStates.map((state) => (
+                    filteredStates.map((state, index) => (
                       <li
                         key={state}
                         onClick={() => {
-                          setSearchText(state.toUpperCase());
-                          setShowDropdown(false);
-                          setValidationErrors(prev => ({ ...prev, state: "" }));
-                          if (onFieldChange) {
-                            onFieldChange({ target: { name: "state", value: state.toUpperCase() } });
-                          }
+                          handleSelect(state);
                           zipRef.current?.focus();
                         }}
-                        className="px-4 py-2 hover:bg-indigo-100 cursor-pointer text-gray-700"
+                        className={`px-4 py-2.5 cursor-pointer text-gray-700 transition-colors duration-150 ${index === activeIndex
+                            ? "bg-gray-200 font-medium"
+                            : "hover:bg-gray-100"
+                          }`}
                       >
                         {state}
                       </li>
                     ))
                   ) : (
-                    <li className="px-4 py-2 text-gray-400">No results found</li>
+                    <li className="px-4 py-2.5 text-gray-400 hover:bg-transparent cursor-default">
+                      No results found
+                    </li>
                   )}
                 </ul>
               )}
@@ -577,27 +663,26 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     // Allow only digits
     if (!/^\d*$/.test(value)) return;
 
-    // If value is empty, set to 0
+    // If value is empty, set to 1 (minimum value)
     if (value === "") {
-      onChange(0);
+      onChange(1);
       return;
     }
 
     // Handle the case where user types "0" followed by another digit
-    // Remove the "0" and keep only the new digit
     if (value.startsWith('0') && value.length > 1) {
       // Remove all leading zeros
       const withoutLeadingZeros = value.replace(/^0+/, '');
       // If after removing zeros we have something, use it
       if (withoutLeadingZeros !== "") {
         const numericValue = Number(withoutLeadingZeros);
-        // Validate range
-        if (numericValue <= 40 && numericValue >= 0) {
+        // Validate range (1-40)
+        if (numericValue <= 40 && numericValue >= 1) {
           onChange(numericValue);
         }
       } else {
-        // If after removing zeros we have nothing, set to 0
-        onChange(0);
+        // If after removing zeros we have nothing, set to 1
+        onChange(1);
       }
       return;
     }
@@ -605,8 +690,8 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     // Convert to number
     const numericValue = Number(value);
 
-    // Validate range (0-40)
-    if (numericValue <= 40 && numericValue >= 0) {
+    // Validate range (1-40) - Minimum value is now 1
+    if (numericValue <= 40 && numericValue >= 1) {
       onChange(numericValue);
     }
   };
@@ -632,7 +717,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const newValue = Math.max(0, searchWithin - 1);
+      const newValue = Math.max(1, searchWithin - 1); // Minimum value is now 1
       if (newValue !== searchWithin) {
         onChange(newValue);
       }
@@ -650,7 +735,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
 
   const handleArrowDownClick = () => {
     if (disabled) return;
-    const newValue = Math.max(0, searchWithin - 1);
+    const newValue = Math.max(1, searchWithin - 1); // Minimum value is now 1
     if (newValue !== searchWithin) {
       onChange(newValue);
     }
@@ -696,7 +781,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           inputMode="numeric"
           pattern="[0-9]*"
           className={`w-full p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
-          placeholder="0"
+          placeholder="1"
         />
 
         {/* Arrow buttons */}
@@ -715,7 +800,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           <button
             type="button"
             onClick={handleArrowDownClick}
-            disabled={disabled || searchWithin <= 0}
+            disabled={disabled || searchWithin <= 1} // Minimum value is now 1
             className="w-6 h-5 flex items-center justify-center rounded-b-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Decrease value"
           >

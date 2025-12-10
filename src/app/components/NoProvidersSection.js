@@ -15,6 +15,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(-1);
 
   // Refs for input fields
   const nameInputRef = useRef(null);
@@ -22,6 +23,12 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   const phoneInputRef = useRef(null);
   const categoryInputRef = useRef(null);
   const submitButtonRef = useRef(null);
+  const notifyMeButtonRef = useRef(null);
+  const noThanksButtonRef = useRef(null);
+  const homeButtonRef = useRef(null);
+
+  // Ref for the container to trap focus
+  const containerRef = useRef(null);
 
   // Validation states - only for showing errors after submit attempt
   const [errors, setErrors] = useState({
@@ -141,12 +148,73 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     };
   }, []);
 
-  // Focus first input when form opens
+  // Focus management and trap implementation
   useEffect(() => {
     if (showForm && nameInputRef.current) {
       nameInputRef.current.focus();
     }
-  }, [showForm]);
+
+    // Get all focusable elements within the component
+    const getFocusableElements = () => {
+      if (!containerRef.current) return [];
+
+      return Array.from(
+        containerRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(el => !el.disabled && el.getAttribute('tabindex') !== '-1');
+    };
+
+    // Handle tab key to trap focus
+    const handleTabKey = (e) => {
+      if (!showForm) return;
+
+      // Only run if we're inside the form container
+      if (!containerRef.current?.contains(document.activeElement)) return;
+
+      if (e.key === 'Tab') {
+        const focusableElements = getFocusableElements();
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        // If shift + tab on first element, go to last element
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        }
+        // If tab on last element, go to first element
+        else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    // Handle escape key to close form
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && showForm) {
+        if (showCategoryDropdown) {
+          setShowCategoryDropdown(false);
+        } else {
+          setShowForm(false);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    document.addEventListener('keydown', handleEscapeKey);
+
+    return () => {
+      document.removeEventListener('keydown', handleTabKey);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [showForm, showCategoryDropdown]);
 
   // --- 📞 Auto-format phone input ---
   const handlePhoneChange = (e) => {
@@ -191,7 +259,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   const handleCategorySelect = (category) => {
     setLocalCategory(category.name);
     setShowCategoryDropdown(false);
-
+    setSelectedCategoryIndex(-1);
     // Clear category error when a category is selected
     if (errors.category) {
       setErrors(prev => ({ ...prev, category: "" }));
@@ -245,29 +313,32 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     }
   };
 
-  // --- 🔤 Handle key navigation (Tab and Enter) ---
+  // --- 🔤 Handle key navigation (Tab and Enter) within form ---
   const handleKeyDown = (fieldName) => (e) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    if (e.key === 'Enter') {
       e.preventDefault();
 
       // If Enter is pressed on category dropdown and it's open, don't navigate
-      if (fieldName === 'category' && showCategoryDropdown && filteredCategories.length > 0 && e.key === 'Enter') {
+      if (fieldName === 'category' && showCategoryDropdown && filteredCategories.length > 0) {
         return; // Let the user select from dropdown with Enter
       }
 
       // Navigate to next field
       switch (fieldName) {
         case 'name':
+          emailInputRef.current?.focus();
           emailInputRef.current?.select();
           break;
         case 'email':
+          phoneInputRef.current?.focus();
           phoneInputRef.current?.select();
           break;
         case 'phone':
+          categoryInputRef.current?.focus();
           categoryInputRef.current?.select();
           break;
         case 'category':
-          submitButtonRef.current?.select();
+          submitButtonRef.current?.focus();
           break;
         default:
           break;
@@ -281,10 +352,24 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  // Handle key navigation for initial buttons
+  const handleInitialButtonsKeyDown = (e, buttonName) => {
     if (e.key === 'Tab') {
       e.preventDefault();
-      // Circular navigation: from submit button back to name field
-      nameInputRef.current?.select();
+      if (buttonName === 'notifyMe') {
+        noThanksButtonRef.current?.focus();
+      } else if (buttonName === 'noThanks') {
+        homeButtonRef.current?.focus();
+      } else if (buttonName === 'home') {
+        notifyMeButtonRef.current?.focus();
+      }
+    } else if (e.key === 'Enter') {
+      if (buttonName === 'notifyMe') {
+        e.preventDefault();
+        setShowForm(true);
+      }
     }
   };
 
@@ -395,14 +480,19 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-amber-100 relative">
+    <div
+      ref={containerRef}
+      className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-amber-100 relative focus-trap"
+    >
       {/* Top Gradient Bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-orange-500"></div>
 
       {/* Header */}
       <div className="text-center space-y-4">
         <button
+          ref={homeButtonRef}
           onClick={handleGoToHome}
+          onKeyDown={(e) => handleInitialButtonsKeyDown(e, 'home')}
           className="absolute top-4 right-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black px-4 py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl z-10 flex items-center gap-2 font-bold"
         >
           Home
@@ -444,7 +534,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
           <div className="flex gap-4">
             {/* Notify Me Button */}
             <button
+              ref={notifyMeButtonRef}
               onClick={() => setShowForm(true)}
+              onKeyDown={(e) => handleInitialButtonsKeyDown(e, 'notifyMe')}
               className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg 
               font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
               hover:scale-[1.02] flex items-center justify-center gap-3 group"
@@ -467,7 +559,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
             {/* No Thanks Button */}
             <button
+              ref={noThanksButtonRef}
               onClick={handleNoThanks}
+              onKeyDown={(e) => handleInitialButtonsKeyDown(e, 'noThanks')}
               className="flex-1 py-4 bg-gray-200 text-gray-700 text-lg 
               font-semibold rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 
               hover:scale-[1.02] flex items-center justify-center gap-3 group"
@@ -588,77 +682,76 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             )}
           </div>
 
-          {/* Email Field - CHANGED: type="text" instead of type="email" */}
-          {/* Email Field - CHANGED: type="text" instead of type="email" */}
-<div className="space-y-2" data-field="email">
-  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-    <svg
-      className="w-4 h-4 text-amber-500"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
+          {/* Email Field */}
+          <div className="space-y-2" data-field="email">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 
         8M5 19h14a2 2 0 002-2V7a2 2 0 
         00-2-2H5a2 2 0 00-2 2v10a2 
         2 0 002 2z"
-      />
-    </svg>
-    Email Address
-    <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
-      Required
-    </span>
-  </label>
-  <input
-    ref={emailInputRef}
-    type="text" 
-    value={localEmail}
-    onChange={(e) => {
-      setLocalEmail(e.target.value);
-      // Clear email error when user starts typing
-      if (errors.email && e.target.value.trim() !== "") {
-        setErrors(prev => ({ ...prev, email: "" }));
-      }
-    }}
-    onClick={(e) => {
-      if (e.detail === 1) {
-        e.target.select();
-      }
-    }}
-    onDoubleClick={(e) => {
-      e.preventDefault();
-      const input = e.target;
-      const clickX = e.nativeEvent.offsetX;
-      const caretIndex = getCaretIndexFromClick(input, clickX);
-      input.setSelectionRange(caretIndex, caretIndex);
-    }}
-    onMouseDown={(e) => {
-      if (e.detail > 1) {
-        e.preventDefault();
-      }
-    }}
-    onKeyDown={handleKeyDown("email")}
-    disabled={isSubmitting}
-    className={`w-full border ${getInputBorderColor("email")} rounded-xl px-4 py-3.5 
+                />
+              </svg>
+              Email Address
+              <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full">
+                Required
+              </span>
+            </label>
+            <input
+              ref={emailInputRef}
+              type="text"
+              value={localEmail}
+              onChange={(e) => {
+                setLocalEmail(e.target.value);
+                // Clear email error when user starts typing
+                if (errors.email && e.target.value.trim() !== "") {
+                  setErrors(prev => ({ ...prev, email: "" }));
+                }
+              }}
+              onClick={(e) => {
+                if (e.detail === 1) {
+                  e.target.select();
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                const input = e.target;
+                const clickX = e.nativeEvent.offsetX;
+                const caretIndex = getCaretIndexFromClick(input, clickX);
+                input.setSelectionRange(caretIndex, caretIndex);
+              }}
+              onMouseDown={(e) => {
+                if (e.detail > 1) {
+                  e.preventDefault();
+                }
+              }}
+              onKeyDown={handleKeyDown("email")}
+              disabled={isSubmitting}
+              className={`w-full border ${getInputBorderColor("email")} rounded-xl px-4 py-3.5 
       bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
       focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-      }`}
-    inputMode="email"  
-    autoComplete="email"  
-  />
-  {errors.email && (
-    <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {errors.email}
-    </div>
-  )}
-</div>
+                }`}
+              inputMode="email"
+              autoComplete="email"
+            />
+            {errors.email && (
+              <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.email}
+              </div>
+            )}
+          </div>
 
           {/* Phone Field */}
           <div className="space-y-2" data-field="phone">
@@ -689,7 +782,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             </label>
             <input
               ref={phoneInputRef}
-              type="text"  
+              type="text"
               value={localPhone}
               onChange={handlePhoneChange}
               onClick={(e) => {
@@ -715,8 +808,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
                 focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
-              inputMode="tel"  
-              autoComplete="tel"  
+              inputMode="tel"
+              autoComplete="tel"
             />
             {errors.phone && (
               <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
@@ -728,6 +821,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             )}
           </div>
 
+          {/* Category Field */}
           {/* Category Field */}
           <div className="space-y-2 category-dropdown-container" data-field="category">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -780,23 +874,114 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                     const sortedCategories = [...categories].sort((a, b) =>
                       a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                     );
-                    setFilteredCategories(sortedCategories);
-                    // setShowCategoryDropdown(true);
+
+                    // Filter out the currently selected category if it exists
+                    const filtered = sortedCategories.filter(category =>
+                      category.name.toLowerCase() !== localCategory.toLowerCase()
+                    );
+
+                    setFilteredCategories(filtered);
+
+                    // Only show dropdown if there are other categories to show
+                    if (filtered.length > 0) {
+                      setShowCategoryDropdown(true);
+                    }
+
+                    // Reset selected index when opening dropdown
+                    setSelectedCategoryIndex(-1);
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Tab') {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    submitButtonRef.current?.focus();
+
+                    // If Enter is pressed and we have a selected category from arrow navigation
+                    if (showCategoryDropdown && selectedCategoryIndex >= 0 && filteredCategories[selectedCategoryIndex]) {
+                      handleCategorySelect(filteredCategories[selectedCategoryIndex]);
+                      setShowCategoryDropdown(false); // Close dropdown
+                    } else if (showCategoryDropdown && filteredCategories.length > 0) {
+                      // If no specific item is selected but dropdown is open, select first item
+                      handleCategorySelect(filteredCategories[0]);
+                      setShowCategoryDropdown(false); // Close dropdown
+                    } else {
+                      // Otherwise navigate to submit button
+                      submitButtonRef.current?.focus();
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (showCategoryDropdown && filteredCategories.length > 0) {
+                      // Move selection down
+                      const newIndex = selectedCategoryIndex < filteredCategories.length - 1
+                        ? selectedCategoryIndex + 1
+                        : 0;
+                      setSelectedCategoryIndex(newIndex);
+                    } else if (categories.length > 0) {
+                      // Open dropdown if categories exist
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
+
+                      // Filter out the currently selected category
+                      const filtered = sortedCategories.filter(category =>
+                        category.name.toLowerCase() !== localCategory.toLowerCase()
+                      );
+
+                      setFilteredCategories(filtered);
+
+                      if (filtered.length > 0) {
+                        setShowCategoryDropdown(true);
+                        setSelectedCategoryIndex(0); // Select first item
+                      }
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (showCategoryDropdown && filteredCategories.length > 0) {
+                      // Move selection up
+                      const newIndex = selectedCategoryIndex > 0
+                        ? selectedCategoryIndex - 1
+                        : filteredCategories.length - 1;
+                      setSelectedCategoryIndex(newIndex);
+                    } else if (categories.length > 0) {
+                      // Open dropdown if categories exist
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
+
+                      // Filter out the currently selected category
+                      const filtered = sortedCategories.filter(category =>
+                        category.name.toLowerCase() !== localCategory.toLowerCase()
+                      );
+
+                      setFilteredCategories(filtered);
+
+                      if (filtered.length > 0) {
+                        setShowCategoryDropdown(true);
+                        setSelectedCategoryIndex(filtered.length - 1); // Select last item
+                      }
+                    }
+                  } else if (e.key === 'Escape') {
+                    if (showCategoryDropdown) {
+                      e.preventDefault();
+                      setShowCategoryDropdown(false);
+                      setSelectedCategoryIndex(-1);
+                    }
+                  } else if (e.key === 'Tab') {
+                    // Close dropdown on tab
+                    if (showCategoryDropdown) {
+                      setShowCategoryDropdown(false);
+                      setSelectedCategoryIndex(-1);
+                    }
                   } else {
-                    handleKeyDown("category")(e);
+                    // For other keys, let the normal input handling occur
+                    // Reset selection when user starts typing
+                    setSelectedCategoryIndex(-1);
                   }
                 }}
                 disabled={isSubmitting}
                 className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 pr-12
-                  bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
-                  focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+        bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
+        focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
               />
 
               {/* Dropdown arrow - always show when there are categories available */}
@@ -810,10 +995,23 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                       const sortedCategories = [...categories].sort((a, b) =>
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
-                      setFilteredCategories(sortedCategories);
-                      setShowCategoryDropdown(true);
+
+                      // Filter out the currently selected category
+                      const filtered = sortedCategories.filter(category =>
+                        category.name.toLowerCase() !== localCategory.toLowerCase()
+                      );
+
+                      setFilteredCategories(filtered);
+
+                      // Only show dropdown if there are other categories to show
+                      if (filtered.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
+
+                      setSelectedCategoryIndex(-1); // Reset selection
                     } else {
                       setShowCategoryDropdown(false);
+                      setSelectedCategoryIndex(-1);
                     }
                   }}
                   onKeyDown={(e) => {
@@ -825,10 +1023,23 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         const sortedCategories = [...categories].sort((a, b) =>
                           a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                         );
-                        setFilteredCategories(sortedCategories);
-                        setShowCategoryDropdown(true);
+
+                        // Filter out the currently selected category
+                        const filtered = sortedCategories.filter(category =>
+                          category.name.toLowerCase() !== localCategory.toLowerCase()
+                        );
+
+                        setFilteredCategories(filtered);
+
+                        // Only show dropdown if there are other categories to show
+                        if (filtered.length > 0) {
+                          setShowCategoryDropdown(true);
+                        }
+
+                        setSelectedCategoryIndex(-1); // Reset selection
                       } else {
                         setShowCategoryDropdown(false);
+                        setSelectedCategoryIndex(-1);
                       }
                     }
                   }}
@@ -851,27 +1062,64 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               {/* Dropdown menu - show when dropdown is open and there are categories */}
               {showCategoryDropdown && filteredCategories.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                  {filteredCategories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0"
-                      onClick={() => handleCategorySelect(category)}
-                      onKeyDown={(e) => {
-                        // Make dropdown items accessible via keyboard
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
+                  {filteredCategories
+                    .filter(category => category.name.toLowerCase() !== localCategory.toLowerCase())
+                    .map((category, index) => (
+                      <div
+                        key={category.id}
+                        className={`px-4 py-3 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0
+                ${selectedCategoryIndex === index ? 'bg-gray-300' : 'hover:bg-amber-50'}`}
+                        onClick={() => {
                           handleCategorySelect(category);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                    >
-                      <div className="font-medium text-gray-800">{category.name}</div>
-                      {category.description && (
-                        <div className="text-sm text-gray-500 mt-1">{category.description}</div>
-                      )}
-                    </div>
-                  ))}
+                          setShowCategoryDropdown(false); // Close dropdown after selection
+                        }}
+                        onMouseEnter={() => setSelectedCategoryIndex(index)}
+                        onKeyDown={(e) => {
+                          // Make dropdown items accessible via keyboard
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleCategorySelect(category);
+                            setShowCategoryDropdown(false); // Close dropdown after selection
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const newIndex = index < filteredCategories.length - 1 ? index + 1 : 0;
+                            setSelectedCategoryIndex(newIndex);
+                            // Scroll into view if needed
+                            document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
+                              block: 'nearest'
+                            });
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const newIndex = index > 0 ? index - 1 : filteredCategories.length - 1;
+                            setSelectedCategoryIndex(newIndex);
+                            // Scroll into view if needed
+                            document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
+                              block: 'nearest'
+                            });
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setShowCategoryDropdown(false);
+                            setSelectedCategoryIndex(-1);
+                            categoryInputRef.current?.focus();
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        data-category-index={index}
+                        ref={el => {
+                          // Store ref for the selected item
+                          if (selectedCategoryIndex === index) {
+                            // Scroll selected item into view
+                            el?.scrollIntoView({ block: 'nearest' });
+                          }
+                        }}
+                      >
+                        <div className="font-medium text-gray-800">{category.name}</div>
+                        {category.description && (
+                          <div className="text-sm text-gray-500 mt-1">{category.description}</div>
+                        )}
+                      </div>
+                    ))}
                 </div>
               )}
             </div>
