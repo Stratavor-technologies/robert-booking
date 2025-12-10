@@ -781,7 +781,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                       a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                     );
                     setFilteredCategories(sortedCategories);
-                    setShowCategoryDropdown(true);
+                    // setShowCategoryDropdown(true);
                   }
                 }}
                 onKeyDown={(e) => {

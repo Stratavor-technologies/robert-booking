@@ -164,10 +164,10 @@ export default function SearchSection({
     if (!cityName?.trim()) return "City is required";
 
     const name = cityName.trim();
-    
+
     // Basic length check
     if (name.length < 2) return "Please enter a valid city name";
-    
+
     // Check for invalid characters
     if (!/^[A-Za-z\s\-']+$/.test(name)) return "Please enter a valid city name";
 
@@ -193,7 +193,7 @@ export default function SearchSection({
       const vowels = (name.match(/[aeiou]/gi) || []).length;
       const consonants = (name.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
       const totalLetters = vowels + consonants;
-      
+
       if (totalLetters > 3 && vowels / totalLetters < 0.2) {
         return "Please enter a valid city name";
       }
@@ -310,7 +310,7 @@ export default function SearchSection({
                 const value = e.target.value;
                 // Still restrict invalid characters in real-time
                 if (!/^[A-Za-z\s\-']*$/.test(value)) return;
-                
+
                 // Update the value through onFieldChange
                 if (onFieldChange) {
                   onFieldChange(e);
@@ -408,7 +408,7 @@ export default function SearchSection({
                     e.preventDefault();
                   }
                 }}
-                onFocus={() => setShowDropdown(true)}
+                // onFocus={() => setShowDropdown(true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -425,14 +425,16 @@ export default function SearchSection({
               />
 
               <svg
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer"
+                onClick={() => setShowDropdown(prev => !prev)}
+                className={`absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer transition-transform duration-200 ${showDropdown ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
+
 
               {showDropdown && (
                 <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
