@@ -243,17 +243,43 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   };
 
   // Handle category input change
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    // Capitalize first letter of each word
-    const capitalizedValue = capitalizeWords(value);
-    setLocalCategory(capitalizedValue);
+  // Handle category input change
+const handleCategoryChange = (e) => {
+  const value = e.target.value;
+  // Capitalize first letter of each word
+  const capitalizedValue = capitalizeWords(value);
+  setLocalCategory(capitalizedValue);
 
-    // Clear category error when user starts typing
-    if (errors.category) {
-      setErrors(prev => ({ ...prev, category: "" }));
-    }
-  };
+  // Filter categories based on input
+  if (capitalizedValue.trim() !== "") {
+    // Sort categories alphabetically
+    const sortedCategories = [...categories].sort((a, b) =>
+      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+
+    // Filter categories that start with the input text (case insensitive)
+    const filtered = sortedCategories.filter(category =>
+      category.name?.toLowerCase().startsWith(capitalizedValue.toLowerCase())
+    );
+
+    setFilteredCategories(filtered);
+    
+    // Show dropdown if there are matching categories
+    setShowCategoryDropdown(filtered.length > 0);
+  } else {
+    // When input is empty, show all categories sorted alphabetically
+    const sortedCategories = [...categories].sort((a, b) =>
+      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+    setFilteredCategories(sortedCategories);
+    setShowCategoryDropdown(sortedCategories.length > 0);
+  }
+
+  // Clear category error when user starts typing
+  if (errors.category) {
+    setErrors(prev => ({ ...prev, category: "" }));
+  }
+};
 
   // Handle category selection
   const handleCategorySelect = (category) => {
@@ -868,29 +894,41 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   }
                 }}
                 onFocus={() => {
-                  // OPEN dropdown when input is focused (via click or tab)
-                  if (categories.length > 0) {
-                    // Sort categories alphabetically
-                    const sortedCategories = [...categories].sort((a, b) =>
-                      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                    );
+  // OPEN dropdown when input is focused (via click or tab)
+  if (categories.length > 0) {
+    if (localCategory.trim() !== "") {
+      // Filter categories based on current input when focused
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
 
-                    // Filter out the currently selected category if it exists
-                    const filtered = sortedCategories.filter(category =>
-                      category.name.toLowerCase() !== localCategory.toLowerCase()
-                    );
+      // Filter categories that start with the input text
+      const filtered = sortedCategories.filter(category =>
+        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
+      );
 
-                    setFilteredCategories(filtered);
+      setFilteredCategories(filtered);
+      
+      // Only show dropdown if there are matching categories
+      if (filtered.length > 0) {
+        setShowCategoryDropdown(true);
+      }
+    } else {
+      // When input is empty, show all categories
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      setFilteredCategories(sortedCategories);
+      
+      if (sortedCategories.length > 0) {
+        setShowCategoryDropdown(true);
+      }
+    }
 
-                    // Only show dropdown if there are other categories to show
-                    if (filtered.length > 0) {
-                      setShowCategoryDropdown(true);
-                    }
-
-                    // Reset selected index when opening dropdown
-                    setSelectedCategoryIndex(-1);
-                  }
-                }}
+    // Reset selected index when opening dropdown
+    setSelectedCategoryIndex(-1);
+  }
+}}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -989,31 +1027,43 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 <div
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
                   onClick={() => {
-                    // Toggle dropdown when icon is clicked
-                    if (!showCategoryDropdown) {
-                      // Sort categories alphabetically before showing
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
+  // Toggle dropdown when icon is clicked
+  if (!showCategoryDropdown) {
+    if (localCategory.trim() !== "") {
+      // Filter categories based on current input
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
 
-                      // Filter out the currently selected category
-                      const filtered = sortedCategories.filter(category =>
-                        category.name.toLowerCase() !== localCategory.toLowerCase()
-                      );
+      // Filter categories that start with the input text
+      const filtered = sortedCategories.filter(category =>
+        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
+      );
 
-                      setFilteredCategories(filtered);
+      setFilteredCategories(filtered);
+      
+      // Only show dropdown if there are matching categories
+      if (filtered.length > 0) {
+        setShowCategoryDropdown(true);
+      }
+    } else {
+      // When input is empty, show all categories
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      setFilteredCategories(sortedCategories);
+      
+      if (sortedCategories.length > 0) {
+        setShowCategoryDropdown(true);
+      }
+    }
 
-                      // Only show dropdown if there are other categories to show
-                      if (filtered.length > 0) {
-                        setShowCategoryDropdown(true);
-                      }
-
-                      setSelectedCategoryIndex(-1); // Reset selection
-                    } else {
-                      setShowCategoryDropdown(false);
-                      setSelectedCategoryIndex(-1);
-                    }
-                  }}
+    setSelectedCategoryIndex(-1); // Reset selection
+  } else {
+    setShowCategoryDropdown(false);
+    setSelectedCategoryIndex(-1);
+  }
+}}
                   onKeyDown={(e) => {
                     // Make dropdown icon accessible via keyboard
                     if (e.key === 'Enter' || e.key === ' ') {
