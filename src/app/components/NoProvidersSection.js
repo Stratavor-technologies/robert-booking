@@ -103,7 +103,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   }, [address]);
 
   // Replace the existing useEffect for category filtering with this:
-  useEffect(() => {
+  /* useEffect(() => {
     if (localCategory) {
       // Sort categories alphabetically by name
       const sortedCategories = [...categories].sort((a, b) =>
@@ -132,7 +132,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       setFilteredCategories(sortedCategories);
       setIsCustomCategory(false);
     }
-  }, [localCategory, categories]);
+  }, [localCategory, categories]); */
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -821,7 +821,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             )}
           </div>
 
-          {/* Category Field */}
+        
           {/* Category Field */}
           <div className="space-y-2 category-dropdown-container" data-field="category">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
