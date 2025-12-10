@@ -149,7 +149,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   }, []);
 
   // Focus management and trap implementation
-  useEffect(() => {
+  /* useEffect(() => {
     if (showForm && nameInputRef.current) {
       nameInputRef.current.focus();
     }
@@ -214,7 +214,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       document.removeEventListener('keydown', handleTabKey);
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [showForm, showCategoryDropdown]);
+  }, [showForm, showCategoryDropdown]); */
 
   // --- 📞 Auto-format phone input ---
   const handlePhoneChange = (e) => {
