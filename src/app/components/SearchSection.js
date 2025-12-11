@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import debounce from "lodash/debounce";
 
 export default function SearchSection({
   address,
@@ -13,6 +14,9 @@ export default function SearchSection({
   currentEmail,
   onBackToHome,
 }) {
+  const LOCATIONIQ_KEY = "pk.6e77c85892d2eafd57fef22405d53630";
+  const LOCATIONIQ_SEARCH_URL = "https://us1.locationiq.com/v1/search";
+  const LOCATIONIQ_REVERSE_URL = "https://us1.locationiq.com/v1/reverse";
 
   const usStates = [
     "AL", "AK", "AZ", "AR", "CA",
@@ -27,11 +31,20 @@ export default function SearchSection({
     "VA", "WA", "WV", "WI", "WY",
   ];
 
+  // State declarations
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState(address.state || "");
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [zipSuggestions, setZipSuggestions] = useState([]);
+  const [showZipDropdown, setShowZipDropdown] = useState(false);
+  const [loadingZip, setLoadingZip] = useState(false);
+  const [loadingCity, setLoadingCity] = useState(false);
+  const [loadingState, setLoadingState] = useState(false);
+  
   const dropdownRef = useRef(null);
+  const zipDropdownRef = useRef(null);
   const dropdownListRef = useRef(null);
+  
   const [validationErrors, setValidationErrors] = useState({
     city: "",
     state: "",
@@ -45,93 +58,256 @@ export default function SearchSection({
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
 
-  const [resetTrigger, setResetTrigger] = useState(false);
+  // Enhanced helper function to normalize state name to code
+  const stateNameToCode = (stateName) => {
+    const stateMap = {
+      'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+      'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'district of columbia': 'DC', 'florida': 'FL', 
+      'georgia': 'GA', 'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+      'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+      'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+      'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+      'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+      'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+      'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+      'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
+    };
 
-  const resetForm = () => {
-    setSearchText("");
-    setShowDropdown(false);
-    setActiveIndex(-1);
-    setValidationErrors({
-      city: "",
-      state: "",
-      zip: "",
-      searchWithin: ""
-    });
-    if (onFieldChange) {
-      onFieldChange({ target: { name: "city", value: "" } });
-      onFieldChange({ target: { name: "state", value: "" } });
-      onFieldChange({ target: { name: "zip", value: "" } });
+    if (!stateName) return '';
+    
+    // If it's already a 2-letter code, just uppercase it
+    if (stateName.length === 2 && /^[A-Za-z]{2}$/.test(stateName)) {
+      return stateName.toUpperCase();
     }
-    if (onSearchWithinChange) {
-      onSearchWithinChange(10);
+
+    // Try to extract state from display_name or other formats
+    const normalizedName = stateName.toLowerCase().trim();
+    
+    // Direct mapping
+    if (stateMap[normalizedName]) {
+      return stateMap[normalizedName];
     }
-  };
-  useEffect(() => {
-    resetForm();
-  }, [resetTrigger]);
-
-  const handleBackToHome = () => {
-    resetForm();
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      sessionStorage.clear();
-      window.location.reload();
+    
+    // Try to match partial names
+    for (const [key, code] of Object.entries(stateMap)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        return code;
+      }
     }
-  };
 
-  const filteredStates = usStates.filter((st) =>
-    st.startsWith(searchText.toUpperCase())
-  );
-
-  const handleSelect = (state) => {
-    const abbr = state.match(/\((.*?)\)/)?.[1] || state;
-    setSearchText(abbr);
-    setShowDropdown(false);
-    setActiveIndex(-1);
-    setValidationErrors(prev => ({ ...prev, state: "" }));
-    onFieldChange({ target: { name: "state", value: abbr } });
+    return '';
   };
 
-  // Auto-scroll to active item
-  useEffect(() => {
-    if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
-      const list = dropdownListRef.current;
-      const activeItem = list.children[activeIndex];
+  // Function to extract state from LocationIQ response
+  const extractStateFromLocationData = (data) => {
+    if (!data || !data.length) return '';
+    
+    const item = data[0];
+    
+    // First try to get state from address object
+    if (item.address && item.address.state) {
+      return stateNameToCode(item.address.state);
+    }
+    
+    // If not in address, try to extract from display_name
+    if (item.display_name) {
+      const parts = item.display_name.split(',');
       
-      if (activeItem) {
-        // Calculate scroll position
-        const itemTop = activeItem.offsetTop;
-        const itemBottom = itemTop + activeItem.offsetHeight;
-        const listTop = list.scrollTop;
-        const listBottom = listTop + list.clientHeight;
-        
-        // If item is above visible area
-        if (itemTop < listTop) {
-          list.scrollTop = itemTop;
-        }
-        // If item is below visible area
-        else if (itemBottom > listBottom) {
-          list.scrollTop = itemBottom - list.clientHeight;
+      // Look for state in the parts (usually 2nd or 3rd from end)
+      for (let i = parts.length - 1; i >= Math.max(0, parts.length - 4); i--) {
+        const part = parts[i].trim();
+        const stateCode = stateNameToCode(part);
+        if (stateCode && usStates.includes(stateCode)) {
+          return stateCode;
         }
       }
     }
-  }, [activeIndex, showDropdown]);
+    
+    return '';
+  };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-        setActiveIndex(-1);
+  // Function to extract city from LocationIQ response
+  const extractCityFromLocationData = (data) => {
+    if (!data || !data.length) return '';
+    
+    const item = data[0];
+    let cityName = '';
+    
+    console.log('Extracting city from:', item);
+    
+    // First try to get city from address object
+    if (item.address) {
+      // Check multiple possible city fields
+      if (item.address.city) {
+        cityName = item.address.city;
+        console.log('Found city in address.city:', cityName);
+      } else if (item.address.town) {
+        cityName = item.address.town;
+        console.log('Found city in address.town:', cityName);
+      } else if (item.address.village) {
+        cityName = item.address.village;
+        console.log('Found city in address.village:', cityName);
+      } else if (item.address.municipality) {
+        cityName = item.address.municipality;
+        console.log('Found city in address.municipality:', cityName);
+      } else if (item.address.county) {
+        // Sometimes the city is in county field for small towns
+        cityName = item.address.county.replace(' County', '').replace(' County', '');
+        console.log('Found city in address.county (adjusted):', cityName);
       }
-    };
+    }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    // If no city found in address, try to extract from display_name
+    if (!cityName && item.display_name) {
+      console.log('Trying to extract from display_name:', item.display_name);
+      const parts = item.display_name.split(',');
+      
+      // For display_name like: "Haddonfield, Camden County, New Jersey, 08033, USA"
+      // The first part is usually the city
+      if (parts.length > 0) {
+        cityName = parts[0].trim();
+        console.log('Extracted city from first part of display_name:', cityName);
+        
+        // If the first part contains numbers (like ZIP code), try the second part
+        if (/\d/.test(cityName) && parts.length > 1) {
+          cityName = parts[1].trim();
+          console.log('First part contained numbers, trying second part:', cityName);
+        }
+      }
+    }
+
+    // Clean up the city name
+    if (cityName) {
+      // Remove "County" suffix if present
+      cityName = cityName.replace(/\s+County$/i, '');
+      
+      // Remove any trailing numbers or ZIP codes
+      cityName = cityName.replace(/\s+\d{5}(-\d{4})?$/, '');
+      
+      // Remove "USA" or country names
+      cityName = cityName.replace(/\s+(USA|United States)$/i, '');
+      
+      // Capitalize properly
+      cityName = cityName
+        .toLowerCase()
+        .replace(/\b\w/g, char => char.toUpperCase())
+        .replace(/[^a-zA-Z\s\-']/g, '')
+        .trim();
+      
+      console.log('Cleaned city name:', cityName);
+    }
+
+    return cityName;
+  };
+
+  // Fetch ZIP codes based on city and state
+  const fetchZipCodes = async (city, state) => {
+    if (!city || !state || city.length < 2) {
+      setZipSuggestions([]);
+      return;
+    }
+
+    setLoadingZip(true);
+    try {
+      const query = `${city}, ${state}, USA`;
+      const response = await fetch(
+        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5&type=postcode`
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch ZIP codes');
+
+      const data = await response.json();
+      
+      // Extract unique ZIP codes from results
+      const zipCodes = [];
+      data.forEach(item => {
+        if (item.address && item.address.postcode) {
+          const zip = item.address.postcode.split('-')[0]; // Get only first part of ZIP
+          if (zip && !zipCodes.includes(zip) && /^\d{5}$/.test(zip)) {
+            zipCodes.push(zip);
+          }
+        }
+      });
+
+      // If no ZIP codes from address, try display_name
+      if (zipCodes.length === 0) {
+        data.forEach(item => {
+          const displayName = item.display_name || '';
+          const zipMatch = displayName.match(/\b\d{5}\b/);
+          if (zipMatch && !zipCodes.includes(zipMatch[0])) {
+            zipCodes.push(zipMatch[0]);
+          }
+        });
+      }
+
+      setZipSuggestions(zipCodes);
+      setShowZipDropdown(zipCodes.length > 0);
+    } catch (error) {
+      console.error('Error fetching ZIP codes:', error);
+      setZipSuggestions([]);
+    } finally {
+      setLoadingZip(false);
+    }
+  };
+
+  // Fetch state based on city and ZIP - FIXED VERSION
+  const fetchStateFromCityZip = async (city, zip) => {
+    if (!city || !zip || city.length < 2 || zip.length < 5) {
+      return;
+    }
+
+    setLoadingState(true);
+    try {
+      const query = `${city}, ${zip}, USA`;
+      console.log('Fetching state for:', query);
+      
+      const response = await fetch(
+        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=1`
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch state');
+
+      const data = await response.json();
+      console.log('State data received:', data);
+      
+      if (data.length > 0) {
+        const stateCode = extractStateFromLocationData(data);
+        console.log('Extracted state code:', stateCode);
+        
+        if (stateCode && usStates.includes(stateCode)) {
+          // Update the state field
+          onFieldChange({ target: { name: "state", value: stateCode } });
+          setSearchText(stateCode);
+          setValidationErrors(prev => ({ ...prev, state: "" }));
+          console.log('State updated to:', stateCode);
+        } else {
+          console.log('No valid state code found in:', data[0]);
+          
+          // Try alternative method - look in display_name
+          if (data[0].display_name) {
+            console.log('Display name:', data[0].display_name);
+            // Example: "Downingtown, Chester County, Pennsylvania, 19335, USA"
+            const parts = data[0].display_name.split(',');
+            for (const part of parts) {
+              const trimmed = part.trim();
+              const possibleState = stateNameToCode(trimmed);
+              if (possibleState && usStates.includes(possibleState)) {
+                console.log('Found state in display_name:', trimmed, '->', possibleState);
+                onFieldChange({ target: { name: "state", value: possibleState } });
+                setSearchText(possibleState);
+                setValidationErrors(prev => ({ ...prev, state: "" }));
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching state:', error);
+    } finally {
+      setLoadingState(false);
+    }
+  };
 
   function getCaretIndexFromClick(input, clickX) {
     const style = window.getComputedStyle(input);
@@ -159,12 +335,306 @@ export default function SearchSection({
     return input.value.length;
   }
 
+  // Fetch city based on state and ZIP - IMPROVED VERSION
+  const fetchCityFromStateZip = async (state, zip) => {
+  if (!state || !zip || zip.length < 5) {
+    return;
+  }
+
+  setLoadingCity(true);
+  try {
+    // Try multiple query formats
+    const queries = [
+      `${zip}, ${state}, USA`,
+      `${zip}, ${state}`,
+      `${zip}`
+    ];
+
+    let cityFound = false;
+    
+    // Try each query format sequentially
+    for (const query of queries) {
+      if (cityFound) break;
+      
+      console.log(`Trying query: ${query}`);
+      
+      try {
+        const response = await fetch(
+          `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`
+        );
+
+        // Check if response is OK
+        if (!response.ok) {
+          console.warn(`Query failed: ${response.status} ${response.statusText}`);
+          continue; // Try next query format
+        }
+
+        const data = await response.json();
+        console.log('City data received for query:', query, data);
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          console.log('No data for this query format');
+          continue;
+        }
+
+        // Look for valid city in all results
+        for (const item of data) {
+          const cityName = extractCityFromLocationData([item]);
+          
+          if (cityName && cityName.length >= 2) {
+            // Additional validation
+            const hasInvalidChars = /^\d+$/.test(cityName) || 
+                                   /^[^a-zA-Z]+$/.test(cityName);
+            
+            if (!hasInvalidChars && 
+                !cityName.toUpperCase().includes(state) && 
+                !cityName.includes(zip)) {
+              
+              console.log('Valid city found:', cityName);
+              
+              // Update the city field
+              onFieldChange({ target: { name: "city", value: cityName } });
+              setValidationErrors(prev => ({ ...prev, city: "" }));
+              
+              // Also update state if different
+              const extractedState = extractStateFromLocationData([item]);
+              if (extractedState && extractedState !== state) {
+                console.log('Also updating state to:', extractedState);
+                onFieldChange({ target: { name: "state", value: extractedState } });
+                setSearchText(extractedState);
+              }
+              
+              cityFound = true;
+              break;
+            }
+          }
+        }
+      } catch (innerError) {
+        console.warn(`Error with query "${query}":`, innerError);
+        // Continue to next query
+      }
+    }
+
+    // If no city found with search API, try reverse geocoding
+    if (!cityFound) {
+      console.log('No city found with search API, trying reverse geocoding...');
+      
+      try {
+        // First get coordinates for the ZIP code
+        const coordResponse = await fetch(
+          `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(zip)}&format=json&limit=1`
+        );
+        
+        if (coordResponse.ok) {
+          const coordData = await coordResponse.json();
+          if (coordData.length > 0 && coordData[0].lat && coordData[0].lon) {
+            const { lat, lon } = coordData[0];
+            
+            // Use reverse geocoding with coordinates
+            const reverseResponse = await fetch(
+              `${LOCATIONIQ_REVERSE_URL}?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json&addressdetails=1`
+            );
+            
+            if (reverseResponse.ok) {
+              const reverseData = await reverseResponse.json();
+              console.log('Reverse geocode data:', reverseData);
+              
+              if (reverseData.address) {
+                // Extract city from reverse geocode
+                let cityName = '';
+                
+                if (reverseData.address.city) {
+                  cityName = reverseData.address.city;
+                } else if (reverseData.address.town) {
+                  cityName = reverseData.address.town;
+                } else if (reverseData.address.village) {
+                  cityName = reverseData.address.village;
+                } else if (reverseData.address.municipality) {
+                  cityName = reverseData.address.municipality;
+                }
+                
+                if (cityName && cityName.length >= 2) {
+                  console.log('City found via reverse geocoding:', cityName);
+                  onFieldChange({ target: { name: "city", value: cityName } });
+                  setValidationErrors(prev => ({ ...prev, city: "" }));
+                  cityFound = true;
+                }
+              }
+            }
+          }
+        }
+      } catch (reverseError) {
+        console.warn('Reverse geocoding failed:', reverseError);
+      }
+    }
+
+    if (!cityFound) {
+      console.warn(`Could not find city for state: ${state}, ZIP: ${zip}`);
+      // Optionally show a user-friendly message
+      // setValidationErrors(prev => ({ 
+      //   ...prev, 
+      //   city: "Could not find city for this ZIP code. Please enter manually." 
+      // }));
+    }
+
+  } catch (error) {
+    console.error('Error in fetchCityFromStateZip:', error);
+    
+    // More specific error messages
+    if (error.message.includes('Failed to fetch')) {
+      console.error('Network error or API unavailable');
+    } else if (error.message.includes('Failed to fetch city')) {
+      console.error('API returned error response');
+    }
+    
+    // Don't show error to user if it's just an API failure
+    // The user can still manually enter the city
+  } finally {
+    setLoadingCity(false);
+  }
+};
+
+  // Debounced version of fetchZipCodes to avoid too many API calls
+  const debouncedFetchZipCodes = useCallback(
+    debounce((city, state) => fetchZipCodes(city, state), 500),
+    []
+  );
+
+  // Handle city change - trigger ZIP code lookup if state is filled
+  const handleCityChange = (e) => {
+    const value = e.target.value;
+    
+    // Validate input format
+    if (!/^[A-Za-z\s\-']*$/.test(value)) return;
+
+    // Update the city value
+    if (onFieldChange) {
+      onFieldChange(e);
+    }
+
+    // Clear city error when user starts typing
+    setValidationErrors(prev => ({ ...prev, city: "" }));
+
+    // If state is already filled, fetch ZIP codes
+    if (value.length >= 2 && address.state && address.state.length === 2) {
+      debouncedFetchZipCodes(value, address.state);
+    } else {
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+    }
+  };
+
+  // Handle state selection
+  const handleSelect = (state) => {
+    const abbr = state.match(/\((.*?)\)/)?.[1] || state;
+    handleStateChange(abbr);
+    setShowDropdown(false);
+    setActiveIndex(-1);
+    zipRef.current?.focus();
+  };
+
+  // Handle state change - trigger ZIP code lookup if city is filled
+  const handleStateChange = (value) => {
+    setSearchText(value);
+    setValidationErrors(prev => ({ ...prev, state: "" }));
+    
+    // Update the state field through onFieldChange
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "state", value } });
+    }
+
+    // If city is already filled, fetch ZIP codes
+    if (value.length === 2 && address.city && address.city.length >= 2) {
+      fetchZipCodes(address.city, value);
+    } else {
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+    }
+
+    // If ZIP is filled but not city, fetch city
+    if (value.length === 2 && address.zip && address.zip.length >= 5 && !address.city) {
+      console.log('Auto-fetching city for state:', value, 'ZIP:', address.zip);
+      fetchCityFromStateZip(value, address.zip);
+    }
+  };
+
+  // Handle ZIP change - trigger city/state lookup if needed
+  const handleZipChange = (e) => {
+    const value = e.target.value;
+    
+    // Update the ZIP value
+    if (onFieldChange) {
+      onFieldChange(e);
+    }
+
+    // Clear ZIP error when user starts typing
+    setValidationErrors(prev => ({ ...prev, zip: "" }));
+
+    // If ZIP is 5 digits, try to auto-fill city/state
+    if (value.length === 5) {
+      // If city is filled but not state, fetch state
+      if (address.city && address.city.length >= 2 && !address.state) {
+        console.log('Fetching state for city:', address.city, 'ZIP:', value);
+        fetchStateFromCityZip(address.city, value);
+      }
+      // If state is filled but not city, fetch city
+      else if (address.state && address.state.length === 2 && !address.city) {
+        console.log('Fetching city for state:', address.state, 'ZIP:', value);
+        fetchCityFromStateZip(address.state, value);
+      }
+      // If both city and state are filled, fetch ZIP suggestions
+      else if (address.city && address.state) {
+        fetchZipCodes(address.city, address.state);
+      }
+    } else {
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+    }
+  };
+
+  // Handle ZIP code selection from dropdown
+  const handleZipSelect = (zip) => {
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "zip", value: zip } });
+    }
+    setShowZipDropdown(false);
+    searchWithinRef.current?.focus();
+  };
+
+  // Close ZIP dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (zipDropdownRef.current && !zipDropdownRef.current.contains(event.target)) {
+        setShowZipDropdown(false);
+      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+        setActiveIndex(-1);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedFetchZipCodes.cancel();
+    };
+  }, [debouncedFetchZipCodes]);
+
+  // Navigation helper functions
   const handleEnterNavigation = (currentField, nextField) => {
     return (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         if (nextField === "search") {
           searchButtonRef.current?.click();
+        } else if (typeof nextField === "function") {
+          nextField();
         } else {
           nextField?.current?.select();
         }
@@ -179,7 +649,9 @@ export default function SearchSection({
       if (currentField === "searchWithin" && nextField === "city") {
         cityRef.current?.select();
       } else if (nextField === "search") {
-        cityRef.current?.select();
+        searchButtonRef.current?.focus();
+      } else if (typeof nextField === "function") {
+        nextField();
       } else {
         nextField?.current?.select();
       }
@@ -234,6 +706,10 @@ export default function SearchSection({
     return ""; // No error
   };
 
+  const filteredStates = usStates.filter((st) =>
+    st.startsWith(searchText.toUpperCase())
+  );
+
   const validateAllFields = () => {
     const errors = {
       city: "",
@@ -244,7 +720,7 @@ export default function SearchSection({
 
     let isValid = true;
 
-    // Validate city (only when search button is clicked)
+    // Validate city
     const cityValidationError = validateCityName(address.city);
     if (cityValidationError) {
       errors.city = cityValidationError;
@@ -269,7 +745,7 @@ export default function SearchSection({
       isValid = false;
     }
 
-    // Validate search within - Minimum value is now 1
+    // Validate search within
     if (!searchWithin || searchWithin < 1) {
       errors.searchWithin = "Search radius must be at least 1 mile";
       isValid = false;
@@ -293,6 +769,31 @@ export default function SearchSection({
       else if (validationErrors.searchWithin) searchWithinRef.current?.select();
     }
   };
+
+  // Auto-scroll to active item
+  useEffect(() => {
+    if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
+      const list = dropdownListRef.current;
+      const activeItem = list.children[activeIndex];
+      
+      if (activeItem) {
+        // Calculate scroll position
+        const itemTop = activeItem.offsetTop;
+        const itemBottom = itemTop + activeItem.offsetHeight;
+        const listTop = list.scrollTop;
+        const listBottom = listTop + list.clientHeight;
+        
+        // If item is above visible area
+        if (itemTop < listTop) {
+          list.scrollTop = itemTop;
+        }
+        // If item is below visible area
+        else if (itemBottom > listBottom) {
+          list.scrollTop = itemBottom - list.clientHeight;
+        }
+      }
+    }
+  }, [activeIndex, showDropdown]);
 
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative">
@@ -336,55 +837,50 @@ export default function SearchSection({
               </svg>
               Enter Your City
             </label>
-            <input
-              ref={cityRef}
-              type="text"
-              name="city"
-              value={address.city}
-              onChange={(e) => {
-                const value = e.target.value;
-                // Still restrict invalid characters in real-time
-                if (!/^[A-Za-z\s\-']*$/.test(value)) return;
-
-                // Update the value through onFieldChange
-                if (onFieldChange) {
-                  onFieldChange(e);
-                }
-                // Clear city error when user starts typing
-                setValidationErrors(prev => ({ ...prev, city: "" }));
-              }}
-              onClick={(e) => {
-                if (e.detail === 1) {
-                  e.target.select();
-                }
-              }}
-              onDoubleClick={(e) => {
-                e.preventDefault();
-                const input = e.target;
-                const clickX = e.nativeEvent.offsetX;
-                const caretIndex = getCaretIndexFromClick(input, clickX);
-                input.setSelectionRange(caretIndex, caretIndex);
-              }}
-              onMouseDown={(e) => {
-                if (e.detail > 1) {
+            <div className="relative">
+              <input
+                ref={cityRef}
+                type="text"
+                name="city"
+                value={address.city}
+                onChange={handleCityChange}
+                onClick={(e) => {
+                  if (e.detail === 1) {
+                    e.target.select();
+                  }
+                }}
+                onDoubleClick={(e) => {
                   e.preventDefault();
-                }
-              }}
-              placeholder="City"
-              maxLength={50}
-              disabled={loadingAddress}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleEnterNavigation("city", stateRef)(e);
-                if (e.key === "Tab") handleTabNavigation(e, "city", stateRef);
-              }}
-              className={`w-full border rounded-xl px-4 py-3.5
-    focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
-    bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
-    ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""}
-    ${validationErrors.city ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
-  `}
-            />
-            {/* ERROR MESSAGE BELOW CITY INPUT */}
+                  const input = e.target;
+                  const clickX = e.nativeEvent.offsetX;
+                  const caretIndex = getCaretIndexFromClick(input, clickX);
+                  input.setSelectionRange(caretIndex, caretIndex);
+                }}
+                onMouseDown={(e) => {
+                  if (e.detail > 1) {
+                    e.preventDefault();
+                  }
+                }}
+                placeholder="City"
+                maxLength={50}
+                disabled={loadingAddress || loadingCity}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleEnterNavigation("city", stateRef)(e);
+                  if (e.key === "Tab") handleTabNavigation(e, "city", stateRef);
+                }}
+                className={`w-full border rounded-xl px-4 py-3.5
+                  focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+                  bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400
+                  ${loadingAddress || loadingCity ? "opacity-50 cursor-not-allowed" : ""}
+                  ${validationErrors.city ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}
+                `}
+              />
+              {loadingCity && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
+            </div>
             {validationErrors.city && (
               <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
             )}
@@ -416,16 +912,9 @@ export default function SearchSection({
                   if (value.length > 2) return;
                   const matches = usStates.filter((st) => st.startsWith(value));
                   if (value !== "" && matches.length === 0) return;
-                  setSearchText(value);
+                  handleStateChange(value);
                   setShowDropdown(true);
-                  setValidationErrors(prev => ({ ...prev, state: "" }));
                   setActiveIndex(0); // Reset active index when typing
-
-                  if (onFieldChange) {
-                    onFieldChange({
-                      target: { name: "state", value }
-                    });
-                  }
                 }}
                 onClick={(e) => {
                   if (e.detail === 1) {
@@ -446,26 +935,14 @@ export default function SearchSection({
                 }}
                 onFocus={() => {
                   setShowDropdown(true);
-                  setActiveIndex(0); // Set first item as active when focusing
-                  if (searchText) {
-                    const matches = usStates.filter((st) =>
-                      st.toLowerCase().includes(searchText.toLowerCase())
-                    );
-                    if (matches.length > 0) {
-                      setShowDropdown(true);
-                    }
-                  } else {
-                    setShowDropdown(true);
-                  }
+                  setActiveIndex(0);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     if (showDropdown && filteredStates.length > 0 && activeIndex >= 0) {
-                      // Select the active item on Enter
                       const selectedState = filteredStates[activeIndex];
                       handleSelect(selectedState);
-                      zipRef.current?.focus();
                     } else {
                       setShowDropdown(false);
                       setActiveIndex(-1);
@@ -475,7 +952,7 @@ export default function SearchSection({
                   if (e.key === "Tab") {
                     handleTabNavigation(e, "state", zipRef);
                   }
-                  // Handle arrow key navigation in dropdown
+                  // Handle arrow key navigation
                   if (showDropdown && filteredStates.length > 0) {
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
@@ -496,8 +973,8 @@ export default function SearchSection({
                   }
                 }}
                 placeholder="State"
-                disabled={loadingAddress}
-                className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
+                disabled={loadingAddress || loadingState}
+                className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress || loadingState ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
               />
 
               <svg
@@ -519,6 +996,12 @@ export default function SearchSection({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
 
+              {loadingState && (
+                <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
+
               {showDropdown && (
                 <ul 
                   ref={dropdownListRef}
@@ -530,7 +1013,6 @@ export default function SearchSection({
                         key={state}
                         onClick={() => {
                           handleSelect(state);
-                          zipRef.current?.focus();
                         }}
                         className={`px-4 py-2.5 cursor-pointer text-gray-700 transition-colors duration-150 ${index === activeIndex
                             ? "bg-gray-200 font-medium"
@@ -554,54 +1036,84 @@ export default function SearchSection({
           </div>
 
           {/* ZIP */}
-          <div className="space-y-2">
+          <div className="space-y-2 relative" ref={zipDropdownRef}>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z" />
               </svg>
               Enter Your ZIP
             </label>
-            <input
-              ref={zipRef}
-              type="text"
-              name="zip"
-              value={address.zip}
-              onChange={(e) => {
-                if (onFieldChange) {
-                  onFieldChange(e);
-                }
-                setValidationErrors(prev => ({ ...prev, zip: "" }));
-              }}
-              onClick={(e) => {
-                if (e.detail === 1) {
-                  e.target.select();
-                }
-              }}
-              onDoubleClick={(e) => {
-                e.preventDefault();
-                const input = e.target;
-                const clickX = e.nativeEvent.offsetX;
-                const caretIndex = getCaretIndexFromClick(input, clickX);
-                input.setSelectionRange(caretIndex, caretIndex);
-              }}
-              onMouseDown={(e) => {
-                if (e.detail > 1) {
+            <div className="relative">
+              <input
+                ref={zipRef}
+                type="text"
+                name="zip"
+                value={address.zip}
+                onChange={handleZipChange}
+                onClick={(e) => {
+                  if (e.detail === 1) {
+                    e.target.select();
+                  }
+                }}
+                onDoubleClick={(e) => {
                   e.preventDefault();
-                }
-              }}
-              placeholder="ZIP code"
-              disabled={loadingAddress}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleEnterNavigation("zip", searchWithinRef)(e);
-                }
-                if (e.key === "Tab") {
-                  handleTabNavigation(e, "zip", searchWithinRef);
-                }
-              }}
-              className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress ? "opacity-50 cursor-not-allowed" : ""
-                } ${validationErrors.zip ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
-            />
+                  const input = e.target;
+                  const clickX = e.nativeEvent.offsetX;
+                  const caretIndex = getCaretIndexFromClick(input, clickX);
+                  input.setSelectionRange(caretIndex, caretIndex);
+                }}
+                onMouseDown={(e) => {
+                  if (e.detail > 1) {
+                    e.preventDefault();
+                  }
+                }}
+                placeholder="ZIP code"
+                disabled={loadingAddress || loadingZip}
+                onFocus={() => {
+                  if (zipSuggestions.length > 0) {
+                    setShowZipDropdown(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleEnterNavigation("zip", searchWithinRef)(e);
+                  }
+                  if (e.key === "Tab") {
+                    handleTabNavigation(e, "zip", searchWithinRef);
+                  }
+                  if (showZipDropdown && zipSuggestions.length > 0) {
+                    if (e.key === "Escape") {
+                      setShowZipDropdown(false);
+                    }
+                  }
+                }}
+                className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress || loadingZip ? "opacity-50 cursor-not-allowed" : ""
+                  } ${validationErrors.zip ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
+              />
+              
+              {loadingZip && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
+
+              {showZipDropdown && zipSuggestions.length > 0 && (
+                <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                  <li className="px-4 py-2 text-sm text-gray-500 bg-gray-50 border-b">
+                    ZIP Codes for {address.city}, {address.state}
+                  </li>
+                  {zipSuggestions.map((zip, index) => (
+                    <li
+                      key={zip}
+                      onClick={() => handleZipSelect(zip)}
+                      className="px-4 py-2.5 cursor-pointer text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                    >
+                      {zip}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {validationErrors.zip && (
               <p className="text-red-500 text-sm mt-1">{validationErrors.zip}</p>
             )}
@@ -644,7 +1156,7 @@ export default function SearchSection({
               handleSearchClick();
             }
             if (e.key === "Tab") {
-              handleTabNavigation(e, "search", "city");
+              handleTabNavigation(e, "search", () => cityRef.current?.focus());
             }
           }}
           className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-xl shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -656,6 +1168,7 @@ export default function SearchSection({
   );
 }
 
+// Keep the SearchWithinInput component exactly as it was
 function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown, error, getCaretIndexFromClick }) {
   const [inputValue, setInputValue] = useState(searchWithin.toString());
 
@@ -846,7 +1359,6 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           onKeyDown={handleKeyDown}
           inputMode="numeric"
           className={`w-full p-3.5 text-black placeholder-gray-400 text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
-          
         />
 
         {/* Arrow buttons */}
