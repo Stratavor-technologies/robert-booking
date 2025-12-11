@@ -667,10 +667,10 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
   const handleChange = (e) => {
     const value = e.target.value;
     
-    // If value is empty, set to 1 (minimum value)
+    // If value is empty, allow it (clear the field)
     if (value === "") {
       setInputValue("");
-      onChange(1);
+      onChange(""); // Pass empty string instead of 0
       return;
     }
 
@@ -679,13 +679,6 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
 
     // Update local state
     setInputValue(value);
-
-    // If value is "0" (just zero), prevent it
-    if (value === "0") {
-      setInputValue("1");
-      onChange(1);
-      return;
-    }
 
     // Handle the case where user types multiple digits
     if (value.length > 0) {
@@ -698,10 +691,6 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         // If user types a number greater than 40, cap it at 40
         setInputValue("40");
         onChange(40);
-      } else if (numericValue === 0) {
-        // If somehow we get 0, set to 1
-        setInputValue("1");
-        onChange(1);
       }
     }
   };
@@ -718,7 +707,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       return;
     }
 
-    // Handle backspace/delete - allow clearing but set to 1 when empty
+    // Handle backspace/delete - allow clearing completely
     if (e.key === 'Backspace' || e.key === 'Delete') {
       // Let the change handler handle this
       return;
@@ -742,30 +731,39 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     // Handle arrow up/down
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const newValue = Math.min(40, searchWithin + 1);
-      if (newValue !== searchWithin) {
+      const currentValue = inputValue === "" ? 0 : Number(inputValue);
+      const newValue = currentValue === 0 ? 1 : Math.min(40, currentValue + 1);
+      if (newValue !== currentValue) {
         onChange(newValue);
         setInputValue(newValue.toString());
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const newValue = Math.max(1, searchWithin - 1);
-      if (newValue !== searchWithin) {
+      const currentValue = inputValue === "" ? 0 : Number(inputValue);
+      const newValue = Math.max(1, currentValue - 1);
+      if (newValue !== currentValue) {
         onChange(newValue);
         setInputValue(newValue.toString());
       }
     }
   };
 
-  // Handle blur event - ensure value is never empty or 0
+  // Handle blur event - if empty, leave it empty (don't auto-set to 1)
   const handleBlur = () => {
-    if (inputValue === "" || Number(inputValue) < 1) {
-      setInputValue("1");
-      onChange(1);
+    // Only validate if empty, don't auto-set to 1
+    if (inputValue === "") {
+      // Keep it empty, validation will handle it
+      return;
+    }
+    
+    // If it's less than 1, clear it
+    if (Number(inputValue) < 1) {
+      setInputValue("");
+      onChange("");
     }
   };
 
-  // Handle paste event to prevent pasting "0" at the beginning
+  // Handle paste event
   const handlePaste = (e) => {
     const pastedData = e.clipboardData.getData('text');
     
@@ -789,8 +787,9 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
   // Handle arrow button clicks
   const handleArrowUpClick = () => {
     if (disabled) return;
-    const newValue = Math.min(40, searchWithin + 1);
-    if (newValue !== searchWithin) {
+    const currentValue = inputValue === "" ? 0 : Number(inputValue);
+    const newValue = currentValue === 0 ? 1 : Math.min(40, currentValue + 1);
+    if (newValue !== currentValue) {
       onChange(newValue);
       setInputValue(newValue.toString());
     }
@@ -798,8 +797,9 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
 
   const handleArrowDownClick = () => {
     if (disabled) return;
-    const newValue = Math.max(1, searchWithin - 1);
-    if (newValue !== searchWithin) {
+    const currentValue = inputValue === "" ? 0 : Number(inputValue);
+    const newValue = Math.max(1, currentValue - 1);
+    if (newValue !== currentValue) {
       onChange(newValue);
       setInputValue(newValue.toString());
     }
@@ -845,7 +845,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           }}
           onKeyDown={handleKeyDown}
           inputMode="numeric"
-          className={`w-full p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
+          className={`w-full p-3.5 text-black placeholder-gray-400 text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
           
         />
 
@@ -854,7 +854,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           <button
             type="button"
             onClick={handleArrowUpClick}
-            disabled={disabled || searchWithin >= 40}
+            disabled={disabled || (inputValue !== "" && Number(inputValue) >= 40)}
             className="w-6 h-5 flex items-center justify-center rounded-t-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Increase value"
           >
@@ -865,7 +865,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           <button
             type="button"
             onClick={handleArrowDownClick}
-            disabled={disabled || searchWithin <= 1}
+            disabled={disabled || (inputValue !== "" && Number(inputValue) <= 1)}
             className="w-6 h-5 flex items-center justify-center rounded-b-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Decrease value"
           >
