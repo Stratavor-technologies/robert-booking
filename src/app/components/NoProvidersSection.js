@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useAppData } from "../context/AppDataContext";
 import { useRouter } from "next/navigation";
 
@@ -30,6 +30,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   // Ref for the container to trap focus
   const containerRef = useRef(null);
 
+  // Store all focusable elements refs
+  const focusableElementsRef = useRef([]);
+
   // Validation states - only for showing errors after submit attempt
   const [errors, setErrors] = useState({
     name: "",
@@ -38,101 +41,45 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     category: ""
   });
 
-  // Helper function for caret positioning (same as in SearchSection)
-  function getCaretIndexFromClick(input, clickX) {
-    const style = window.getComputedStyle(input);
-    const font = `${style.fontSize} ${style.fontFamily}`;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    ctx.font = font;
-
-    const paddingLeft = parseFloat(style.paddingLeft);
-    const x = clickX - paddingLeft;
-
-    let width = 0;
-
-    for (let i = 0; i < input.value.length; i++) {
-      const charWidth = ctx.measureText(input.value[i]).width;
-
-      if (width + charWidth / 2 > x) {
-        return i;
-      }
-
-      width += charWidth;
-    }
-
-    return input.value.length;
-  }
-
-  // Helper function for phone input - remove formatting for caret positioning
-  function getCaretIndexFromClickForPhone(input, clickX) {
-    const style = window.getComputedStyle(input);
-    const font = `${style.fontSize} ${style.fontFamily}`;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    ctx.font = font;
-
-    const paddingLeft = parseFloat(style.paddingLeft);
-    const x = clickX - paddingLeft;
-
-    let width = 0;
-
-    for (let i = 0; i < input.value.length; i++) {
-      const charWidth = ctx.measureText(input.value[i]).width;
-
-      if (width + charWidth / 2 > x) {
-        return i;
-      }
-
-      width += charWidth;
-    }
-
-    return input.value.length;
-  }
-
-  const handleGoToHome = () => {
-    console.log("Redirecting to home screen");
-    sessionStorage.clear();
-    window.location.href = "/";
-  };
-
   useEffect(() => {
-    console.log("📍 Enquiry Address Data:", address);
-  }, [address]);
-
-  // Replace the existing useEffect for category filtering with this:
-  /* useEffect(() => {
-    if (localCategory) {
-      // Sort categories alphabetically by name
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
-
-      // Filter categories that start with the input text (case insensitive)
-      const filtered = sortedCategories.filter(category =>
-        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
-      );
-      setFilteredCategories(filtered);
-
-      // Check if the current input matches any existing category
-      const isExistingCategory = categories.some(
-        category => category.name.toLowerCase() === localCategory.toLowerCase()
-      );
-      setIsCustomCategory(!isExistingCategory && localCategory.trim() !== "");
-
-      // Only show dropdown if there are matching categories
-      setShowCategoryDropdown(filtered.length > 0);
-    } else {
-      // When input is empty, show all categories sorted alphabetically
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
-      setFilteredCategories(sortedCategories);
-      setIsCustomCategory(false);
-    }
-  }, [localCategory, categories]); */
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Tab') return;
+      
+      if (!containerRef.current) return;
+      
+      // Get all focusable elements within the container
+      const focusableSelectors = [
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'textarea:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])'
+      ].join(', ');
+      
+      const focusableElements = containerRef.current.querySelectorAll(focusableSelectors);
+      if (focusableElements.length === 0) return;
+      
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      
+      // If Shift+Tab is pressed on first element, move to last element
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+      // If Tab is pressed on last element, move to first element
+      else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -147,74 +94,6 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  // Focus management and trap implementation
-  /* useEffect(() => {
-    if (showForm && nameInputRef.current) {
-      nameInputRef.current.focus();
-    }
-
-    // Get all focusable elements within the component
-    const getFocusableElements = () => {
-      if (!containerRef.current) return [];
-
-      return Array.from(
-        containerRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-      ).filter(el => !el.disabled && el.getAttribute('tabindex') !== '-1');
-    };
-
-    // Handle tab key to trap focus
-    const handleTabKey = (e) => {
-      if (!showForm) return;
-
-      // Only run if we're inside the form container
-      if (!containerRef.current?.contains(document.activeElement)) return;
-
-      if (e.key === 'Tab') {
-        const focusableElements = getFocusableElements();
-        if (focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        // If shift + tab on first element, go to last element
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        }
-        // If tab on last element, go to first element
-        else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    // Handle escape key to close form
-    const handleEscapeKey = (e) => {
-      if (e.key === 'Escape' && showForm) {
-        if (showCategoryDropdown) {
-          setShowCategoryDropdown(false);
-        } else {
-          setShowForm(false);
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleTabKey);
-    document.addEventListener('keydown', handleEscapeKey);
-
-    return () => {
-      document.removeEventListener('keydown', handleTabKey);
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
-  }, [showForm, showCategoryDropdown]); */
 
   // --- 📞 Auto-format phone input ---
   const handlePhoneChange = (e) => {
@@ -242,44 +121,40 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     return text.replace(/\b\w/g, char => char.toUpperCase());
   };
 
-  // Handle category input change
-  // Handle category input change
-const handleCategoryChange = (e) => {
-  const value = e.target.value;
-  // Capitalize first letter of each word
-  const capitalizedValue = capitalizeWords(value);
-  setLocalCategory(capitalizedValue);
+  // Handle category input change - UPDATED
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    // Capitalize first letter of each word
+    const capitalizedValue = capitalizeWords(value);
+    setLocalCategory(capitalizedValue);
 
-  // Filter categories based on input
-  if (capitalizedValue.trim() !== "") {
-    // Sort categories alphabetically
-    const sortedCategories = [...categories].sort((a, b) =>
-      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-    );
+    // Filter categories based on input
+    if (capitalizedValue.trim() !== "") {
+      // Sort categories alphabetically
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
 
-    // Filter categories that start with the input text (case insensitive)
-    const filtered = sortedCategories.filter(category =>
-      category.name?.toLowerCase().startsWith(capitalizedValue.toLowerCase())
-    );
+      // Filter categories that start with the input text (case insensitive)
+      const filtered = sortedCategories.filter(category =>
+        category.name?.toLowerCase().startsWith(capitalizedValue.toLowerCase())
+      );
 
-    setFilteredCategories(filtered);
-    
-    // Show dropdown if there are matching categories
-    setShowCategoryDropdown(filtered.length > 0);
-  } else {
-    // When input is empty, show all categories sorted alphabetically
-    const sortedCategories = [...categories].sort((a, b) =>
-      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-    );
-    setFilteredCategories(sortedCategories);
-    setShowCategoryDropdown(sortedCategories.length > 0);
-  }
+      setFilteredCategories(filtered);
+      
+      // Don't automatically show dropdown when user types
+      // Dropdown will only show when user explicitly focuses or clicks
+    } else {
+      // When input is cleared, set filtered categories to empty
+      setFilteredCategories([]);
+      // Don't automatically show dropdown
+    }
 
-  // Clear category error when user starts typing
-  if (errors.category) {
-    setErrors(prev => ({ ...prev, category: "" }));
-  }
-};
+    // Clear category error when user starts typing
+    if (errors.category) {
+      setErrors(prev => ({ ...prev, category: "" }));
+    }
+  };
 
   // Handle category selection
   const handleCategorySelect = (category) => {
@@ -296,6 +171,32 @@ const handleCategoryChange = (e) => {
       submitButtonRef.current?.focus();
     }, 100);
   };
+
+  function getCaretIndexFromClick(input, clickX) {
+    const style = window.getComputedStyle(input);
+    const font = `${style.fontSize} ${style.fontFamily}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const x = clickX - paddingLeft;
+
+    let width = 0;
+
+    for (let i = 0; i < input.value.length; i++) {
+      const charWidth = ctx.measureText(input.value[i]).width;
+
+      if (width + charWidth / 2 > x) {
+        return i;
+      }
+
+      width += charWidth;
+    }
+
+    return input.value.length;
+  }
 
   // --- ✉️ Email validation ---
   const isValidEmail = (email) => {
@@ -383,14 +284,8 @@ const handleCategoryChange = (e) => {
   // Handle key navigation for initial buttons
   const handleInitialButtonsKeyDown = (e, buttonName) => {
     if (e.key === 'Tab') {
-      e.preventDefault();
-      if (buttonName === 'notifyMe') {
-        noThanksButtonRef.current?.focus();
-      } else if (buttonName === 'noThanks') {
-        homeButtonRef.current?.focus();
-      } else if (buttonName === 'home') {
-        notifyMeButtonRef.current?.focus();
-      }
+      // Tab navigation is now handled by the focus trap
+      // This function is kept for compatibility
     } else if (e.key === 'Enter') {
       if (buttonName === 'notifyMe') {
         e.preventDefault();
@@ -499,6 +394,13 @@ const handleCategoryChange = (e) => {
     window.dispatchEvent(new CustomEvent('reset-booking-form'));
   };
 
+  // Handle Go To Home
+  const handleGoToHome = () => {
+    console.log("Redirecting to home screen");
+    sessionStorage.clear();
+    window.location.href = "/";
+  };
+
   // Helper function to get input border color based on validation
   const getInputBorderColor = (fieldName) => {
     // Only show validation styling after errors are set (i.e., after submit attempt)
@@ -509,6 +411,8 @@ const handleCategoryChange = (e) => {
     <div
       ref={containerRef}
       className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-amber-100 relative focus-trap"
+      // Add tabindex to make the container focusable for screen readers
+      tabIndex="-1"
     >
       {/* Top Gradient Bar */}
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-orange-500"></div>
@@ -847,7 +751,6 @@ const handleCategoryChange = (e) => {
             )}
           </div>
 
-        
           {/* Category Field */}
           <div className="space-y-2 category-dropdown-container" data-field="category">
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -894,41 +797,42 @@ const handleCategoryChange = (e) => {
                   }
                 }}
                 onFocus={() => {
-  // OPEN dropdown when input is focused (via click or tab)
-  if (categories.length > 0) {
-    if (localCategory.trim() !== "") {
-      // Filter categories based on current input when focused
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
+                  // OPEN dropdown when input is focused (via click or tab)
+                  if (categories.length > 0) {
+                    if (localCategory.trim() !== "") {
+                      // Filter categories based on current input when focused
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
 
-      // Filter categories that start with the input text
-      const filtered = sortedCategories.filter(category =>
-        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
-      );
+                      // Filter categories that start with the input text
+                      const filtered = sortedCategories.filter(category =>
+                        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
+                      );
 
-      setFilteredCategories(filtered);
-      
-      // Only show dropdown if there are matching categories
-      if (filtered.length > 0) {
-        setShowCategoryDropdown(true);
-      }
-    } else {
-      // When input is empty, show all categories
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
-      setFilteredCategories(sortedCategories);
-      
-      if (sortedCategories.length > 0) {
-        setShowCategoryDropdown(true);
-      }
-    }
+                      setFilteredCategories(filtered);
+                      
+                      // Only show dropdown if there are matching categories
+                      if (filtered.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
+                    } else {
+                      // When input is empty and user focuses, show all categories
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
+                      setFilteredCategories(sortedCategories);
+                      
+                      // Only show dropdown when user explicitly focuses on the field
+                      if (sortedCategories.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
+                    }
 
-    // Reset selected index when opening dropdown
-    setSelectedCategoryIndex(-1);
-  }
-}}
+                    // Reset selected index when opening dropdown
+                    setSelectedCategoryIndex(-1);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -959,14 +863,10 @@ const handleCategoryChange = (e) => {
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
 
-                      // Filter out the currently selected category
-                      const filtered = sortedCategories.filter(category =>
-                        category.name.toLowerCase() !== localCategory.toLowerCase()
-                      );
+                      // Show all categories when arrow down is pressed
+                      setFilteredCategories(sortedCategories);
 
-                      setFilteredCategories(filtered);
-
-                      if (filtered.length > 0) {
+                      if (sortedCategories.length > 0) {
                         setShowCategoryDropdown(true);
                         setSelectedCategoryIndex(0); // Select first item
                       }
@@ -985,16 +885,12 @@ const handleCategoryChange = (e) => {
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
 
-                      // Filter out the currently selected category
-                      const filtered = sortedCategories.filter(category =>
-                        category.name.toLowerCase() !== localCategory.toLowerCase()
-                      );
+                      // Show all categories when arrow up is pressed
+                      setFilteredCategories(sortedCategories);
 
-                      setFilteredCategories(filtered);
-
-                      if (filtered.length > 0) {
+                      if (sortedCategories.length > 0) {
                         setShowCategoryDropdown(true);
-                        setSelectedCategoryIndex(filtered.length - 1); // Select last item
+                        setSelectedCategoryIndex(sortedCategories.length - 1); // Select last item
                       }
                     }
                   } else if (e.key === 'Escape') {
@@ -1004,6 +900,7 @@ const handleCategoryChange = (e) => {
                       setSelectedCategoryIndex(-1);
                     }
                   } else if (e.key === 'Tab') {
+                    // Tab navigation is now handled by the focus trap
                     // Close dropdown on tab
                     if (showCategoryDropdown) {
                       setShowCategoryDropdown(false);
@@ -1027,62 +924,36 @@ const handleCategoryChange = (e) => {
                 <div
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
                   onClick={() => {
-  // Toggle dropdown when icon is clicked
-  if (!showCategoryDropdown) {
-    if (localCategory.trim() !== "") {
-      // Filter categories based on current input
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
+                    // Toggle dropdown when icon is clicked
+                    if (!showCategoryDropdown) {
+                      // Always show all categories when dropdown icon is clicked
+                      const sortedCategories = [...categories].sort((a, b) =>
+                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                      );
+                      setFilteredCategories(sortedCategories);
+                      
+                      if (sortedCategories.length > 0) {
+                        setShowCategoryDropdown(true);
+                      }
 
-      // Filter categories that start with the input text
-      const filtered = sortedCategories.filter(category =>
-        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
-      );
-
-      setFilteredCategories(filtered);
-      
-      // Only show dropdown if there are matching categories
-      if (filtered.length > 0) {
-        setShowCategoryDropdown(true);
-      }
-    } else {
-      // When input is empty, show all categories
-      const sortedCategories = [...categories].sort((a, b) =>
-        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-      );
-      setFilteredCategories(sortedCategories);
-      
-      if (sortedCategories.length > 0) {
-        setShowCategoryDropdown(true);
-      }
-    }
-
-    setSelectedCategoryIndex(-1); // Reset selection
-  } else {
-    setShowCategoryDropdown(false);
-    setSelectedCategoryIndex(-1);
-  }
-}}
+                      setSelectedCategoryIndex(-1); // Reset selection
+                    } else {
+                      setShowCategoryDropdown(false);
+                      setSelectedCategoryIndex(-1);
+                    }
+                  }}
                   onKeyDown={(e) => {
                     // Make dropdown icon accessible via keyboard
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       if (!showCategoryDropdown) {
-                        // Sort categories alphabetically before showing
+                        // Always show all categories when dropdown icon is clicked via keyboard
                         const sortedCategories = [...categories].sort((a, b) =>
                           a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                         );
+                        setFilteredCategories(sortedCategories);
 
-                        // Filter out the currently selected category
-                        const filtered = sortedCategories.filter(category =>
-                          category.name.toLowerCase() !== localCategory.toLowerCase()
-                        );
-
-                        setFilteredCategories(filtered);
-
-                        // Only show dropdown if there are other categories to show
-                        if (filtered.length > 0) {
+                        if (sortedCategories.length > 0) {
                           setShowCategoryDropdown(true);
                         }
 

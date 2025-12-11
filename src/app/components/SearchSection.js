@@ -657,42 +657,52 @@ export default function SearchSection({
 }
 
 function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWithinRef, onKeyDown, error, getCaretIndexFromClick }) {
+  const [inputValue, setInputValue] = useState(searchWithin.toString());
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setInputValue(searchWithin.toString());
+  }, [searchWithin]);
+
   const handleChange = (e) => {
     const value = e.target.value;
-
-    // Allow only digits
-    if (!/^\d*$/.test(value)) return;
-
+    
     // If value is empty, set to 1 (minimum value)
     if (value === "") {
+      setInputValue("");
       onChange(1);
       return;
     }
 
-    // Handle the case where user types "0" followed by another digit
-    if (value.startsWith('0') && value.length > 1) {
-      // Remove all leading zeros
-      const withoutLeadingZeros = value.replace(/^0+/, '');
-      // If after removing zeros we have something, use it
-      if (withoutLeadingZeros !== "") {
-        const numericValue = Number(withoutLeadingZeros);
-        // Validate range (1-40)
-        if (numericValue <= 40 && numericValue >= 1) {
-          onChange(numericValue);
-        }
-      } else {
-        // If after removing zeros we have nothing, set to 1
-        onChange(1);
-      }
+    // Allow only digits (0-9)
+    if (!/^\d*$/.test(value)) return;
+
+    // Update local state
+    setInputValue(value);
+
+    // If value is "0" (just zero), prevent it
+    if (value === "0") {
+      setInputValue("1");
+      onChange(1);
       return;
     }
 
-    // Convert to number
-    const numericValue = Number(value);
-
-    // Validate range (1-40) - Minimum value is now 1
-    if (numericValue <= 40 && numericValue >= 1) {
-      onChange(numericValue);
+    // Handle the case where user types multiple digits
+    if (value.length > 0) {
+      const numericValue = Number(value);
+      
+      // Validate range (1-40)
+      if (numericValue <= 40 && numericValue >= 1) {
+        onChange(numericValue);
+      } else if (numericValue > 40) {
+        // If user types a number greater than 40, cap it at 40
+        setInputValue("40");
+        onChange(40);
+      } else if (numericValue === 0) {
+        // If somehow we get 0, set to 1
+        setInputValue("1");
+        onChange(1);
+      }
     }
   };
 
@@ -708,18 +718,70 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       return;
     }
 
+    // Handle backspace/delete - allow clearing but set to 1 when empty
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      // Let the change handler handle this
+      return;
+    }
+
+    // Prevent typing "0" as the first character
+    if (e.key === '0') {
+      const input = e.target;
+      const cursorPosition = input.selectionStart;
+      
+      // If cursor is at the beginning or field is empty, prevent typing "0"
+      if (cursorPosition === 0 || inputValue === "") {
+        e.preventDefault();
+        return;
+      }
+      
+      // Allow "0" if it's not at the beginning (like in "10", "20", etc.)
+      return;
+    }
+
     // Handle arrow up/down
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       const newValue = Math.min(40, searchWithin + 1);
       if (newValue !== searchWithin) {
         onChange(newValue);
+        setInputValue(newValue.toString());
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const newValue = Math.max(1, searchWithin - 1); // Minimum value is now 1
+      const newValue = Math.max(1, searchWithin - 1);
       if (newValue !== searchWithin) {
         onChange(newValue);
+        setInputValue(newValue.toString());
+      }
+    }
+  };
+
+  // Handle blur event - ensure value is never empty or 0
+  const handleBlur = () => {
+    if (inputValue === "" || Number(inputValue) < 1) {
+      setInputValue("1");
+      onChange(1);
+    }
+  };
+
+  // Handle paste event to prevent pasting "0" at the beginning
+  const handlePaste = (e) => {
+    const pastedData = e.clipboardData.getData('text');
+    
+    // Check if pasted text starts with "0"
+    if (pastedData.startsWith('0')) {
+      e.preventDefault();
+      
+      // Remove leading zeros
+      const withoutLeadingZeros = pastedData.replace(/^0+/, '');
+      
+      if (withoutLeadingZeros !== "") {
+        const numericValue = Number(withoutLeadingZeros);
+        if (numericValue >= 1 && numericValue <= 40) {
+          setInputValue(withoutLeadingZeros);
+          onChange(numericValue);
+        }
       }
     }
   };
@@ -730,14 +792,16 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     const newValue = Math.min(40, searchWithin + 1);
     if (newValue !== searchWithin) {
       onChange(newValue);
+      setInputValue(newValue.toString());
     }
   };
 
   const handleArrowDownClick = () => {
     if (disabled) return;
-    const newValue = Math.max(1, searchWithin - 1); // Minimum value is now 1
+    const newValue = Math.max(1, searchWithin - 1);
     if (newValue !== searchWithin) {
       onChange(newValue);
+      setInputValue(newValue.toString());
     }
   };
 
@@ -757,8 +821,10 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
         <input
           ref={searchWithinRef}
           type="text"
-          value={searchWithin.toString()}
+          value={inputValue}
           onChange={handleChange}
+          onBlur={handleBlur}
+          onPaste={handlePaste}
           disabled={disabled}
           onClick={(e) => {
             if (e.detail === 1) {
@@ -779,9 +845,8 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           }}
           onKeyDown={handleKeyDown}
           inputMode="numeric"
-          pattern="[0-9]*"
           className={`w-full p-3.5 text-black placeholder-black text-center font-semibold focus:outline-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed pr-10`}
-          placeholder="1"
+          
         />
 
         {/* Arrow buttons */}
@@ -800,7 +865,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
           <button
             type="button"
             onClick={handleArrowDownClick}
-            disabled={disabled || searchWithin <= 1} // Minimum value is now 1
+            disabled={disabled || searchWithin <= 1}
             className="w-6 h-5 flex items-center justify-center rounded-b-md bg-gray-100 hover:bg-gray-200 active:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Decrease value"
           >
