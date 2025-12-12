@@ -58,6 +58,9 @@ export default function SearchSection({
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
 
+  // Track if dropdown should stay open (when user clicks dropdown arrow)
+  const keepDropdownOpenRef = useRef(false);
+
   // Filter states based on search text
   const filteredStates = usStates.filter((st) =>
     st.toLowerCase().startsWith(searchText.toLowerCase())
@@ -246,7 +249,7 @@ export default function SearchSection({
       }
 
       setZipSuggestions(zipCodes);
-      setShowZipDropdown(zipCodes.length > 0);
+      setShowZipDropdown(zipCodes.length > 0 && (!address.zip || address.zip.length !== 5));
     } catch (error) {
       console.error('Error fetching ZIP codes:', error);
       setZipSuggestions([]);
@@ -601,8 +604,10 @@ export default function SearchSection({
       fetchStateFromCityZip(value, address.zip);
     }
     
-    // If state is already filled, fetch ZIP codes
-    else if (value.length >= 2 && address.state && address.state.length === 2) {
+    // If state is already filled AND ZIP is NOT already filled, fetch ZIP codes
+    else if (value.length >= 2 && address.state && address.state.length === 2 && 
+             (!address.zip || address.zip.length !== 5)) {
+      // Only fetch ZIP codes if ZIP field is empty or incomplete
       debouncedFetchZipCodes(value, address.state);
     }
   };
@@ -612,6 +617,7 @@ export default function SearchSection({
     handleStateChange(state);
     setShowDropdown(false);
     setActiveIndex(-1);
+    keepDropdownOpenRef.current = false;
     zipRef.current?.focus();
   };
 
@@ -642,8 +648,10 @@ export default function SearchSection({
       fetchCityFromStateZip(value.toUpperCase(), address.zip);
     }
     
-    // If city is already filled, fetch ZIP codes
-    else if (value.length === 2 && address.city && address.city.length >= 2) {
+    // If city is already filled AND ZIP is NOT already filled, fetch ZIP codes
+    else if (value.length === 2 && address.city && address.city.length >= 2 && 
+             (!address.zip || address.zip.length !== 5)) {
+      // Only fetch ZIP codes if ZIP field is empty or incomplete
       fetchZipCodes(address.city, value.toUpperCase());
     }
   };
@@ -743,10 +751,12 @@ export default function SearchSection({
           }
         });
       }
-      // Case 4: Both city and state are already filled - fetch ZIP suggestions
-      else if (city && state) {
-        fetchZipCodes(city, state);
-      }
+      // Case 4: Both city and state are already filled - DO NOT fetch ZIP suggestions
+      // We don't want to show dropdown for ZIP suggestions when ZIP is already filled
+      // else if (city && state) {
+      //   // Commented out - we don't want to fetch ZIP suggestions when ZIP is already 5 digits
+      //   // fetchZipCodes(city, state);
+      // }
     }
   };
 
@@ -759,15 +769,23 @@ export default function SearchSection({
     searchWithinRef.current?.focus();
   };
 
-  // Close ZIP dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Handle ZIP dropdown
       if (zipDropdownRef.current && !zipDropdownRef.current.contains(event.target)) {
         setShowZipDropdown(false);
       }
+      
+      // Handle state dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-        setActiveIndex(-1);
+        // Only close if user didn't click the dropdown arrow
+        const isDropdownArrow = event.target.closest('[aria-label="Toggle state dropdown"]');
+        if (!isDropdownArrow) {
+          setShowDropdown(false);
+          setActiveIndex(-1);
+          keepDropdownOpenRef.current = false;
+        }
       }
     };
 
@@ -817,6 +835,7 @@ export default function SearchSection({
       if (currentField === "state") {
         setShowDropdown(false);
         setActiveIndex(-1);
+        keepDropdownOpenRef.current = false;
       }
     }
   };
@@ -928,7 +947,7 @@ export default function SearchSection({
   useEffect(() => {
     if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
       const list = dropdownListRef.current;
-      const activeItem = list.children[activeIndex];
+      const activeItem = list.querySelector(`[data-state-index="${activeIndex}"]`);
       
       if (activeItem) {
         // Calculate scroll position
@@ -1065,10 +1084,11 @@ export default function SearchSection({
                   if (e.detail === 1) {
                     e.target.select();
                   }
-                  // Show dropdown if we have content and matches
-                  if (searchText.trim() !== "" && filteredStates.length > 0) {
+                  // Show dropdown if we have matches
+                 /*  if (filteredStates.length > 0) {
                     setShowDropdown(true);
-                  }
+                    setActiveIndex(0);
+                  } */
                 }}
                 onDoubleClick={(e) => {
                   e.preventDefault();
@@ -1082,20 +1102,32 @@ export default function SearchSection({
                     e.preventDefault();
                   }
                 }}
-                onFocus={() => {
-                  // Show dropdown on focus only if we have content and matches
-                  // This prevents empty dropdown from opening on focus/tab
-                  if (searchText.trim() !== "" && filteredStates.length > 0) {
+                /* onFocus={() => {
+                  // Show dropdown on focus only if we have matches
+                  if (filteredStates.length > 0 && !showDropdown) {
                     setShowDropdown(true);
                     setActiveIndex(0);
+                    
+                    // Focus on the dropdown container for keyboard navigation
+                    setTimeout(() => {
+                      if (showDropdown && activeIndex >= 0) {
+                        const activeItem = document.querySelector(`[data-state-index="${activeIndex}"]`);
+                        activeItem?.focus();
+                      }
+                    }, 100);
                   }
-                }}
-                onBlur={() => {
-                  // Close dropdown when input loses focus
-                  setTimeout(() => {
+                }} */
+                onBlur={(e) => {
+                  // Don't close if the dropdown or its contents are clicked
+                  const relatedTarget = e.relatedTarget;
+                  const isClickingDropdown = 
+                    relatedTarget?.closest('[id="state-dropdown"]') ||
+                    relatedTarget?.closest('[aria-label="Toggle state dropdown"]');
+                  
+                  if (!isClickingDropdown && !keepDropdownOpenRef.current) {
                     setShowDropdown(false);
                     setActiveIndex(-1);
-                  }, 200);
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -1121,8 +1153,19 @@ export default function SearchSection({
                         ? activeIndex + 1
                         : 0;
                       setActiveIndex(newIndex);
-                    } else if (filteredStates.length > 0 && searchText.trim() === "") {
-                      // If input is empty and user presses arrow down, show all states
+                      
+                      // Scroll to the active item
+                      setTimeout(() => {
+                        const activeItem = document.querySelector(`[data-state-index="${newIndex}"]`);
+                        if (activeItem) {
+                          activeItem.scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth'
+                          });
+                        }
+                      }, 0);
+                    } else if (filteredStates.length > 0) {
+                      // If input has focus and user presses arrow down, show all states
                       setShowDropdown(true);
                       setActiveIndex(0);
                     }
@@ -1134,8 +1177,19 @@ export default function SearchSection({
                         ? activeIndex - 1
                         : filteredStates.length - 1;
                       setActiveIndex(newIndex);
-                    } else if (filteredStates.length > 0 && searchText.trim() === "") {
-                      // If input is empty and user presses arrow up, show all states
+                      
+                      // Scroll to the active item
+                      setTimeout(() => {
+                        const activeItem = document.querySelector(`[data-state-index="${newIndex}"]`);
+                        if (activeItem) {
+                          activeItem.scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth'
+                          });
+                        }
+                      }, 0);
+                    } else if (filteredStates.length > 0) {
+                      // If input has focus and user presses arrow up, show all states
                       setShowDropdown(true);
                       setActiveIndex(filteredStates.length - 1);
                     }
@@ -1144,6 +1198,8 @@ export default function SearchSection({
                       e.preventDefault();
                       setShowDropdown(false);
                       setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
+                      stateRef.current?.focus();
                     }
                   } else if (e.key === 'Tab') {
                     handleTabNavigation(e, "state", zipRef);
@@ -1151,6 +1207,7 @@ export default function SearchSection({
                     if (showDropdown) {
                       setShowDropdown(false);
                       setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
                     }
                   }
                 }}
@@ -1167,12 +1224,13 @@ export default function SearchSection({
                     // Show all states when dropdown icon is clicked
                     if (filteredStates.length > 0) {
                       setShowDropdown(true);
+                      setActiveIndex(0);
+                      keepDropdownOpenRef.current = true;
                     }
-
-                    setActiveIndex(0);
                   } else {
                     setShowDropdown(false);
                     setActiveIndex(-1);
+                    keepDropdownOpenRef.current = false;
                   }
                 }}
                 onKeyDown={(e) => {
@@ -1183,9 +1241,11 @@ export default function SearchSection({
                         setShowDropdown(true);
                       }
                       setActiveIndex(0);
+                      keepDropdownOpenRef.current = true;
                     } else {
                       setShowDropdown(false);
                       setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
                     }
                   }
                 }}
@@ -1218,15 +1278,27 @@ export default function SearchSection({
                   id="state-dropdown"
                   ref={dropdownListRef}
                   className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                  onKeyDown={(e) => {
+                    // Handle global dropdown keyboard events
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
+                      stateRef.current?.focus();
+                    }
+                  }}
+                  tabIndex={-1}
                 >
                   {filteredStates.map((state, index) => (
                     <div
                       key={state}
                       className={`px-4 py-3 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0
-                        ${activeIndex === index ? 'bg-gray-300' : 'hover:bg-gray-100'}`}
+                        ${activeIndex === index ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : 'hover:bg-gray-50'}`}
                       onClick={() => {
                         handleSelect(state);
                         setShowDropdown(false);
+                        keepDropdownOpenRef.current = false;
                       }}
                       onMouseEnter={() => setActiveIndex(index)}
                       onKeyDown={(e) => {
@@ -1234,37 +1306,53 @@ export default function SearchSection({
                           e.preventDefault();
                           handleSelect(state);
                           setShowDropdown(false);
+                          keepDropdownOpenRef.current = false;
                         } else if (e.key === 'ArrowDown') {
                           e.preventDefault();
                           const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
                           setActiveIndex(newIndex);
-                          document.querySelector(`[data-state-index="${newIndex}"]`)?.scrollIntoView({
-                            block: 'nearest'
-                          });
+                          
+                          // Scroll the new active item into view
+                          setTimeout(() => {
+                            const nextItem = document.querySelector(`[data-state-index="${newIndex}"]`);
+                            if (nextItem) {
+                              nextItem.scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth'
+                              });
+                            }
+                          }, 0);
                         } else if (e.key === 'ArrowUp') {
                           e.preventDefault();
                           const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
                           setActiveIndex(newIndex);
-                          document.querySelector(`[data-state-index="${newIndex}"]`)?.scrollIntoView({
-                            block: 'nearest'
-                          });
-                        } else if (e.key === 'Escape') {
-                          e.preventDefault();
-                          setShowDropdown(false);
-                          setActiveIndex(-1);
-                          stateRef.current?.focus();
+                          
+                          // Scroll the new active item into view
+                          setTimeout(() => {
+                            const prevItem = document.querySelector(`[data-state-index="${newIndex}"]`);
+                            if (prevItem) {
+                              prevItem.scrollIntoView({
+                                block: 'nearest',
+                                behavior: 'smooth'
+                              });
+                            }
+                          }, 0);
                         }
                       }}
                       tabIndex={0}
                       role="button"
+                      aria-selected={activeIndex === index}
                       data-state-index={index}
                       ref={el => {
-                        if (activeIndex === index) {
-                          el?.scrollIntoView({ block: 'nearest' });
+                        // Auto-focus the active item for better screen reader support
+                        if (activeIndex === index && showDropdown) {
+                          el?.focus();
                         }
                       }}
                     >
-                      <div className="font-medium text-gray-800">{state}</div>
+                      <div className={`font-medium ${activeIndex === index ? 'text-indigo-700' : 'text-gray-800'}`}>
+                        {state}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1310,8 +1398,11 @@ export default function SearchSection({
                 placeholder="ZIP code"
                 disabled={loadingAddress || loadingZip}
                 onFocus={() => {
-                  if (zipSuggestions.length > 0) {
-                    setShowZipDropdown(true);
+                  // Only show dropdown if ZIP is not already 5 digits and there are suggestions
+                  if (!address.zip || address.zip.length !== 5) {
+                    if (zipSuggestions.length > 0) {
+                      setShowZipDropdown(true);
+                    }
                   }
                 }}
                 onKeyDown={(e) => {
@@ -1337,7 +1428,8 @@ export default function SearchSection({
                 </div>
               )}
 
-              {showZipDropdown && zipSuggestions.length > 0 && (
+              {/* Only show ZIP dropdown if ZIP is not already 5 digits */}
+              {showZipDropdown && zipSuggestions.length > 0 && (!address.zip || address.zip.length !== 5) && (
                 <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
                   <li className="px-4 py-2 text-sm text-gray-500 bg-gray-50 border-b">
                     ZIP Codes for {address.city}, {address.state}

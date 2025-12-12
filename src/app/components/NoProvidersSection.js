@@ -95,6 +95,19 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     };
   }, []);
 
+
+  useEffect(() => {
+  if (showCategoryDropdown && selectedCategoryIndex >= 0) {
+    // Scroll the selected item into view
+    setTimeout(() => {
+      const selectedElement = document.querySelector(`[data-category-index="${selectedCategoryIndex}"]`);
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest' });
+      }
+    }, 0);
+  }
+}, [selectedCategoryIndex, showCategoryDropdown]);
+
   // --- 📞 Auto-format phone input ---
   const handlePhoneChange = (e) => {
     let input = e.target.value.replace(/\D/g, ""); // keep only digits
@@ -819,73 +832,89 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   }, 200);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
+  if (e.key === 'Enter') {
+    e.preventDefault();
 
-                    // If Enter is pressed and we have a selected category
-                    if (showCategoryDropdown && selectedCategoryIndex >= 0 && filteredCategories[selectedCategoryIndex]) {
-                      handleCategorySelect(filteredCategories[selectedCategoryIndex]);
-                      setShowCategoryDropdown(false);
-                    } else if (showCategoryDropdown && filteredCategories.length > 0) {
-                      // Select first item if dropdown is open but no specific item selected
-                      handleCategorySelect(filteredCategories[0]);
-                      setShowCategoryDropdown(false);
-                    } else {
-                      // Otherwise navigate to submit button
-                      submitButtonRef.current?.focus();
-                    }
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (showCategoryDropdown && filteredCategories.length > 0) {
-                      // Move selection down
-                      const newIndex = selectedCategoryIndex < filteredCategories.length - 1
-                        ? selectedCategoryIndex + 1
-                        : 0;
-                      setSelectedCategoryIndex(newIndex);
-                    } else if (categories.length > 0 && localCategory.trim() === "") {
-                      // If input is empty and user presses arrow down, show all categories
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
-                      setFilteredCategories(sortedCategories);
-                      setShowCategoryDropdown(true);
-                      setSelectedCategoryIndex(0);
-                    }
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (showCategoryDropdown && filteredCategories.length > 0) {
-                      // Move selection up
-                      const newIndex = selectedCategoryIndex > 0
-                        ? selectedCategoryIndex - 1
-                        : filteredCategories.length - 1;
-                      setSelectedCategoryIndex(newIndex);
-                    } else if (categories.length > 0 && localCategory.trim() === "") {
-                      // If input is empty and user presses arrow up, show all categories
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
-                      setFilteredCategories(sortedCategories);
-                      setShowCategoryDropdown(true);
-                      setSelectedCategoryIndex(sortedCategories.length - 1);
-                    }
-                  } else if (e.key === 'Escape') {
-                    if (showCategoryDropdown) {
-                      e.preventDefault();
-                      setShowCategoryDropdown(false);
-                      setSelectedCategoryIndex(-1);
-                    }
-                  } else if (e.key === 'Tab') {
-                    // Close dropdown on tab
-                    if (showCategoryDropdown) {
-                      setShowCategoryDropdown(false);
-                      setSelectedCategoryIndex(-1);
-                    }
-                  } else {
-                    // For typing keys, the onChange handler will handle filtering
-                    // Reset selection when user types
-                    setSelectedCategoryIndex(-1);
-                  }
-                }}
+    // If Enter is pressed and we have a selected category
+    if (showCategoryDropdown && selectedCategoryIndex >= 0 && filteredCategories[selectedCategoryIndex]) {
+      handleCategorySelect(filteredCategories[selectedCategoryIndex]);
+      setShowCategoryDropdown(false);
+    } else if (showCategoryDropdown && filteredCategories.length > 0) {
+      // Select first item if dropdown is open but no specific item selected
+      handleCategorySelect(filteredCategories[0]);
+      setShowCategoryDropdown(false);
+    } else {
+      // Otherwise navigate to submit button
+      submitButtonRef.current?.focus();
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (showCategoryDropdown && filteredCategories.length > 0) {
+      // Move selection down
+      const newIndex = selectedCategoryIndex < filteredCategories.length - 1
+        ? selectedCategoryIndex + 1
+        : 0;
+      setSelectedCategoryIndex(newIndex);
+      
+      // Scroll the selected item into view
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-category-index="${newIndex}"]`);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ block: 'nearest' });
+        }
+      }, 0);
+    } else if (categories.length > 0 && !showCategoryDropdown) {
+      // If dropdown is closed, open it with all categories
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      setFilteredCategories(sortedCategories);
+      setShowCategoryDropdown(true);
+      setSelectedCategoryIndex(0);
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (showCategoryDropdown && filteredCategories.length > 0) {
+      // Move selection up
+      const newIndex = selectedCategoryIndex > 0
+        ? selectedCategoryIndex - 1
+        : filteredCategories.length - 1;
+      setSelectedCategoryIndex(newIndex);
+      
+      // Scroll the selected item into view
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-category-index="${newIndex}"]`);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ block: 'nearest' });
+        }
+      }, 0);
+    } else if (categories.length > 0 && !showCategoryDropdown) {
+      // If dropdown is closed, open it with all categories
+      const sortedCategories = [...categories].sort((a, b) =>
+        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+      setFilteredCategories(sortedCategories);
+      setShowCategoryDropdown(true);
+      setSelectedCategoryIndex(sortedCategories.length - 1);
+    }
+  } else if (e.key === 'Escape') {
+    if (showCategoryDropdown) {
+      e.preventDefault();
+      setShowCategoryDropdown(false);
+      setSelectedCategoryIndex(-1);
+    }
+  } else if (e.key === 'Tab') {
+    // Close dropdown on tab
+    if (showCategoryDropdown) {
+      setShowCategoryDropdown(false);
+      setSelectedCategoryIndex(-1);
+    }
+  } else {
+    // For typing keys, the onChange handler will handle filtering
+    // Reset selection when user types
+    setSelectedCategoryIndex(-1);
+  }
+}}
                 disabled={isSubmitting}
                 className={`w-full border ${getInputBorderColor("category")} rounded-xl px-4 py-3.5 pr-12
         bg-white/50 text-black focus:ring-2 focus:ring-amber-400 focus:border-amber-400 
@@ -898,24 +927,28 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 <div
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
                   onClick={() => {
-                    // Toggle dropdown when icon is clicked
-                    if (!showCategoryDropdown) {
-                      // Show all categories when dropdown icon is clicked
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
-                      setFilteredCategories(sortedCategories);
-                      
-                      if (sortedCategories.length > 0) {
-                        setShowCategoryDropdown(true);
-                      }
-
-                      setSelectedCategoryIndex(-1);
-                    } else {
-                      setShowCategoryDropdown(false);
-                      setSelectedCategoryIndex(-1);
-                    }
-                  }}
+  // Toggle dropdown when icon is clicked
+  if (!showCategoryDropdown) {
+    // Show all categories when dropdown icon is clicked
+    const sortedCategories = [...categories].sort((a, b) =>
+      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+    setFilteredCategories(sortedCategories);
+    
+    if (sortedCategories.length > 0) {
+      setShowCategoryDropdown(true);
+      setSelectedCategoryIndex(0); // Set first item as selected when opening
+      
+      // Focus back to input after opening dropdown
+      setTimeout(() => {
+        categoryInputRef.current?.focus();
+      }, 0);
+    }
+  } else {
+    setShowCategoryDropdown(false);
+    setSelectedCategoryIndex(-1);
+  }
+}}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
@@ -973,31 +1006,45 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         }}
                         onMouseEnter={() => setSelectedCategoryIndex(index)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleCategorySelect(category);
-                            setShowCategoryDropdown(false);
-                          } else if (e.key === 'ArrowDown') {
-                            e.preventDefault();
-                            const newIndex = index < filteredCategories.length - 1 ? index + 1 : 0;
-                            setSelectedCategoryIndex(newIndex);
-                            document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
-                              block: 'nearest'
-                            });
-                          } else if (e.key === 'ArrowUp') {
-                            e.preventDefault();
-                            const newIndex = index > 0 ? index - 1 : filteredCategories.length - 1;
-                            setSelectedCategoryIndex(newIndex);
-                            document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
-                              block: 'nearest'
-                            });
-                          } else if (e.key === 'Escape') {
-                            e.preventDefault();
-                            setShowCategoryDropdown(false);
-                            setSelectedCategoryIndex(-1);
-                            categoryInputRef.current?.focus();
-                          }
-                        }}
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    handleCategorySelect(category);
+    setShowCategoryDropdown(false);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const newIndex = index < filteredCategories.length - 1 ? index + 1 : 0;
+    setSelectedCategoryIndex(newIndex);
+    
+    // Scroll into view
+    setTimeout(() => {
+      const nextElement = document.querySelector(`[data-category-index="${newIndex}"]`);
+      if (nextElement) {
+        nextElement.scrollIntoView({ block: 'nearest' });
+      }
+    }, 0);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const newIndex = index > 0 ? index - 1 : filteredCategories.length - 1;
+    setSelectedCategoryIndex(newIndex);
+    
+    // Scroll into view
+    setTimeout(() => {
+      const prevElement = document.querySelector(`[data-category-index="${newIndex}"]`);
+      if (prevElement) {
+        prevElement.scrollIntoView({ block: 'nearest' });
+      }
+    }, 0);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    setShowCategoryDropdown(false);
+    setSelectedCategoryIndex(-1);
+    categoryInputRef.current?.focus();
+  } else if (e.key === 'Tab') {
+    // Close dropdown on tab
+    setShowCategoryDropdown(false);
+    setSelectedCategoryIndex(-1);
+  }
+}}
                         tabIndex={0}
                         role="button"
                         data-category-index={index}
