@@ -121,7 +121,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     return text.replace(/\b\w/g, char => char.toUpperCase());
   };
 
-  // Handle category input change - UPDATED
+  // Handle category input change - UPDATED TO SHOW DROPDOWN WHEN TYPING
   const handleCategoryChange = (e) => {
     const value = e.target.value;
     // Capitalize first letter of each word
@@ -142,12 +142,16 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
       setFilteredCategories(filtered);
       
-      // Don't automatically show dropdown when user types
-      // Dropdown will only show when user explicitly focuses or clicks
+      // SHOW DROPDOWN WHEN USER TYPES AND THERE ARE MATCHES
+      if (filtered.length > 0) {
+        setShowCategoryDropdown(true);
+      } else {
+        setShowCategoryDropdown(false);
+      }
     } else {
-      // When input is cleared, set filtered categories to empty
+      // When input is cleared, hide dropdown
       setFilteredCategories([]);
-      // Don't automatically show dropdown
+      setShowCategoryDropdown(false);
     }
 
     // Clear category error when user starts typing
@@ -724,7 +728,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 e.preventDefault();
                 const input = e.target;
                 const clickX = e.nativeEvent.offsetX;
-                const caretIndex = getCaretIndexFromClickForPhone(input, clickX);
+                const caretIndex = getCaretIndexFromClick(input, clickX);
                 input.setSelectionRange(caretIndex, caretIndex);
               }}
               onMouseDown={(e) => {
@@ -783,6 +787,10 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   if (e.detail === 1) {
                     e.target.select();
                   }
+                  // Show dropdown if we have content and matches
+                  if (localCategory.trim() !== "" && filteredCategories.length > 0) {
+                    setShowCategoryDropdown(true);
+                  }
                 }}
                 onDoubleClick={(e) => {
                   e.preventDefault();
@@ -797,54 +805,31 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   }
                 }}
                 onFocus={() => {
-                  // OPEN dropdown when input is focused (via click or tab)
-                  if (categories.length > 0) {
-                    if (localCategory.trim() !== "") {
-                      // Filter categories based on current input when focused
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
-
-                      // Filter categories that start with the input text
-                      const filtered = sortedCategories.filter(category =>
-                        category.name?.toLowerCase().startsWith(localCategory.toLowerCase())
-                      );
-
-                      setFilteredCategories(filtered);
-                      
-                      // Only show dropdown if there are matching categories
-                      if (filtered.length > 0) {
-                        setShowCategoryDropdown(true);
-                      }
-                    } else {
-                      // When input is empty and user focuses, show all categories
-                      const sortedCategories = [...categories].sort((a, b) =>
-                        a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                      );
-                      setFilteredCategories(sortedCategories);
-                      
-                      // Only show dropdown when user explicitly focuses on the field
-                      if (sortedCategories.length > 0) {
-                        setShowCategoryDropdown(true);
-                      }
-                    }
-
-                    // Reset selected index when opening dropdown
-                    setSelectedCategoryIndex(-1);
+                  // Only show dropdown on focus if we have content and matches
+                  // This prevents empty dropdown from opening on focus/tab
+                  if (localCategory.trim() !== "" && filteredCategories.length > 0) {
+                    setShowCategoryDropdown(true);
                   }
+                }}
+                onBlur={() => {
+                  // Close dropdown when input loses focus
+                  setTimeout(() => {
+                    setShowCategoryDropdown(false);
+                    setSelectedCategoryIndex(-1);
+                  }, 200);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
 
-                    // If Enter is pressed and we have a selected category from arrow navigation
+                    // If Enter is pressed and we have a selected category
                     if (showCategoryDropdown && selectedCategoryIndex >= 0 && filteredCategories[selectedCategoryIndex]) {
                       handleCategorySelect(filteredCategories[selectedCategoryIndex]);
-                      setShowCategoryDropdown(false); // Close dropdown
+                      setShowCategoryDropdown(false);
                     } else if (showCategoryDropdown && filteredCategories.length > 0) {
-                      // If no specific item is selected but dropdown is open, select first item
+                      // Select first item if dropdown is open but no specific item selected
                       handleCategorySelect(filteredCategories[0]);
-                      setShowCategoryDropdown(false); // Close dropdown
+                      setShowCategoryDropdown(false);
                     } else {
                       // Otherwise navigate to submit button
                       submitButtonRef.current?.focus();
@@ -857,19 +842,14 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         ? selectedCategoryIndex + 1
                         : 0;
                       setSelectedCategoryIndex(newIndex);
-                    } else if (categories.length > 0) {
-                      // Open dropdown if categories exist
+                    } else if (categories.length > 0 && localCategory.trim() === "") {
+                      // If input is empty and user presses arrow down, show all categories
                       const sortedCategories = [...categories].sort((a, b) =>
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
-
-                      // Show all categories when arrow down is pressed
                       setFilteredCategories(sortedCategories);
-
-                      if (sortedCategories.length > 0) {
-                        setShowCategoryDropdown(true);
-                        setSelectedCategoryIndex(0); // Select first item
-                      }
+                      setShowCategoryDropdown(true);
+                      setSelectedCategoryIndex(0);
                     }
                   } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
@@ -879,19 +859,14 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         ? selectedCategoryIndex - 1
                         : filteredCategories.length - 1;
                       setSelectedCategoryIndex(newIndex);
-                    } else if (categories.length > 0) {
-                      // Open dropdown if categories exist
+                    } else if (categories.length > 0 && localCategory.trim() === "") {
+                      // If input is empty and user presses arrow up, show all categories
                       const sortedCategories = [...categories].sort((a, b) =>
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
-
-                      // Show all categories when arrow up is pressed
                       setFilteredCategories(sortedCategories);
-
-                      if (sortedCategories.length > 0) {
-                        setShowCategoryDropdown(true);
-                        setSelectedCategoryIndex(sortedCategories.length - 1); // Select last item
-                      }
+                      setShowCategoryDropdown(true);
+                      setSelectedCategoryIndex(sortedCategories.length - 1);
                     }
                   } else if (e.key === 'Escape') {
                     if (showCategoryDropdown) {
@@ -900,15 +875,14 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                       setSelectedCategoryIndex(-1);
                     }
                   } else if (e.key === 'Tab') {
-                    // Tab navigation is now handled by the focus trap
                     // Close dropdown on tab
                     if (showCategoryDropdown) {
                       setShowCategoryDropdown(false);
                       setSelectedCategoryIndex(-1);
                     }
                   } else {
-                    // For other keys, let the normal input handling occur
-                    // Reset selection when user starts typing
+                    // For typing keys, the onChange handler will handle filtering
+                    // Reset selection when user types
                     setSelectedCategoryIndex(-1);
                   }
                 }}
@@ -926,7 +900,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   onClick={() => {
                     // Toggle dropdown when icon is clicked
                     if (!showCategoryDropdown) {
-                      // Always show all categories when dropdown icon is clicked
+                      // Show all categories when dropdown icon is clicked
                       const sortedCategories = [...categories].sort((a, b) =>
                         a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                       );
@@ -936,18 +910,16 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         setShowCategoryDropdown(true);
                       }
 
-                      setSelectedCategoryIndex(-1); // Reset selection
+                      setSelectedCategoryIndex(-1);
                     } else {
                       setShowCategoryDropdown(false);
                       setSelectedCategoryIndex(-1);
                     }
                   }}
                   onKeyDown={(e) => {
-                    // Make dropdown icon accessible via keyboard
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       if (!showCategoryDropdown) {
-                        // Always show all categories when dropdown icon is clicked via keyboard
                         const sortedCategories = [...categories].sort((a, b) =>
                           a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
                         );
@@ -957,7 +929,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                           setShowCategoryDropdown(true);
                         }
 
-                        setSelectedCategoryIndex(-1); // Reset selection
+                        setSelectedCategoryIndex(-1);
                       } else {
                         setShowCategoryDropdown(false);
                         setSelectedCategoryIndex(-1);
@@ -967,6 +939,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   tabIndex={0}
                   role="button"
                   aria-label="Toggle category dropdown"
+                  aria-expanded={showCategoryDropdown}
+                  aria-controls="category-dropdown"
                 >
                   <svg
                     className={`w-5 h-5 text-gray-600 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''
@@ -982,7 +956,10 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
 
               {/* Dropdown menu - show when dropdown is open and there are categories */}
               {showCategoryDropdown && filteredCategories.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                <div 
+                  id="category-dropdown"
+                  className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                >
                   {filteredCategories
                     .filter(category => category.name.toLowerCase() !== localCategory.toLowerCase())
                     .map((category, index) => (
@@ -992,20 +969,18 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                 ${selectedCategoryIndex === index ? 'bg-gray-300' : 'hover:bg-amber-50'}`}
                         onClick={() => {
                           handleCategorySelect(category);
-                          setShowCategoryDropdown(false); // Close dropdown after selection
+                          setShowCategoryDropdown(false);
                         }}
                         onMouseEnter={() => setSelectedCategoryIndex(index)}
                         onKeyDown={(e) => {
-                          // Make dropdown items accessible via keyboard
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             handleCategorySelect(category);
-                            setShowCategoryDropdown(false); // Close dropdown after selection
+                            setShowCategoryDropdown(false);
                           } else if (e.key === 'ArrowDown') {
                             e.preventDefault();
                             const newIndex = index < filteredCategories.length - 1 ? index + 1 : 0;
                             setSelectedCategoryIndex(newIndex);
-                            // Scroll into view if needed
                             document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
                               block: 'nearest'
                             });
@@ -1013,7 +988,6 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                             e.preventDefault();
                             const newIndex = index > 0 ? index - 1 : filteredCategories.length - 1;
                             setSelectedCategoryIndex(newIndex);
-                            // Scroll into view if needed
                             document.querySelector(`[data-category-index="${newIndex}"]`)?.scrollIntoView({
                               block: 'nearest'
                             });
@@ -1028,9 +1002,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                         role="button"
                         data-category-index={index}
                         ref={el => {
-                          // Store ref for the selected item
                           if (selectedCategoryIndex === index) {
-                            // Scroll selected item into view
                             el?.scrollIntoView({ block: 'nearest' });
                           }
                         }}
@@ -1054,7 +1026,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               </div>
             )}
             <p className="text-xs text-gray-500 mt-1">
-              What type of service are you looking for? Click the input field or dropdown icon to see all categories.
+              Start typing to see matching categories, or click the dropdown icon (↓) to see all categories.
             </p>
           </div>
 

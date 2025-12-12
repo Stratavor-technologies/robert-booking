@@ -58,6 +58,11 @@ export default function SearchSection({
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
 
+  // Filter states based on search text
+  const filteredStates = usStates.filter((st) =>
+    st.toLowerCase().startsWith(searchText.toLowerCase())
+  );
+
   // Enhanced helper function to normalize state name to code
   const stateNameToCode = (stateName) => {
     const stateMap = {
@@ -526,8 +531,7 @@ export default function SearchSection({
 
   // Handle state selection
   const handleSelect = (state) => {
-    const abbr = state.match(/\((.*?)\)/)?.[1] || state;
-    handleStateChange(abbr);
+    handleStateChange(state);
     setShowDropdown(false);
     setActiveIndex(-1);
     zipRef.current?.focus();
@@ -535,17 +539,17 @@ export default function SearchSection({
 
   // Handle state change - trigger ZIP code lookup if city is filled
   const handleStateChange = (value) => {
-    setSearchText(value);
+    setSearchText(value.toUpperCase());
     setValidationErrors(prev => ({ ...prev, state: "" }));
     
     // Update the state field through onFieldChange
     if (onFieldChange) {
-      onFieldChange({ target: { name: "state", value } });
+      onFieldChange({ target: { name: "state", value: value.toUpperCase() } });
     }
 
     // If city is already filled, fetch ZIP codes
     if (value.length === 2 && address.city && address.city.length >= 2) {
-      fetchZipCodes(address.city, value);
+      fetchZipCodes(address.city, value.toUpperCase());
     } else {
       setZipSuggestions([]);
       setShowZipDropdown(false);
@@ -554,7 +558,42 @@ export default function SearchSection({
     // If ZIP is filled but not city, fetch city
     if (value.length === 2 && address.zip && address.zip.length >= 5 && !address.city) {
       console.log('Auto-fetching city for state:', value, 'ZIP:', address.zip);
-      fetchCityFromStateZip(value, address.zip);
+      fetchCityFromStateZip(value.toUpperCase(), address.zip);
+    }
+  };
+
+  // Handle state input change
+  const handleStateInputChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    
+    // Allow only letters and maximum 2 characters
+    if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
+    
+    // Update search text
+    setSearchText(value);
+    
+    // Update state field
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "state", value } });
+    }
+    
+    // Clear state error
+    setValidationErrors(prev => ({ ...prev, state: "" }));
+
+    // Show dropdown when typing and there are matches
+    if (value.trim() !== "") {
+      const matches = usStates.filter(st => 
+        st.toLowerCase().startsWith(value.toLowerCase())
+      );
+      
+      if (matches.length > 0) {
+        setShowDropdown(true);
+        setActiveIndex(0);
+      } else {
+        setShowDropdown(false);
+      }
+    } else {
+      setShowDropdown(false);
     }
   };
 
@@ -705,10 +744,6 @@ export default function SearchSection({
 
     return ""; // No error
   };
-
-  const filteredStates = usStates.filter((st) =>
-    st.startsWith(searchText.toUpperCase())
-  );
 
   const validateAllFields = () => {
     const errors = {
@@ -906,19 +941,14 @@ export default function SearchSection({
                 type="text"
                 name="state"
                 value={searchText}
-                onChange={(e) => {
-                  let value = e.target.value.toUpperCase();
-                  if (!/^[A-Za-z]*$/.test(value)) return;
-                  if (value.length > 2) return;
-                  const matches = usStates.filter((st) => st.startsWith(value));
-                  if (value !== "" && matches.length === 0) return;
-                  handleStateChange(value);
-                  setShowDropdown(true);
-                  setActiveIndex(0); // Reset active index when typing
-                }}
+                onChange={handleStateInputChange}
                 onClick={(e) => {
                   if (e.detail === 1) {
                     e.target.select();
+                  }
+                  // Show dropdown if we have content and matches
+                  if (searchText.trim() !== "" && filteredStates.length > 0) {
+                    setShowDropdown(true);
                   }
                 }}
                 onDoubleClick={(e) => {
@@ -934,41 +964,74 @@ export default function SearchSection({
                   }
                 }}
                 onFocus={() => {
-                  setShowDropdown(true);
-                  setActiveIndex(0);
+                  // Show dropdown on focus only if we have content and matches
+                  // This prevents empty dropdown from opening on focus/tab
+                  if (searchText.trim() !== "" && filteredStates.length > 0) {
+                    setShowDropdown(true);
+                    setActiveIndex(0);
+                  }
+                }}
+                onBlur={() => {
+                  // Close dropdown when input loses focus
+                  setTimeout(() => {
+                    setShowDropdown(false);
+                    setActiveIndex(-1);
+                  }, 200);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (showDropdown && filteredStates.length > 0 && activeIndex >= 0) {
-                      const selectedState = filteredStates[activeIndex];
-                      handleSelect(selectedState);
-                    } else {
+                    
+                    // If Enter is pressed and we have a selected category
+                    if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
+                      handleSelect(filteredStates[activeIndex]);
                       setShowDropdown(false);
-                      setActiveIndex(-1);
+                    } else if (showDropdown && filteredStates.length > 0) {
+                      // Select first item if dropdown is open but no specific item selected
+                      handleSelect(filteredStates[0]);
+                      setShowDropdown(false);
+                    } else {
+                      // Otherwise navigate to ZIP field
                       zipRef.current?.focus();
                     }
-                  }
-                  if (e.key === "Tab") {
-                    handleTabNavigation(e, "state", zipRef);
-                  }
-                  // Handle arrow key navigation
-                  if (showDropdown && filteredStates.length > 0) {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setActiveIndex(prev =>
-                        prev < filteredStates.length - 1 ? prev + 1 : 0
-                      );
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setActiveIndex(prev =>
-                        prev > 0 ? prev - 1 : filteredStates.length - 1
-                      );
-                    } else if (e.key === "Escape") {
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (showDropdown && filteredStates.length > 0) {
+                      // Move selection down
+                      const newIndex = activeIndex < filteredStates.length - 1
+                        ? activeIndex + 1
+                        : 0;
+                      setActiveIndex(newIndex);
+                    } else if (filteredStates.length > 0 && searchText.trim() === "") {
+                      // If input is empty and user presses arrow down, show all states
+                      setShowDropdown(true);
+                      setActiveIndex(0);
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (showDropdown && filteredStates.length > 0) {
+                      // Move selection up
+                      const newIndex = activeIndex > 0
+                        ? activeIndex - 1
+                        : filteredStates.length - 1;
+                      setActiveIndex(newIndex);
+                    } else if (filteredStates.length > 0 && searchText.trim() === "") {
+                      // If input is empty and user presses arrow up, show all states
+                      setShowDropdown(true);
+                      setActiveIndex(filteredStates.length - 1);
+                    }
+                  } else if (e.key === 'Escape') {
+                    if (showDropdown) {
                       e.preventDefault();
                       setShowDropdown(false);
                       setActiveIndex(-1);
-                      stateRef.current?.focus();
+                    }
+                  } else if (e.key === 'Tab') {
+                    handleTabNavigation(e, "state", zipRef);
+                    // Close dropdown on tab
+                    if (showDropdown) {
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
                     }
                   }
                 }}
@@ -977,24 +1040,52 @@ export default function SearchSection({
                 className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress || loadingState ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
               />
 
-              <svg
+              <div
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-indigo-50 p-1 rounded-lg transition-colors"
                 onClick={() => {
-                  setShowDropdown(prev => !prev);
+                  // Toggle dropdown when icon is clicked
                   if (!showDropdown) {
-                    stateRef.current?.focus();
+                    // Show all states when dropdown icon is clicked
+                    if (filteredStates.length > 0) {
+                      setShowDropdown(true);
+                    }
+
                     setActiveIndex(0);
                   } else {
+                    setShowDropdown(false);
                     setActiveIndex(-1);
                   }
                 }}
-                className={`absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 cursor-pointer transition-transform duration-200 ${showDropdown ? "rotate-180" : ""
-                  }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!showDropdown) {
+                      if (filteredStates.length > 0) {
+                        setShowDropdown(true);
+                      }
+                      setActiveIndex(0);
+                    } else {
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                    }
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label="Toggle state dropdown"
+                aria-expanded={showDropdown}
+                aria-controls="state-dropdown"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+                <svg
+                  className={`w-5 h-5 text-gray-600 transition-transform ${showDropdown ? 'rotate-180' : ''
+                    }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
 
               {loadingState && (
                 <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
@@ -1002,32 +1093,62 @@ export default function SearchSection({
                 </div>
               )}
 
-              {showDropdown && (
-                <ul 
+              {/* Dropdown menu - show when dropdown is open and there are states */}
+              {showDropdown && filteredStates.length > 0 && (
+                <div 
+                  id="state-dropdown"
                   ref={dropdownListRef}
-                  className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg"
+                  className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
                 >
-                  {filteredStates.length > 0 ? (
-                    filteredStates.map((state, index) => (
-                      <li
-                        key={state}
-                        onClick={() => {
+                  {filteredStates.map((state, index) => (
+                    <div
+                      key={state}
+                      className={`px-4 py-3 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0
+                        ${activeIndex === index ? 'bg-gray-300' : 'hover:bg-gray-100'}`}
+                      onClick={() => {
+                        handleSelect(state);
+                        setShowDropdown(false);
+                      }}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
                           handleSelect(state);
-                        }}
-                        className={`px-4 py-2.5 cursor-pointer text-gray-700 transition-colors duration-150 ${index === activeIndex
-                            ? "bg-gray-200 font-medium"
-                            : "hover:bg-gray-100"
-                          }`}
-                      >
-                        {state}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="px-4 py-2.5 text-gray-400 hover:bg-transparent cursor-default">
-                      No results found
-                    </li>
-                  )}
-                </ul>
+                          setShowDropdown(false);
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
+                          setActiveIndex(newIndex);
+                          document.querySelector(`[data-state-index="${newIndex}"]`)?.scrollIntoView({
+                            block: 'nearest'
+                          });
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
+                          setActiveIndex(newIndex);
+                          document.querySelector(`[data-state-index="${newIndex}"]`)?.scrollIntoView({
+                            block: 'nearest'
+                          });
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setShowDropdown(false);
+                          setActiveIndex(-1);
+                          stateRef.current?.focus();
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      data-state-index={index}
+                      ref={el => {
+                        if (activeIndex === index) {
+                          el?.scrollIntoView({ block: 'nearest' });
+                        }
+                      }}
+                    >
+                      <div className="font-medium text-gray-800">{state}</div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
             {validationErrors.state && (
