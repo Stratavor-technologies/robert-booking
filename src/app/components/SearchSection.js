@@ -255,7 +255,7 @@ export default function SearchSection({
     }
   };
 
-  // Fetch state based on city and ZIP - FIXED VERSION
+  // Fetch state based on city and ZIP
   const fetchStateFromCityZip = async (city, zip) => {
     if (!city || !zip || city.length < 2 || zip.length < 5) {
       return;
@@ -291,7 +291,6 @@ export default function SearchSection({
           // Try alternative method - look in display_name
           if (data[0].display_name) {
             console.log('Display name:', data[0].display_name);
-            // Example: "Downingtown, Chester County, Pennsylvania, 19335, USA"
             const parts = data[0].display_name.split(',');
             for (const part of parts) {
               const trimmed = part.trim();
@@ -310,6 +309,54 @@ export default function SearchSection({
     } catch (error) {
       console.error('Error fetching state:', error);
     } finally {
+      setLoadingState(false);
+    }
+  };
+
+  // Function to fetch both city and state from ZIP code
+  const fetchCityStateFromZip = async (zip) => {
+    if (!zip || zip.length !== 5) {
+      return { city: null, state: null };
+    }
+
+    setLoadingCity(true);
+    setLoadingState(true);
+    
+    try {
+      const query = `${zip}, USA`;
+      console.log('Fetching city and state for ZIP:', zip);
+      
+      const response = await fetch(
+        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=3`
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch location data');
+
+      const data = await response.json();
+      console.log('City/State data for ZIP:', data);
+      
+      if (data.length > 0) {
+        // Extract city from first result
+        const cityName = extractCityFromLocationData([data[0]]);
+        
+        // Extract state from first result
+        const stateCode = extractStateFromLocationData([data[0]]);
+        
+        console.log('Extracted from ZIP:', { city: cityName, state: stateCode });
+        
+        return {
+          city: cityName || null,
+          state: stateCode || null
+        };
+      }
+      
+      return { city: null, state: null };
+      
+    } catch (error) {
+      console.error('Error fetching city/state from ZIP:', error);
+      return { city: null, state: null };
+    } finally {
+      setLoadingCity(false);
       setLoadingState(false);
     }
   };
@@ -340,170 +387,186 @@ export default function SearchSection({
     return input.value.length;
   }
 
-  // Fetch city based on state and ZIP - IMPROVED VERSION
+  // Fetch city based on state and ZIP
   const fetchCityFromStateZip = async (state, zip) => {
-  if (!state || !zip || zip.length < 5) {
-    return;
-  }
+    if (!state || !zip || zip.length < 5) {
+      return;
+    }
 
-  setLoadingCity(true);
-  try {
-    // Try multiple query formats
-    const queries = [
-      `${zip}, ${state}, USA`,
-      `${zip}, ${state}`,
-      `${zip}`
-    ];
+    setLoadingCity(true);
+    try {
+      // Try multiple query formats
+      const queries = [
+        `${zip}, ${state}, USA`,
+        `${zip}, ${state}`,
+        `${zip}`
+      ];
 
-    let cityFound = false;
-    
-    // Try each query format sequentially
-    for (const query of queries) {
-      if (cityFound) break;
+      let cityFound = false;
       
-      console.log(`Trying query: ${query}`);
-      
-      try {
-        const response = await fetch(
-          `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`
-        );
-
-        // Check if response is OK
-        if (!response.ok) {
-          console.warn(`Query failed: ${response.status} ${response.statusText}`);
-          continue; // Try next query format
-        }
-
-        const data = await response.json();
-        console.log('City data received for query:', query, data);
+      // Try each query format sequentially
+      for (const query of queries) {
+        if (cityFound) break;
         
-        if (!data || !Array.isArray(data) || data.length === 0) {
-          console.log('No data for this query format');
-          continue;
-        }
+        console.log(`Trying query: ${query}`);
+        
+        try {
+          const response = await fetch(
+            `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`
+          );
 
-        // Look for valid city in all results
-        for (const item of data) {
-          const cityName = extractCityFromLocationData([item]);
+          // Check if response is OK
+          if (!response.ok) {
+            console.warn(`Query failed: ${response.status} ${response.statusText}`);
+            continue; // Try next query format
+          }
+
+          const data = await response.json();
+          console.log('City data received for query:', query, data);
           
-          if (cityName && cityName.length >= 2) {
-            // Additional validation
-            const hasInvalidChars = /^\d+$/.test(cityName) || 
-                                   /^[^a-zA-Z]+$/.test(cityName);
+          if (!data || !Array.isArray(data) || data.length === 0) {
+            console.log('No data for this query format');
+            continue;
+          }
+
+          // Look for valid city in all results
+          for (const item of data) {
+            const cityName = extractCityFromLocationData([item]);
             
-            if (!hasInvalidChars && 
-                !cityName.toUpperCase().includes(state) && 
-                !cityName.includes(zip)) {
+            if (cityName && cityName.length >= 2) {
+              // Additional validation
+              const hasInvalidChars = /^\d+$/.test(cityName) || 
+                                     /^[^a-zA-Z]+$/.test(cityName);
               
-              console.log('Valid city found:', cityName);
-              
-              // Update the city field
-              onFieldChange({ target: { name: "city", value: cityName } });
-              setValidationErrors(prev => ({ ...prev, city: "" }));
-              
-              // Also update state if different
-              const extractedState = extractStateFromLocationData([item]);
-              if (extractedState && extractedState !== state) {
-                console.log('Also updating state to:', extractedState);
-                onFieldChange({ target: { name: "state", value: extractedState } });
-                setSearchText(extractedState);
+              if (!hasInvalidChars && 
+                  !cityName.toUpperCase().includes(state) && 
+                  !cityName.includes(zip)) {
+                
+                console.log('Valid city found:', cityName);
+                
+                // Update the city field
+                onFieldChange({ target: { name: "city", value: cityName } });
+                setValidationErrors(prev => ({ ...prev, city: "" }));
+                
+                // Also update state if different
+                const extractedState = extractStateFromLocationData([item]);
+                if (extractedState && extractedState !== state) {
+                  console.log('Also updating state to:', extractedState);
+                  onFieldChange({ target: { name: "state", value: extractedState } });
+                  setSearchText(extractedState);
+                }
+                
+                cityFound = true;
+                break;
               }
-              
-              cityFound = true;
-              break;
             }
           }
+        } catch (innerError) {
+          console.warn(`Error with query "${query}":`, innerError);
+          // Continue to next query
         }
-      } catch (innerError) {
-        console.warn(`Error with query "${query}":`, innerError);
-        // Continue to next query
       }
-    }
 
-    // If no city found with search API, try reverse geocoding
-    if (!cityFound) {
-      console.log('No city found with search API, trying reverse geocoding...');
-      
-      try {
-        // First get coordinates for the ZIP code
-        const coordResponse = await fetch(
-          `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(zip)}&format=json&limit=1`
-        );
+      // If no city found with search API, try reverse geocoding
+      if (!cityFound) {
+        console.log('No city found with search API, trying reverse geocoding...');
         
-        if (coordResponse.ok) {
-          const coordData = await coordResponse.json();
-          if (coordData.length > 0 && coordData[0].lat && coordData[0].lon) {
-            const { lat, lon } = coordData[0];
-            
-            // Use reverse geocoding with coordinates
-            const reverseResponse = await fetch(
-              `${LOCATIONIQ_REVERSE_URL}?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json&addressdetails=1`
-            );
-            
-            if (reverseResponse.ok) {
-              const reverseData = await reverseResponse.json();
-              console.log('Reverse geocode data:', reverseData);
+        try {
+          // First get coordinates for the ZIP code
+          const coordResponse = await fetch(
+            `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(zip)}&format=json&limit=1`
+          );
+          
+          if (coordResponse.ok) {
+            const coordData = await coordResponse.json();
+            if (coordData.length > 0 && coordData[0].lat && coordData[0].lon) {
+              const { lat, lon } = coordData[0];
               
-              if (reverseData.address) {
-                // Extract city from reverse geocode
-                let cityName = '';
+              // Use reverse geocoding with coordinates
+              const reverseResponse = await fetch(
+                `${LOCATIONIQ_REVERSE_URL}?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json&addressdetails=1`
+              );
+              
+              if (reverseResponse.ok) {
+                const reverseData = await reverseResponse.json();
+                console.log('Reverse geocode data:', reverseData);
                 
-                if (reverseData.address.city) {
-                  cityName = reverseData.address.city;
-                } else if (reverseData.address.town) {
-                  cityName = reverseData.address.town;
-                } else if (reverseData.address.village) {
-                  cityName = reverseData.address.village;
-                } else if (reverseData.address.municipality) {
-                  cityName = reverseData.address.municipality;
-                }
-                
-                if (cityName && cityName.length >= 2) {
-                  console.log('City found via reverse geocoding:', cityName);
-                  onFieldChange({ target: { name: "city", value: cityName } });
-                  setValidationErrors(prev => ({ ...prev, city: "" }));
-                  cityFound = true;
+                if (reverseData.address) {
+                  // Extract city from reverse geocode
+                  let cityName = '';
+                  
+                  if (reverseData.address.city) {
+                    cityName = reverseData.address.city;
+                  } else if (reverseData.address.town) {
+                    cityName = reverseData.address.town;
+                  } else if (reverseData.address.village) {
+                    cityName = reverseData.address.village;
+                  } else if (reverseData.address.municipality) {
+                    cityName = reverseData.address.municipality;
+                  }
+                  
+                  if (cityName && cityName.length >= 2) {
+                    console.log('City found via reverse geocoding:', cityName);
+                    onFieldChange({ target: { name: "city", value: cityName } });
+                    setValidationErrors(prev => ({ ...prev, city: "" }));
+                    cityFound = true;
+                  }
                 }
               }
             }
           }
+        } catch (reverseError) {
+          console.warn('Reverse geocoding failed:', reverseError);
         }
-      } catch (reverseError) {
-        console.warn('Reverse geocoding failed:', reverseError);
       }
-    }
 
-    if (!cityFound) {
-      console.warn(`Could not find city for state: ${state}, ZIP: ${zip}`);
-      // Optionally show a user-friendly message
-      // setValidationErrors(prev => ({ 
-      //   ...prev, 
-      //   city: "Could not find city for this ZIP code. Please enter manually." 
-      // }));
-    }
+      if (!cityFound) {
+        console.warn(`Could not find city for state: ${state}, ZIP: ${zip}`);
+      }
 
-  } catch (error) {
-    console.error('Error in fetchCityFromStateZip:', error);
-    
-    // More specific error messages
-    if (error.message.includes('Failed to fetch')) {
-      console.error('Network error or API unavailable');
-    } else if (error.message.includes('Failed to fetch city')) {
-      console.error('API returned error response');
+    } catch (error) {
+      console.error('Error in fetchCityFromStateZip:', error);
+    } finally {
+      setLoadingCity(false);
     }
-    
-    // Don't show error to user if it's just an API failure
-    // The user can still manually enter the city
-  } finally {
-    setLoadingCity(false);
-  }
-};
+  };
 
   // Debounced version of fetchZipCodes to avoid too many API calls
   const debouncedFetchZipCodes = useCallback(
     debounce((city, state) => fetchZipCodes(city, state), 500),
     []
   );
+
+  // Function to handle field clearing
+  const handleFieldClear = (fieldName) => {
+    // Clear validation error for the field
+    setValidationErrors(prev => ({ ...prev, [fieldName]: "" }));
+    
+    // Clear ZIP suggestions if any field is cleared (except ZIP itself)
+    if (fieldName !== 'zip') {
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+    }
+    
+    // If ZIP is 5 digits and a field was cleared, try to refill it
+    if (address.zip && address.zip.length === 5) {
+      setTimeout(() => {
+        if (fieldName === 'city' && (!address.city || address.city === '')) {
+          // City was cleared, try to fetch it if state exists
+          if (address.state && address.state.length === 2) {
+            console.log('Refetching city after clear');
+            fetchCityFromStateZip(address.state, address.zip);
+          }
+        } else if (fieldName === 'state' && (!address.state || address.state === '')) {
+          // State was cleared, try to fetch it if city exists
+          if (address.city && address.city.length >= 2) {
+            console.log('Refetching state after clear');
+            fetchStateFromCityZip(address.city, address.zip);
+          }
+        }
+      }, 300); // Small delay to ensure state is updated
+    }
+  };
 
   // Handle city change - trigger ZIP code lookup if state is filled
   const handleCityChange = (e) => {
@@ -520,12 +583,27 @@ export default function SearchSection({
     // Clear city error when user starts typing
     setValidationErrors(prev => ({ ...prev, city: "" }));
 
+    // Clear ZIP suggestions when city is being edited
+    setZipSuggestions([]);
+    setShowZipDropdown(false);
+
+    // If field is being cleared
+    if (value === '') {
+      handleFieldClear('city');
+      return;
+    }
+
+    // If ZIP is already filled and state is missing, try to fetch state
+    if (address.zip && address.zip.length === 5 && 
+        (!address.state || address.state.length !== 2) &&
+        value.length >= 2) {
+      console.log('Fetching state for new city:', value, 'ZIP:', address.zip);
+      fetchStateFromCityZip(value, address.zip);
+    }
+    
     // If state is already filled, fetch ZIP codes
-    if (value.length >= 2 && address.state && address.state.length === 2) {
+    else if (value.length >= 2 && address.state && address.state.length === 2) {
       debouncedFetchZipCodes(value, address.state);
-    } else {
-      setZipSuggestions([]);
-      setShowZipDropdown(false);
     }
   };
 
@@ -547,18 +625,26 @@ export default function SearchSection({
       onFieldChange({ target: { name: "state", value: value.toUpperCase() } });
     }
 
-    // If city is already filled, fetch ZIP codes
-    if (value.length === 2 && address.city && address.city.length >= 2) {
-      fetchZipCodes(address.city, value.toUpperCase());
-    } else {
-      setZipSuggestions([]);
-      setShowZipDropdown(false);
+    // Clear ZIP suggestions when state is being edited
+    setZipSuggestions([]);
+    setShowZipDropdown(false);
+
+    // If field is being cleared
+    if (value === '') {
+      handleFieldClear('state');
+      return;
     }
 
-    // If ZIP is filled but not city, fetch city
-    if (value.length === 2 && address.zip && address.zip.length >= 5 && !address.city) {
-      console.log('Auto-fetching city for state:', value, 'ZIP:', address.zip);
+    // If ZIP is already filled and city is missing, try to fetch city
+    if (address.zip && address.zip.length === 5 && 
+        (!address.city || address.city.length < 2)) {
+      console.log('Auto-fetching city for new state:', value, 'ZIP:', address.zip);
       fetchCityFromStateZip(value.toUpperCase(), address.zip);
+    }
+    
+    // If city is already filled, fetch ZIP codes
+    else if (value.length === 2 && address.city && address.city.length >= 2) {
+      fetchZipCodes(address.city, value.toUpperCase());
     }
   };
 
@@ -595,6 +681,11 @@ export default function SearchSection({
     } else {
       setShowDropdown(false);
     }
+
+    // Handle field clearing
+    if (value === '') {
+      handleFieldClear('state');
+    }
   };
 
   // Handle ZIP change - trigger city/state lookup if needed
@@ -609,25 +700,53 @@ export default function SearchSection({
     // Clear ZIP error when user starts typing
     setValidationErrors(prev => ({ ...prev, zip: "" }));
 
-    // If ZIP is 5 digits, try to auto-fill city/state
+    // Clear ZIP suggestions when ZIP is being edited
+    setZipSuggestions([]);
+    setShowZipDropdown(false);
+
+    // Handle field clearing
+    if (value === '') {
+      handleFieldClear('zip');
+      return;
+    }
+
+    // If ZIP is 5 digits, try to auto-fill missing fields
     if (value.length === 5) {
-      // If city is filled but not state, fetch state
-      if (address.city && address.city.length >= 2 && !address.state) {
-        console.log('Fetching state for city:', address.city, 'ZIP:', value);
-        fetchStateFromCityZip(address.city, value);
+      const city = address.city || "";
+      const state = address.state || "";
+      
+      console.log('ZIP changed to 5 digits:', value, 'City:', city, 'State:', state);
+      
+      // Logic for auto-filling based on what's missing
+      if (city && city.length >= 2 && (!state || state.length !== 2)) {
+        // Case 1: City is filled but state is missing or incomplete
+        console.log('Fetching state for city:', city, 'ZIP:', value);
+        fetchStateFromCityZip(city, value);
       }
-      // If state is filled but not city, fetch city
-      else if (address.state && address.state.length === 2 && !address.city) {
-        console.log('Fetching city for state:', address.state, 'ZIP:', value);
-        fetchCityFromStateZip(address.state, value);
+      else if (state && state.length === 2 && (!city || city.length < 2)) {
+        // Case 2: State is filled but city is missing
+        console.log('Fetching city for state:', state, 'ZIP:', value);
+        fetchCityFromStateZip(state, value);
       }
-      // If both city and state are filled, fetch ZIP suggestions
-      else if (address.city && address.state) {
-        fetchZipCodes(address.city, address.state);
+      else if (!city && !state) {
+        // Case 3: Both city and state are missing - fetch both
+        console.log('Fetching city and state for ZIP:', value);
+        
+        // First fetch city and state together
+        fetchCityStateFromZip(value).then(({ city: fetchedCity, state: fetchedState }) => {
+          if (fetchedCity && !address.city) {
+            onFieldChange({ target: { name: "city", value: fetchedCity } });
+          }
+          if (fetchedState && !address.state) {
+            onFieldChange({ target: { name: "state", value: fetchedState } });
+            setSearchText(fetchedState);
+          }
+        });
       }
-    } else {
-      setZipSuggestions([]);
-      setShowZipDropdown(false);
+      // Case 4: Both city and state are already filled - fetch ZIP suggestions
+      else if (city && state) {
+        fetchZipCodes(city, state);
+      }
     }
   };
 
