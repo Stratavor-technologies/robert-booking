@@ -40,11 +40,11 @@ export default function SearchSection({
   const [loadingZip, setLoadingZip] = useState(false);
   const [loadingCity, setLoadingCity] = useState(false);
   const [loadingState, setLoadingState] = useState(false);
-  
+
   const dropdownRef = useRef(null);
   const zipDropdownRef = useRef(null);
   const dropdownListRef = useRef(null);
-  
+
   const [validationErrors, setValidationErrors] = useState({
     city: "",
     state: "",
@@ -70,19 +70,19 @@ export default function SearchSection({
   const stateNameToCode = (stateName) => {
     const stateMap = {
       'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
-      'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'district of columbia': 'DC', 'florida': 'FL', 
+      'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'district of columbia': 'DC', 'florida': 'FL',
       'georgia': 'GA', 'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
       'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
       'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
       'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
       'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
-      'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+      'oklahota': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
       'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
       'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
     };
 
     if (!stateName) return '';
-    
+
     // If it's already a 2-letter code, just uppercase it
     if (stateName.length === 2 && /^[A-Za-z]{2}$/.test(stateName)) {
       return stateName.toUpperCase();
@@ -90,12 +90,12 @@ export default function SearchSection({
 
     // Try to extract state from display_name or other formats
     const normalizedName = stateName.toLowerCase().trim();
-    
+
     // Direct mapping
     if (stateMap[normalizedName]) {
       return stateMap[normalizedName];
     }
-    
+
     // Try to match partial names
     for (const [key, code] of Object.entries(stateMap)) {
       if (normalizedName.includes(key) || key.includes(normalizedName)) {
@@ -109,18 +109,18 @@ export default function SearchSection({
   // Function to extract state from LocationIQ response
   const extractStateFromLocationData = (data) => {
     if (!data || !data.length) return '';
-    
+
     const item = data[0];
-    
+
     // First try to get state from address object
     if (item.address && item.address.state) {
       return stateNameToCode(item.address.state);
     }
-    
+
     // If not in address, try to extract from display_name
     if (item.display_name) {
       const parts = item.display_name.split(',');
-      
+
       // Look for state in the parts (usually 2nd or 3rd from end)
       for (let i = parts.length - 1; i >= Math.max(0, parts.length - 4); i--) {
         const part = parts[i].trim();
@@ -130,19 +130,19 @@ export default function SearchSection({
         }
       }
     }
-    
+
     return '';
   };
 
   // Function to extract city from LocationIQ response
   const extractCityFromLocationData = (data) => {
     if (!data || !data.length) return '';
-    
+
     const item = data[0];
     let cityName = '';
-    
+
     console.log('Extracting city from:', item);
-    
+
     // First try to get city from address object
     if (item.address) {
       // Check multiple possible city fields
@@ -169,13 +169,13 @@ export default function SearchSection({
     if (!cityName && item.display_name) {
       console.log('Trying to extract from display_name:', item.display_name);
       const parts = item.display_name.split(',');
-      
+
       // For display_name like: "Haddonfield, Camden County, New Jersey, 08033, USA"
       // The first part is usually the city
       if (parts.length > 0) {
         cityName = parts[0].trim();
         console.log('Extracted city from first part of display_name:', cityName);
-        
+
         // If the first part contains numbers (like ZIP code), try the second part
         if (/\d/.test(cityName) && parts.length > 1) {
           cityName = parts[1].trim();
@@ -188,20 +188,20 @@ export default function SearchSection({
     if (cityName) {
       // Remove "County" suffix if present
       cityName = cityName.replace(/\s+County$/i, '');
-      
+
       // Remove any trailing numbers or ZIP codes
       cityName = cityName.replace(/\s+\d{5}(-\d{4})?$/, '');
-      
+
       // Remove "USA" or country names
       cityName = cityName.replace(/\s+(USA|United States)$/i, '');
-      
+
       // Capitalize properly
       cityName = cityName
         .toLowerCase()
         .replace(/\b\w/g, char => char.toUpperCase())
         .replace(/[^a-zA-Z\s\-']/g, '')
         .trim();
-      
+
       console.log('Cleaned city name:', cityName);
     }
 
@@ -225,7 +225,7 @@ export default function SearchSection({
       if (!response.ok) throw new Error('Failed to fetch ZIP codes');
 
       const data = await response.json();
-      
+
       // Extract unique ZIP codes from results
       const zipCodes = [];
       data.forEach(item => {
@@ -268,7 +268,7 @@ export default function SearchSection({
     try {
       const query = `${city}, ${zip}, USA`;
       console.log('Fetching state for:', query);
-      
+
       const response = await fetch(
         `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=1`
       );
@@ -277,11 +277,11 @@ export default function SearchSection({
 
       const data = await response.json();
       console.log('State data received:', data);
-      
+
       if (data.length > 0) {
         const stateCode = extractStateFromLocationData(data);
         console.log('Extracted state code:', stateCode);
-        
+
         if (stateCode && usStates.includes(stateCode)) {
           // Update the state field
           onFieldChange({ target: { name: "state", value: stateCode } });
@@ -290,7 +290,7 @@ export default function SearchSection({
           console.log('State updated to:', stateCode);
         } else {
           console.log('No valid state code found in:', data[0]);
-          
+
           // Try alternative method - look in display_name
           if (data[0].display_name) {
             console.log('Display name:', data[0].display_name);
@@ -324,11 +324,11 @@ export default function SearchSection({
 
     setLoadingCity(true);
     setLoadingState(true);
-    
+
     try {
       const query = `${zip}, USA`;
       console.log('Fetching city and state for ZIP:', zip);
-      
+
       const response = await fetch(
         `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=3`
       );
@@ -337,24 +337,24 @@ export default function SearchSection({
 
       const data = await response.json();
       console.log('City/State data for ZIP:', data);
-      
+
       if (data.length > 0) {
         // Extract city from first result
         const cityName = extractCityFromLocationData([data[0]]);
-        
+
         // Extract state from first result
         const stateCode = extractStateFromLocationData([data[0]]);
-        
+
         console.log('Extracted from ZIP:', { city: cityName, state: stateCode });
-        
+
         return {
           city: cityName || null,
           state: stateCode || null
         };
       }
-      
+
       return { city: null, state: null };
-      
+
     } catch (error) {
       console.error('Error fetching city/state from ZIP:', error);
       return { city: null, state: null };
@@ -364,33 +364,7 @@ export default function SearchSection({
     }
   };
 
-  function getCaretIndexFromClick(input, clickX) {
-    const style = window.getComputedStyle(input);
-    const font = `${style.fontSize} ${style.fontFamily}`;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    ctx.font = font;
-
-    const paddingLeft = parseFloat(style.paddingLeft);
-    const x = clickX - paddingLeft;
-
-    let width = 0;
-
-    for (let i = 0; i < input.value.length; i++) {
-      const charWidth = ctx.measureText(input.value[i]).width;
-
-      if (width + charWidth / 2 > x) {
-        return i;
-      }
-
-      width += charWidth;
-    }
-
-    return input.value.length;
-  }
-
-  // Fetch city based on state and ZIP
+  // Function to fetch city based on state and ZIP
   const fetchCityFromStateZip = async (state, zip) => {
     if (!state || !zip || zip.length < 5) {
       return;
@@ -406,13 +380,13 @@ export default function SearchSection({
       ];
 
       let cityFound = false;
-      
+
       // Try each query format sequentially
       for (const query of queries) {
         if (cityFound) break;
-        
+
         console.log(`Trying query: ${query}`);
-        
+
         try {
           const response = await fetch(
             `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`
@@ -426,7 +400,7 @@ export default function SearchSection({
 
           const data = await response.json();
           console.log('City data received for query:', query, data);
-          
+
           if (!data || !Array.isArray(data) || data.length === 0) {
             console.log('No data for this query format');
             continue;
@@ -435,22 +409,22 @@ export default function SearchSection({
           // Look for valid city in all results
           for (const item of data) {
             const cityName = extractCityFromLocationData([item]);
-            
+
             if (cityName && cityName.length >= 2) {
               // Additional validation
-              const hasInvalidChars = /^\d+$/.test(cityName) || 
-                                     /^[^a-zA-Z]+$/.test(cityName);
-              
-              if (!hasInvalidChars && 
-                  !cityName.toUpperCase().includes(state) && 
-                  !cityName.includes(zip)) {
-                
+              const hasInvalidChars = /^\d+$/.test(cityName) ||
+                /^[^a-zA-Z]+$/.test(cityName);
+
+              if (!hasInvalidChars &&
+                !cityName.toUpperCase().includes(state) &&
+                !cityName.includes(zip)) {
+
                 console.log('Valid city found:', cityName);
-                
+
                 // Update the city field
                 onFieldChange({ target: { name: "city", value: cityName } });
                 setValidationErrors(prev => ({ ...prev, city: "" }));
-                
+
                 // Also update state if different
                 const extractedState = extractStateFromLocationData([item]);
                 if (extractedState && extractedState !== state) {
@@ -458,7 +432,7 @@ export default function SearchSection({
                   onFieldChange({ target: { name: "state", value: extractedState } });
                   setSearchText(extractedState);
                 }
-                
+
                 cityFound = true;
                 break;
               }
@@ -473,31 +447,31 @@ export default function SearchSection({
       // If no city found with search API, try reverse geocoding
       if (!cityFound) {
         console.log('No city found with search API, trying reverse geocoding...');
-        
+
         try {
           // First get coordinates for the ZIP code
           const coordResponse = await fetch(
             `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(zip)}&format=json&limit=1`
           );
-          
+
           if (coordResponse.ok) {
             const coordData = await coordResponse.json();
             if (coordData.length > 0 && coordData[0].lat && coordData[0].lon) {
               const { lat, lon } = coordData[0];
-              
+
               // Use reverse geocoding with coordinates
               const reverseResponse = await fetch(
                 `${LOCATIONIQ_REVERSE_URL}?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json&addressdetails=1`
               );
-              
+
               if (reverseResponse.ok) {
                 const reverseData = await reverseResponse.json();
                 console.log('Reverse geocode data:', reverseData);
-                
+
                 if (reverseData.address) {
                   // Extract city from reverse geocode
                   let cityName = '';
-                  
+
                   if (reverseData.address.city) {
                     cityName = reverseData.address.city;
                   } else if (reverseData.address.town) {
@@ -507,7 +481,7 @@ export default function SearchSection({
                   } else if (reverseData.address.municipality) {
                     cityName = reverseData.address.municipality;
                   }
-                  
+
                   if (cityName && cityName.length >= 2) {
                     console.log('City found via reverse geocoding:', cityName);
                     onFieldChange({ target: { name: "city", value: cityName } });
@@ -544,13 +518,13 @@ export default function SearchSection({
   const handleFieldClear = (fieldName) => {
     // Clear validation error for the field
     setValidationErrors(prev => ({ ...prev, [fieldName]: "" }));
-    
+
     // Clear ZIP suggestions if any field is cleared (except ZIP itself)
     if (fieldName !== 'zip') {
       setZipSuggestions([]);
       setShowZipDropdown(false);
     }
-    
+
     // If ZIP is 5 digits and a field was cleared, try to refill it
     if (address.zip && address.zip.length === 5) {
       setTimeout(() => {
@@ -574,7 +548,7 @@ export default function SearchSection({
   // Handle city change - trigger ZIP code lookup if state is filled
   const handleCityChange = (e) => {
     const value = e.target.value;
-    
+
     // Validate input format
     if (!/^[A-Za-z\s\-']*$/.test(value)) return;
 
@@ -597,16 +571,16 @@ export default function SearchSection({
     }
 
     // If ZIP is already filled and state is missing, try to fetch state
-    if (address.zip && address.zip.length === 5 && 
-        (!address.state || address.state.length !== 2) &&
-        value.length >= 2) {
+    if (address.zip && address.zip.length === 5 &&
+      (!address.state || address.state.length !== 2) &&
+      value.length >= 2) {
       console.log('Fetching state for new city:', value, 'ZIP:', address.zip);
       fetchStateFromCityZip(value, address.zip);
     }
-    
+
     // If state is already filled AND ZIP is NOT already filled, fetch ZIP codes
-    else if (value.length >= 2 && address.state && address.state.length === 2 && 
-             (!address.zip || address.zip.length !== 5)) {
+    else if (value.length >= 2 && address.state && address.state.length === 2 &&
+      (!address.zip || address.zip.length !== 5)) {
       // Only fetch ZIP codes if ZIP field is empty or incomplete
       debouncedFetchZipCodes(value, address.state);
     }
@@ -625,7 +599,7 @@ export default function SearchSection({
   const handleStateChange = (value) => {
     setSearchText(value.toUpperCase());
     setValidationErrors(prev => ({ ...prev, state: "" }));
-    
+
     // Update the state field through onFieldChange
     if (onFieldChange) {
       onFieldChange({ target: { name: "state", value: value.toUpperCase() } });
@@ -642,15 +616,15 @@ export default function SearchSection({
     }
 
     // If ZIP is already filled and city is missing, try to fetch city
-    if (address.zip && address.zip.length === 5 && 
-        (!address.city || address.city.length < 2)) {
+    if (address.zip && address.zip.length === 5 &&
+      (!address.city || address.city.length < 2)) {
       console.log('Auto-fetching city for new state:', value, 'ZIP:', address.zip);
       fetchCityFromStateZip(value.toUpperCase(), address.zip);
     }
-    
+
     // If city is already filled AND ZIP is NOT already filled, fetch ZIP codes
-    else if (value.length === 2 && address.city && address.city.length >= 2 && 
-             (!address.zip || address.zip.length !== 5)) {
+    else if (value.length === 2 && address.city && address.city.length >= 2 &&
+      (!address.zip || address.zip.length !== 5)) {
       // Only fetch ZIP codes if ZIP field is empty or incomplete
       fetchZipCodes(address.city, value.toUpperCase());
     }
@@ -659,27 +633,27 @@ export default function SearchSection({
   // Handle state input change
   const handleStateInputChange = (e) => {
     const value = e.target.value.toUpperCase();
-    
+
     // Allow only letters and maximum 2 characters
     if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
-    
+
     // Update search text
     setSearchText(value);
-    
+
     // Update state field
     if (onFieldChange) {
       onFieldChange({ target: { name: "state", value } });
     }
-    
+
     // Clear state error
     setValidationErrors(prev => ({ ...prev, state: "" }));
 
     // Show dropdown when typing and there are matches
     if (value.trim() !== "") {
-      const matches = usStates.filter(st => 
+      const matches = usStates.filter(st =>
         st.toLowerCase().startsWith(value.toLowerCase())
       );
-      
+
       if (matches.length > 0) {
         setShowDropdown(true);
         setActiveIndex(0);
@@ -699,7 +673,7 @@ export default function SearchSection({
   // Handle ZIP change - trigger city/state lookup if needed
   const handleZipChange = (e) => {
     const value = e.target.value;
-    
+
     // Update the ZIP value
     if (onFieldChange) {
       onFieldChange(e);
@@ -722,9 +696,9 @@ export default function SearchSection({
     if (value.length === 5) {
       const city = address.city || "";
       const state = address.state || "";
-      
+
       console.log('ZIP changed to 5 digits:', value, 'City:', city, 'State:', state);
-      
+
       // Logic for auto-filling based on what's missing
       if (city && city.length >= 2 && (!state || state.length !== 2)) {
         // Case 1: City is filled but state is missing or incomplete
@@ -739,7 +713,7 @@ export default function SearchSection({
       else if (!city && !state) {
         // Case 3: Both city and state are missing - fetch both
         console.log('Fetching city and state for ZIP:', value);
-        
+
         // First fetch city and state together
         fetchCityStateFromZip(value).then(({ city: fetchedCity, state: fetchedState }) => {
           if (fetchedCity && !address.city) {
@@ -751,12 +725,6 @@ export default function SearchSection({
           }
         });
       }
-      // Case 4: Both city and state are already filled - DO NOT fetch ZIP suggestions
-      // We don't want to show dropdown for ZIP suggestions when ZIP is already filled
-      // else if (city && state) {
-      //   // Commented out - we don't want to fetch ZIP suggestions when ZIP is already 5 digits
-      //   // fetchZipCodes(city, state);
-      // }
     }
   };
 
@@ -776,7 +744,7 @@ export default function SearchSection({
       if (zipDropdownRef.current && !zipDropdownRef.current.contains(event.target)) {
         setShowZipDropdown(false);
       }
-      
+
       // Handle state dropdown
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         // Only close if user didn't click the dropdown arrow
@@ -943,30 +911,60 @@ export default function SearchSection({
     }
   };
 
-  // Auto-scroll to active item
+  // Auto-scroll to active item - improved version with smooth scrolling
   useEffect(() => {
     if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
       const list = dropdownListRef.current;
       const activeItem = list.querySelector(`[data-state-index="${activeIndex}"]`);
-      
+
       if (activeItem) {
-        // Calculate scroll position
+        // Calculate scroll position with buffer
         const itemTop = activeItem.offsetTop;
         const itemBottom = itemTop + activeItem.offsetHeight;
         const listTop = list.scrollTop;
         const listBottom = listTop + list.clientHeight;
-        
-        // If item is above visible area
-        if (itemTop < listTop) {
-          list.scrollTop = itemTop;
+
+        // Calculate buffer (20% of item height for smoother scrolling)
+        const buffer = activeItem.offsetHeight * 0.2;
+
+        // If item is above visible area (with buffer)
+        if (itemTop < listTop + buffer) {
+          list.scrollTop = Math.max(0, itemTop - buffer);
         }
-        // If item is below visible area
-        else if (itemBottom > listBottom) {
-          list.scrollTop = itemBottom - list.clientHeight;
+        // If item is below visible area (with buffer)
+        else if (itemBottom > listBottom - buffer) {
+          list.scrollTop = itemBottom - list.clientHeight + buffer;
         }
       }
     }
-  }, [activeIndex, showDropdown]);
+  }, [activeIndex, showDropdown, filteredStates]);
+
+  // Helper function to get caret index from click
+  const getCaretIndexFromClick = (input, clickX) => {
+    const style = window.getComputedStyle(input);
+    const font = `${style.fontSize} ${style.fontFamily}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = font;
+
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const x = clickX - paddingLeft;
+
+    let width = 0;
+
+    for (let i = 0; i < input.value.length; i++) {
+      const charWidth = ctx.measureText(input.value[i]).width;
+
+      if (width + charWidth / 2 > x) {
+        return i;
+      }
+
+      width += charWidth;
+    }
+
+    return input.value.length;
+  };
 
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative">
@@ -1084,11 +1082,6 @@ export default function SearchSection({
                   if (e.detail === 1) {
                     e.target.select();
                   }
-                  // Show dropdown if we have matches
-                 /*  if (filteredStates.length > 0) {
-                    setShowDropdown(true);
-                    setActiveIndex(0);
-                  } */
                 }}
                 onDoubleClick={(e) => {
                   e.preventDefault();
@@ -1102,28 +1095,13 @@ export default function SearchSection({
                     e.preventDefault();
                   }
                 }}
-                /* onFocus={() => {
-                  // Show dropdown on focus only if we have matches
-                  if (filteredStates.length > 0 && !showDropdown) {
-                    setShowDropdown(true);
-                    setActiveIndex(0);
-                    
-                    // Focus on the dropdown container for keyboard navigation
-                    setTimeout(() => {
-                      if (showDropdown && activeIndex >= 0) {
-                        const activeItem = document.querySelector(`[data-state-index="${activeIndex}"]`);
-                        activeItem?.focus();
-                      }
-                    }, 100);
-                  }
-                }} */
                 onBlur={(e) => {
                   // Don't close if the dropdown or its contents are clicked
                   const relatedTarget = e.relatedTarget;
-                  const isClickingDropdown = 
+                  const isClickingDropdown =
                     relatedTarget?.closest('[id="state-dropdown"]') ||
                     relatedTarget?.closest('[aria-label="Toggle state dropdown"]');
-                  
+
                   if (!isClickingDropdown && !keepDropdownOpenRef.current) {
                     setShowDropdown(false);
                     setActiveIndex(-1);
@@ -1132,7 +1110,7 @@ export default function SearchSection({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    
+
                     // If Enter is pressed and we have a selected category
                     if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
                       handleSelect(filteredStates[activeIndex]);
@@ -1153,17 +1131,6 @@ export default function SearchSection({
                         ? activeIndex + 1
                         : 0;
                       setActiveIndex(newIndex);
-                      
-                      // Scroll to the active item
-                      setTimeout(() => {
-                        const activeItem = document.querySelector(`[data-state-index="${newIndex}"]`);
-                        if (activeItem) {
-                          activeItem.scrollIntoView({
-                            block: 'nearest',
-                            behavior: 'smooth'
-                          });
-                        }
-                      }, 0);
                     } else if (filteredStates.length > 0) {
                       // If input has focus and user presses arrow down, show all states
                       setShowDropdown(true);
@@ -1177,17 +1144,6 @@ export default function SearchSection({
                         ? activeIndex - 1
                         : filteredStates.length - 1;
                       setActiveIndex(newIndex);
-                      
-                      // Scroll to the active item
-                      setTimeout(() => {
-                        const activeItem = document.querySelector(`[data-state-index="${newIndex}"]`);
-                        if (activeItem) {
-                          activeItem.scrollIntoView({
-                            block: 'nearest',
-                            behavior: 'smooth'
-                          });
-                        }
-                      }, 0);
                     } else if (filteredStates.length > 0) {
                       // If input has focus and user presses arrow up, show all states
                       setShowDropdown(true);
@@ -1274,7 +1230,7 @@ export default function SearchSection({
 
               {/* Dropdown menu - show when dropdown is open and there are states */}
               {showDropdown && filteredStates.length > 0 && (
-                <div 
+                <div
                   id="state-dropdown"
                   ref={dropdownListRef}
                   className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
@@ -1293,8 +1249,13 @@ export default function SearchSection({
                   {filteredStates.map((state, index) => (
                     <div
                       key={state}
-                      className={`px-4 py-3 cursor-pointer transition-colors duration-150 border-b border-gray-100 last:border-b-0
-                        ${activeIndex === index ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : 'hover:bg-gray-50'}`}
+                      className={`px-4 py-3 cursor-pointer transition-colors duration-150
+    border-b border-gray-100 last:border-b-0
+    focus:outline-none focus:ring-0
+    ${activeIndex === index
+                          ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
+                          : 'hover:bg-gray-50'
+                        }`}
                       onClick={() => {
                         handleSelect(state);
                         setShowDropdown(false);
@@ -1311,42 +1272,28 @@ export default function SearchSection({
                           e.preventDefault();
                           const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
                           setActiveIndex(newIndex);
-                          
-                          // Scroll the new active item into view
-                          setTimeout(() => {
-                            const nextItem = document.querySelector(`[data-state-index="${newIndex}"]`);
-                            if (nextItem) {
-                              nextItem.scrollIntoView({
-                                block: 'nearest',
-                                behavior: 'smooth'
-                              });
-                            }
-                          }, 0);
                         } else if (e.key === 'ArrowUp') {
                           e.preventDefault();
                           const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
                           setActiveIndex(newIndex);
-                          
-                          // Scroll the new active item into view
-                          setTimeout(() => {
-                            const prevItem = document.querySelector(`[data-state-index="${newIndex}"]`);
-                            if (prevItem) {
-                              prevItem.scrollIntoView({
-                                block: 'nearest',
-                                behavior: 'smooth'
-                              });
-                            }
-                          }, 0);
                         }
                       }}
                       tabIndex={0}
-                      role="button"
+                      role="option"
                       aria-selected={activeIndex === index}
                       data-state-index={index}
                       ref={el => {
-                        // Auto-focus the active item for better screen reader support
-                        if (activeIndex === index && showDropdown) {
-                          el?.focus();
+                        // Only focus if this is the active item AND it's not already focused
+                        // This prevents the abrupt jump
+                        if (activeIndex === index && showDropdown && el) {
+                          const isFocused = document.activeElement === el;
+                          if (!isFocused) {
+                            setTimeout(() => {
+                              if (activeIndex === index && showDropdown) {
+                                el.focus();
+                              }
+                            }, 10);
+                          }
                         }
                       }}
                     >
@@ -1421,7 +1368,7 @@ export default function SearchSection({
                 className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress || loadingZip ? "opacity-50 cursor-not-allowed" : ""
                   } ${validationErrors.zip ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
               />
-              
+
               {loadingZip && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
@@ -1511,7 +1458,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
 
   const handleChange = (e) => {
     const value = e.target.value;
-    
+
     // If value is empty, allow it (clear the field)
     if (value === "") {
       setInputValue("");
@@ -1528,7 +1475,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     // Handle the case where user types multiple digits
     if (value.length > 0) {
       const numericValue = Number(value);
-      
+
       // Validate range (1-40)
       if (numericValue <= 40 && numericValue >= 1) {
         onChange(numericValue);
@@ -1562,13 +1509,13 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
     if (e.key === '0') {
       const input = e.target;
       const cursorPosition = input.selectionStart;
-      
+
       // If cursor is at the beginning or field is empty, prevent typing "0"
       if (cursorPosition === 0 || inputValue === "") {
         e.preventDefault();
         return;
       }
-      
+
       // Allow "0" if it's not at the beginning (like in "10", "20", etc.)
       return;
     }
@@ -1600,7 +1547,7 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
       // Keep it empty, validation will handle it
       return;
     }
-    
+
     // If it's less than 1, clear it
     if (Number(inputValue) < 1) {
       setInputValue("");
@@ -1611,14 +1558,14 @@ function SearchWithinInput({ searchWithin, onChange, disabled = false, searchWit
   // Handle paste event
   const handlePaste = (e) => {
     const pastedData = e.clipboardData.getData('text');
-    
+
     // Check if pasted text starts with "0"
     if (pastedData.startsWith('0')) {
       e.preventDefault();
-      
+
       // Remove leading zeros
       const withoutLeadingZeros = pastedData.replace(/^0+/, '');
-      
+
       if (withoutLeadingZeros !== "") {
         const numericValue = Number(withoutLeadingZeros);
         if (numericValue >= 1 && numericValue <= 40) {
