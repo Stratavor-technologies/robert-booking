@@ -824,13 +824,6 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                     setShowCategoryDropdown(true);
                   }
                 }}
-                onBlur={() => {
-                  // Close dropdown when input loses focus
-                  setTimeout(() => {
-                    setShowCategoryDropdown(false);
-                    setSelectedCategoryIndex(-1);
-                  }, 200);
-                }}
                 onKeyDown={(e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -923,69 +916,71 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               />
 
               {/* Dropdown arrow - always show when there are categories available */}
-              {categories.length > 0 && (
-                <div
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
-                  onClick={() => {
-  // Toggle dropdown when icon is clicked
-  if (!showCategoryDropdown) {
-    // Show all categories when dropdown icon is clicked
-    const sortedCategories = [...categories].sort((a, b) =>
-      a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-    );
-    setFilteredCategories(sortedCategories);
-    
-    if (sortedCategories.length > 0) {
-      setShowCategoryDropdown(true);
-      setSelectedCategoryIndex(0); // Set first item as selected when opening
-      
-      // Focus back to input after opening dropdown
-      setTimeout(() => {
-        categoryInputRef.current?.focus();
-      }, 0);
-    }
-  } else {
-    setShowCategoryDropdown(false);
-    setSelectedCategoryIndex(-1);
-  }
-}}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (!showCategoryDropdown) {
-                        const sortedCategories = [...categories].sort((a, b) =>
-                          a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
-                        );
-                        setFilteredCategories(sortedCategories);
-
-                        if (sortedCategories.length > 0) {
-                          setShowCategoryDropdown(true);
-                        }
-
-                        setSelectedCategoryIndex(-1);
-                      } else {
-                        setShowCategoryDropdown(false);
-                        setSelectedCategoryIndex(-1);
-                      }
-                    }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label="Toggle category dropdown"
-                  aria-expanded={showCategoryDropdown}
-                  aria-controls="category-dropdown"
-                >
-                  <svg
-                    className={`w-5 h-5 text-gray-600 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''
-                      }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              )}
+              {/* Dropdown arrow - always show when there are categories available */}
+{categories.length > 0 && (
+  <div
+    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
+    onClick={() => {
+      // Toggle dropdown when icon is clicked
+      if (!showCategoryDropdown) {
+        // ALWAYS load ALL categories when dropdown arrow is clicked
+        // regardless of what's in the input field
+        const sortedCategories = [...categories].sort((a, b) =>
+          a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
+        
+        // Set filteredCategories to ALL sorted categories
+        setFilteredCategories(sortedCategories);
+        
+        // ALWAYS show the dropdown when arrow is clicked
+        setShowCategoryDropdown(true);
+        setSelectedCategoryIndex(sortedCategories.length > 0 ? 0 : -1);
+        
+        // Focus back to input after opening dropdown
+        setTimeout(() => {
+          categoryInputRef.current?.focus();
+        }, 0);
+      } else {
+        setShowCategoryDropdown(false);
+        setSelectedCategoryIndex(-1);
+      }
+    }}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (!showCategoryDropdown) {
+          // ALWAYS load ALL categories when dropdown arrow is activated via keyboard
+          const sortedCategories = [...categories].sort((a, b) =>
+            a.name?.localeCompare(b.name, undefined, { sensitivity: 'base' })
+          );
+          
+          setFilteredCategories(sortedCategories);
+          setShowCategoryDropdown(true);
+          setSelectedCategoryIndex(sortedCategories.length > 0 ? 0 : -1);
+        } else {
+          setShowCategoryDropdown(false);
+          setSelectedCategoryIndex(-1);
+        }
+      }
+    }}
+    tabIndex={0}
+    role="button"
+    aria-label="Toggle category dropdown"
+    aria-expanded={showCategoryDropdown}
+    aria-controls="category-dropdown"
+  >
+    <svg
+      className={`w-5 h-5 text-gray-600 transition-transform ${
+        showCategoryDropdown ? 'rotate-180' : ''
+      }`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  </div>
+)}
 
               {/* Dropdown menu - show when dropdown is open and there are categories */}
               {showCategoryDropdown && filteredCategories.length > 0 && (
