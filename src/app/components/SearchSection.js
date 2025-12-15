@@ -632,43 +632,43 @@ export default function SearchSection({
 
   // Handle state input change
   const handleStateInputChange = (e) => {
-    const value = e.target.value.toUpperCase();
+  const value = e.target.value.toUpperCase();
 
-    // Allow only letters and maximum 2 characters
-    if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
+  // Allow only letters and maximum 2 characters
+  if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
 
-    // Update search text
-    setSearchText(value);
+  // Update search text
+  setSearchText(value);
 
-    // Update state field
-    if (onFieldChange) {
-      onFieldChange({ target: { name: "state", value } });
-    }
+  // Update state field
+  if (onFieldChange) {
+    onFieldChange({ target: { name: "state", value } });
+  }
 
-    // Clear state error
-    setValidationErrors(prev => ({ ...prev, state: "" }));
+  // Clear state error
+  setValidationErrors(prev => ({ ...prev, state: "" }));
 
-    // Show dropdown when typing and there are matches
-    if (value.trim() !== "") {
-      const matches = usStates.filter(st =>
-        st.toLowerCase().startsWith(value.toLowerCase())
-      );
+  // Show dropdown when typing and there are matches
+  if (value.trim() !== "") {
+    const matches = usStates.filter(st =>
+      st.toLowerCase().startsWith(value.toLowerCase())
+    );
 
-      if (matches.length > 0) {
-        setShowDropdown(true);
-        setActiveIndex(0);
-      } else {
-        setShowDropdown(false);
-      }
+    if (matches.length > 0) {
+      setShowDropdown(true);
+      setActiveIndex(0); // Always reset to first item when typing
     } else {
       setShowDropdown(false);
     }
+  } else {
+    setShowDropdown(false);
+  }
 
-    // Handle field clearing
-    if (value === '') {
-      handleFieldClear('state');
-    }
-  };
+  // Handle field clearing
+  if (value === '') {
+    handleFieldClear('state');
+  }
+};
 
   // Handle ZIP change - trigger city/state lookup if needed
   const handleZipChange = (e) => {
@@ -913,31 +913,37 @@ export default function SearchSection({
 
   // Auto-scroll to active item - improved version with smooth scrolling
   useEffect(() => {
-    if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
-      const list = dropdownListRef.current;
-      const activeItem = list.querySelector(`[data-state-index="${activeIndex}"]`);
+  if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
+    const list = dropdownListRef.current;
+    const activeItem = list.querySelector(`[data-state-index="${activeIndex}"]`);
 
-      if (activeItem) {
-        // Calculate scroll position with buffer
+    if (activeItem) {
+      // Use requestAnimationFrame for smoother scrolling
+      requestAnimationFrame(() => {
+        // Calculate scroll position with proper centering
         const itemTop = activeItem.offsetTop;
-        const itemBottom = itemTop + activeItem.offsetHeight;
-        const listTop = list.scrollTop;
-        const listBottom = listTop + list.clientHeight;
-
-        // Calculate buffer (20% of item height for smoother scrolling)
-        const buffer = activeItem.offsetHeight * 0.2;
-
-        // If item is above visible area (with buffer)
-        if (itemTop < listTop + buffer) {
-          list.scrollTop = Math.max(0, itemTop - buffer);
+        const itemHeight = activeItem.offsetHeight;
+        const listHeight = list.clientHeight;
+        const listScrollTop = list.scrollTop;
+        
+        // Calculate the position to center the item
+        const targetScrollTop = itemTop - (listHeight / 2) + (itemHeight / 2);
+        
+        // Calculate bounds
+        const maxScroll = list.scrollHeight - listHeight;
+        const boundedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll));
+        
+        // Only scroll if needed
+        if (Math.abs(listScrollTop - boundedScrollTop) > 1) {
+          list.scrollTo({
+            top: boundedScrollTop,
+            behavior: 'smooth'
+          });
         }
-        // If item is below visible area (with buffer)
-        else if (itemBottom > listBottom - buffer) {
-          list.scrollTop = itemBottom - list.clientHeight + buffer;
-        }
-      }
+      });
     }
-  }, [activeIndex, showDropdown, filteredStates]);
+  }
+}, [activeIndex, showDropdown, filteredStates]);
 
   // Helper function to get caret index from click
   const getCaretIndexFromClick = (input, clickX) => {
