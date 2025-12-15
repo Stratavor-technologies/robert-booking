@@ -1253,7 +1253,7 @@ export default function SearchSection({
     border-b border-gray-100 last:border-b-0
     focus:outline-none focus:ring-0
     ${activeIndex === index
-                          ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
+                          ? 'bg-gray-300'
                           : 'hover:bg-gray-50'
                         }`}
                       onClick={() => {
