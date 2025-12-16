@@ -30,6 +30,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   // Ref for the container to trap focus
   const containerRef = useRef(null);
 
+  // Ref for dropdown container
+  const dropdownRef = useRef(null);
+
   // Store all focusable elements refs
   const focusableElementsRef = useRef([]);
 
@@ -849,13 +852,24 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         : 0;
       setSelectedCategoryIndex(newIndex);
       
-      // Scroll the selected item into view
+      // Smooth scroll without jump
       setTimeout(() => {
         const selectedElement = document.querySelector(`[data-category-index="${newIndex}"]`);
         if (selectedElement) {
-          selectedElement.scrollIntoView({ block: 'nearest' });
+          const dropdownContainer = document.getElementById('category-dropdown');
+          if (dropdownContainer) {
+            const elementTop = selectedElement.offsetTop;
+            const elementHeight = selectedElement.offsetHeight;
+            const containerTop = dropdownContainer.scrollTop;
+            const containerHeight = dropdownContainer.clientHeight;
+            
+            // Scroll only if element is not visible
+            if (elementTop < containerTop || elementTop + elementHeight > containerTop + containerHeight) {
+              selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          }
         }
-      }, 0);
+      }, 10); // Small delay to ensure DOM is updated
     } else if (categories.length > 0 && !showCategoryDropdown) {
       // If dropdown is closed, open it with all categories
       const sortedCategories = [...categories].sort((a, b) =>
@@ -874,13 +888,24 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
         : filteredCategories.length - 1;
       setSelectedCategoryIndex(newIndex);
       
-      // Scroll the selected item into view
+      // Smooth scroll without jump
       setTimeout(() => {
         const selectedElement = document.querySelector(`[data-category-index="${newIndex}"]`);
         if (selectedElement) {
-          selectedElement.scrollIntoView({ block: 'nearest' });
+          const dropdownContainer = document.getElementById('category-dropdown');
+          if (dropdownContainer) {
+            const elementTop = selectedElement.offsetTop;
+            const elementHeight = selectedElement.offsetHeight;
+            const containerTop = dropdownContainer.scrollTop;
+            const containerHeight = dropdownContainer.clientHeight;
+            
+            // Scroll only if element is not visible
+            if (elementTop < containerTop || elementTop + elementHeight > containerTop + containerHeight) {
+              selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          }
         }
-      }, 0);
+      }, 10);
     } else if (categories.length > 0 && !showCategoryDropdown) {
       // If dropdown is closed, open it with all categories
       const sortedCategories = [...categories].sort((a, b) =>
@@ -916,8 +941,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               />
 
               {/* Dropdown arrow - always show when there are categories available */}
-              {/* Dropdown arrow - always show when there are categories available */}
-{categories.length > 0 && (
+              {categories.length > 0 && (
   <div
     className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-amber-50 p-1 rounded-lg transition-colors"
     onClick={() => {
@@ -986,7 +1010,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               {showCategoryDropdown && filteredCategories.length > 0 && (
                 <div 
                   id="category-dropdown"
-                  className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                  className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto scroll-smooth"
+                  ref={dropdownRef}
                 >
                   {filteredCategories
                     .filter(category => category.name.toLowerCase() !== localCategory.toLowerCase())
@@ -1010,25 +1035,25 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
     const newIndex = index < filteredCategories.length - 1 ? index + 1 : 0;
     setSelectedCategoryIndex(newIndex);
     
-    // Scroll into view
+    // Smooth scroll for dropdown items
     setTimeout(() => {
       const nextElement = document.querySelector(`[data-category-index="${newIndex}"]`);
       if (nextElement) {
-        nextElement.scrollIntoView({ block: 'nearest' });
+        nextElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
-    }, 0);
+    }, 10);
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     const newIndex = index > 0 ? index - 1 : filteredCategories.length - 1;
     setSelectedCategoryIndex(newIndex);
     
-    // Scroll into view
+    // Smooth scroll for dropdown items
     setTimeout(() => {
       const prevElement = document.querySelector(`[data-category-index="${newIndex}"]`);
       if (prevElement) {
-        prevElement.scrollIntoView({ block: 'nearest' });
+        prevElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
-    }, 0);
+    }, 10);
   } else if (e.key === 'Escape') {
     e.preventDefault();
     setShowCategoryDropdown(false);
@@ -1041,13 +1066,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
   }
 }}
                         tabIndex={0}
-                        role="button"
+                        role="option"
+                        aria-selected={selectedCategoryIndex === index}
                         data-category-index={index}
-                        ref={el => {
-                          if (selectedCategoryIndex === index) {
-                            el?.scrollIntoView({ block: 'nearest' });
-                          }
-                        }}
                       >
                         <div className="font-medium text-gray-800">{category.name}</div>
                         {category.description && (

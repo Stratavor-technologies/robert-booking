@@ -912,38 +912,28 @@ export default function SearchSection({
   };
 
   // Auto-scroll to active item - improved version with smooth scrolling
-  useEffect(() => {
-  if (showDropdown && activeIndex >= 0 && dropdownListRef.current) {
-    const list = dropdownListRef.current;
-    const activeItem = list.querySelector(`[data-state-index="${activeIndex}"]`);
-
-    if (activeItem) {
-      // Use requestAnimationFrame for smoother scrolling
-      requestAnimationFrame(() => {
-        // Calculate scroll position with proper centering
-        const itemTop = activeItem.offsetTop;
-        const itemHeight = activeItem.offsetHeight;
-        const listHeight = list.clientHeight;
-        const listScrollTop = list.scrollTop;
+  // Add this useEffect after the other useEffects
+useEffect(() => {
+  if (showDropdown && activeIndex >= 0) {
+    // Simple scroll to active item
+    setTimeout(() => {
+      const selectedElement = document.querySelector(`[data-state-index="${activeIndex}"]`);
+      if (selectedElement && dropdownListRef.current) {
+        const dropdown = dropdownListRef.current;
+        const elementRect = selectedElement.getBoundingClientRect();
+        const dropdownRect = dropdown.getBoundingClientRect();
         
-        // Calculate the position to center the item
-        const targetScrollTop = itemTop - (listHeight / 2) + (itemHeight / 2);
-        
-        // Calculate bounds
-        const maxScroll = list.scrollHeight - listHeight;
-        const boundedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll));
-        
-        // Only scroll if needed
-        if (Math.abs(listScrollTop - boundedScrollTop) > 1) {
-          list.scrollTo({
-            top: boundedScrollTop,
-            behavior: 'smooth'
+        // Check if element is out of view
+        if (elementRect.top < dropdownRect.top || elementRect.bottom > dropdownRect.bottom) {
+          selectedElement.scrollIntoView({ 
+            block: 'nearest', 
+            behavior: 'smooth' 
           });
         }
-      });
-    }
+      }
+    }, 50);
   }
-}, [activeIndex, showDropdown, filteredStates]);
+}, [activeIndex, showDropdown]);
 
   // Helper function to get caret index from click
   const getCaretIndexFromClick = (input, clickX) => {
@@ -1114,65 +1104,87 @@ export default function SearchSection({
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
+  if (e.key === 'Enter') {
+    e.preventDefault();
 
-                    // If Enter is pressed and we have a selected category
-                    if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
-                      handleSelect(filteredStates[activeIndex]);
-                      setShowDropdown(false);
-                    } else if (showDropdown && filteredStates.length > 0) {
-                      // Select first item if dropdown is open but no specific item selected
-                      handleSelect(filteredStates[0]);
-                      setShowDropdown(false);
-                    } else {
-                      // Otherwise navigate to ZIP field
-                      zipRef.current?.focus();
-                    }
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (showDropdown && filteredStates.length > 0) {
-                      // Move selection down
-                      const newIndex = activeIndex < filteredStates.length - 1
-                        ? activeIndex + 1
-                        : 0;
-                      setActiveIndex(newIndex);
-                    } else if (filteredStates.length > 0) {
-                      // If input has focus and user presses arrow down, show all states
-                      setShowDropdown(true);
-                      setActiveIndex(0);
-                    }
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (showDropdown && filteredStates.length > 0) {
-                      // Move selection up
-                      const newIndex = activeIndex > 0
-                        ? activeIndex - 1
-                        : filteredStates.length - 1;
-                      setActiveIndex(newIndex);
-                    } else if (filteredStates.length > 0) {
-                      // If input has focus and user presses arrow up, show all states
-                      setShowDropdown(true);
-                      setActiveIndex(filteredStates.length - 1);
-                    }
-                  } else if (e.key === 'Escape') {
-                    if (showDropdown) {
-                      e.preventDefault();
-                      setShowDropdown(false);
-                      setActiveIndex(-1);
-                      keepDropdownOpenRef.current = false;
-                      stateRef.current?.focus();
-                    }
-                  } else if (e.key === 'Tab') {
-                    handleTabNavigation(e, "state", zipRef);
-                    // Close dropdown on tab
-                    if (showDropdown) {
-                      setShowDropdown(false);
-                      setActiveIndex(-1);
-                      keepDropdownOpenRef.current = false;
-                    }
-                  }
-                }}
+    // If Enter is pressed and we have a selected state
+    if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
+      handleSelect(filteredStates[activeIndex]);
+      setShowDropdown(false);
+    } else if (showDropdown && filteredStates.length > 0) {
+      // Select first item if dropdown is open but no specific item selected
+      handleSelect(filteredStates[0]);
+      setShowDropdown(false);
+    } else {
+      // Otherwise navigate to ZIP field
+      zipRef.current?.focus();
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (showDropdown && filteredStates.length > 0) {
+      // Move selection down
+      const newIndex = activeIndex < filteredStates.length - 1
+        ? activeIndex + 1
+        : 0;
+      setActiveIndex(newIndex);
+      
+      // Smooth scroll without jump - SIMPLIFIED VERSION
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ 
+            block: 'nearest', 
+            behavior: 'smooth' 
+          });
+        }
+      }, 10);
+    } else if (filteredStates.length > 0) {
+      // If input has focus and user presses arrow down, show all states
+      setShowDropdown(true);
+      setActiveIndex(0);
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (showDropdown && filteredStates.length > 0) {
+      // Move selection up
+      const newIndex = activeIndex > 0
+        ? activeIndex - 1
+        : filteredStates.length - 1;
+      setActiveIndex(newIndex);
+      
+      // Smooth scroll without jump - SIMPLIFIED VERSION
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ 
+            block: 'nearest', 
+            behavior: 'smooth' 
+          });
+        }
+      }, 10);
+    } else if (filteredStates.length > 0) {
+      // If input has focus and user presses arrow up, show all states
+      setShowDropdown(true);
+      setActiveIndex(filteredStates.length - 1);
+    }
+  } else if (e.key === 'Escape') {
+    if (showDropdown) {
+      e.preventDefault();
+      setShowDropdown(false);
+      setActiveIndex(-1);
+      keepDropdownOpenRef.current = false;
+      stateRef.current?.focus();
+    }
+  } else if (e.key === 'Tab') {
+    handleTabNavigation(e, "state", zipRef);
+    // Close dropdown on tab
+    if (showDropdown) {
+      setShowDropdown(false);
+      setActiveIndex(-1);
+      keepDropdownOpenRef.current = false;
+    }
+  }
+}}
                 placeholder="State"
                 disabled={loadingAddress || loadingState}
                 className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress || loadingState ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
@@ -1196,21 +1208,43 @@ export default function SearchSection({
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (!showDropdown) {
-                      if (filteredStates.length > 0) {
-                        setShowDropdown(true);
-                      }
-                      setActiveIndex(0);
-                      keepDropdownOpenRef.current = true;
-                    } else {
-                      setShowDropdown(false);
-                      setActiveIndex(-1);
-                      keepDropdownOpenRef.current = false;
-                    }
-                  }
-                }}
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    handleSelect(state);
+    setShowDropdown(false);
+    keepDropdownOpenRef.current = false;
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
+    setActiveIndex(newIndex);
+    
+    // Smooth scroll for dropdown items - SIMPLIFIED
+    setTimeout(() => {
+      const nextElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+      if (nextElement) {
+        nextElement.scrollIntoView({ 
+          block: 'nearest', 
+          behavior: 'smooth' 
+        });
+      }
+    }, 10);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
+    setActiveIndex(newIndex);
+    
+    // Smooth scroll for dropdown items - SIMPLIFIED
+    setTimeout(() => {
+      const prevElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+      if (prevElement) {
+        prevElement.scrollIntoView({ 
+          block: 'nearest', 
+          behavior: 'smooth' 
+        });
+      }
+    }, 10);
+  }
+}}
                 tabIndex={0}
                 role="button"
                 aria-label="Toggle state dropdown"
@@ -1239,7 +1273,7 @@ export default function SearchSection({
                 <div
                   id="state-dropdown"
                   ref={dropdownListRef}
-                  className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                  className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto scroll-smooth"
                   onKeyDown={(e) => {
                     // Handle global dropdown keyboard events
                     if (e.key === 'Escape') {
