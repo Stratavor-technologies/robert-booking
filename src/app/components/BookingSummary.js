@@ -321,7 +321,7 @@ function BookingForm({
         )}
         {formValid && (
           <p className="text-sm text-gray-500">
-            You'll receive a confirmation email shortly
+             You&apos;ll receive a confirmation email shortly
           </p>
         )}
       </div>

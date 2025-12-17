@@ -658,7 +658,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
               Hidden Providers
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Manage providers you've hidden from your search results
+              Manage providers You&apos;ve hidden from your search results
             </p>
           </div>
 
@@ -724,7 +724,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                   </svg>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
-                <p className="text-gray-600 mb-6">You haven't hidden any providers yet.</p>
+                <p className="text-gray-600 mb-6">You haven&apos;t hidden any providers yet.</p>
                 <button
                   onClick={showProviders}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"

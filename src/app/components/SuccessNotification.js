@@ -86,7 +86,7 @@ export default function SuccessNotification({ bookingDetails, onClose }) {
         {/* Confirmation Message */}
         <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
           <p className="text-sm text-emerald-700 text-center">
-            You'll receive a confirmation email shortly with all the details.
+            You&apos;ll receive a confirmation email shortly with all the details.
           </p>
         </div>
 

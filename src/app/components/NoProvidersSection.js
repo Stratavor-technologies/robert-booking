@@ -471,8 +471,9 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
             Service Not Available Yet
           </h3>
           <p className="text-gray-600 text-lg leading-relaxed max-w-md mx-auto">
-            We're expanding! Provide your contact info and we'll notify you when
-            services become available in your area.
+            We&apos;re expanding! Provide your contact info and we&apos;ll notify you when
+services become available in your area.
+
           </p>
         </div>
       </div>
@@ -550,7 +551,8 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
                   12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              We'll contact you as soon as we have providers in your area
+              We&apos;ll contact you as soon as we have providers in your area
+
             </p>
           </div>
         </div>
@@ -1150,7 +1152,7 @@ export default function NoProvidersSection({ address, userEmail, onNoThanks }) {
               </svg>
               {isSubmitting
                 ? "Submitting your request..."
-                : "We'll contact you as soon as we have providers in your area"}
+                : "We&apos;ll contact you as soon as we have providers in your area"}
             </p>
           </div>
         </div>
