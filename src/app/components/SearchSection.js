@@ -40,10 +40,12 @@ export default function SearchSection({
   const [loadingZip, setLoadingZip] = useState(false);
   const [loadingCity, setLoadingCity] = useState(false);
   const [loadingState, setLoadingState] = useState(false);
+  const [activeZipIndex, setActiveZipIndex] = useState(-1);
 
   const dropdownRef = useRef(null);
   const zipDropdownRef = useRef(null);
   const dropdownListRef = useRef(null);
+  const zipDropdownListRef = useRef(null);
 
   const [validationErrors, setValidationErrors] = useState({
     city: "",
@@ -60,6 +62,9 @@ export default function SearchSection({
 
   // Track if dropdown should stay open (when user clicks dropdown arrow)
   const keepDropdownOpenRef = useRef(false);
+
+  // Add a ref to track pending API calls
+  const pendingApiCallRef = useRef(null);
 
   // Filter states based on search text
   const filteredStates = usStates.filter((st) =>
@@ -141,45 +146,35 @@ export default function SearchSection({
     const item = data[0];
     let cityName = '';
 
-    console.log('Extracting city from:', item);
-
     // First try to get city from address object
     if (item.address) {
       // Check multiple possible city fields
       if (item.address.city) {
         cityName = item.address.city;
-        console.log('Found city in address.city:', cityName);
       } else if (item.address.town) {
         cityName = item.address.town;
-        console.log('Found city in address.town:', cityName);
       } else if (item.address.village) {
         cityName = item.address.village;
-        console.log('Found city in address.village:', cityName);
       } else if (item.address.municipality) {
         cityName = item.address.municipality;
-        console.log('Found city in address.municipality:', cityName);
       } else if (item.address.county) {
         // Sometimes the city is in county field for small towns
         cityName = item.address.county.replace(' County', '').replace(' County', '');
-        console.log('Found city in address.county (adjusted):', cityName);
       }
     }
 
     // If no city found in address, try to extract from display_name
     if (!cityName && item.display_name) {
-      console.log('Trying to extract from display_name:', item.display_name);
       const parts = item.display_name.split(',');
 
       // For display_name like: "Haddonfield, Camden County, New Jersey, 08033, USA"
       // The first part is usually the city
       if (parts.length > 0) {
         cityName = parts[0].trim();
-        console.log('Extracted city from first part of display_name:', cityName);
 
         // If the first part contains numbers (like ZIP code), try the second part
         if (/\d/.test(cityName) && parts.length > 1) {
           cityName = parts[1].trim();
-          console.log('First part contained numbers, trying second part:', cityName);
         }
       }
     }
@@ -201,8 +196,6 @@ export default function SearchSection({
         .replace(/\b\w/g, char => char.toUpperCase())
         .replace(/[^a-zA-Z\s\-']/g, '')
         .trim();
-
-      console.log('Cleaned city name:', cityName);
     }
 
     return cityName;
@@ -219,7 +212,7 @@ export default function SearchSection({
     try {
       const query = `${city}, ${state}, USA`;
       const response = await fetch(
-        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5&type=postcode`
+        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=10&type=postcode`
       );
 
       if (!response.ok) throw new Error('Failed to fetch ZIP codes');
@@ -249,7 +242,9 @@ export default function SearchSection({
       }
 
       setZipSuggestions(zipCodes);
-      setShowZipDropdown(zipCodes.length > 0 && (!address.zip || address.zip.length !== 5));
+      if (zipCodes.length > 0) {
+        setShowZipDropdown(true);
+      }
     } catch (error) {
       console.error('Error fetching ZIP codes:', error);
       setZipSuggestions([]);
@@ -260,46 +255,78 @@ export default function SearchSection({
 
   // Fetch state based on city and ZIP
   const fetchStateFromCityZip = async (city, zip) => {
+    // Cancel previous pending call
+    if (pendingApiCallRef.current) {
+      clearTimeout(pendingApiCallRef.current);
+    }
+    
     if (!city || !zip || city.length < 2 || zip.length < 5) {
       return;
     }
 
-    setLoadingState(true);
-    try {
-      const query = `${city}, ${zip}, USA`;
-      console.log('Fetching state for:', query);
+    // Set a new pending call with debounce
+    pendingApiCallRef.current = setTimeout(async () => {
+      setLoadingState(true);
+      try {
+        const query = `${city}, ${zip}, USA`;
+        const response = await fetch(
+          `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=3`
+        );
 
-      const response = await fetch(
-        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=1`
-      );
+        if (!response.ok) {
+          // Try alternative query format
+          const altResponse = await fetch(
+            `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(`${zip}, ${city}`)}&format=json&limit=3`
+          );
+          
+          if (!altResponse.ok) throw new Error('Failed to fetch state');
+          
+          const altData = await altResponse.json();
+          await processLocationData(altData);
+          return;
+        }
 
-      if (!response.ok) throw new Error('Failed to fetch state');
+        const data = await response.json();
+        await processLocationData(data);
 
-      const data = await response.json();
-      console.log('State data received:', data);
+      } catch (error) {
+        console.error('Error fetching state:', error);
+        // Try a more direct ZIP-based lookup as fallback
+        try {
+          const zipOnlyResponse = await fetch(
+            `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(zip)}&format=json&limit=1`
+          );
+          
+          if (zipOnlyResponse.ok) {
+            const zipData = await zipOnlyResponse.json();
+            await processLocationData(zipData);
+          }
+        } catch (fallbackError) {
+          console.error('Fallback lookup also failed:', fallbackError);
+        }
+      } finally {
+        setLoadingState(false);
+      }
+    }, 300);
 
+    // Helper function to process location data
+    async function processLocationData(data) {
       if (data.length > 0) {
         const stateCode = extractStateFromLocationData(data);
-        console.log('Extracted state code:', stateCode);
 
         if (stateCode && usStates.includes(stateCode)) {
           // Update the state field
           onFieldChange({ target: { name: "state", value: stateCode } });
           setSearchText(stateCode);
           setValidationErrors(prev => ({ ...prev, state: "" }));
-          console.log('State updated to:', stateCode);
         } else {
-          console.log('No valid state code found in:', data[0]);
-
           // Try alternative method - look in display_name
           if (data[0].display_name) {
-            console.log('Display name:', data[0].display_name);
             const parts = data[0].display_name.split(',');
             for (const part of parts) {
               const trimmed = part.trim();
               const possibleState = stateNameToCode(trimmed);
               if (possibleState && usStates.includes(possibleState)) {
-                console.log('Found state in display_name:', trimmed, '->', possibleState);
                 onFieldChange({ target: { name: "state", value: possibleState } });
                 setSearchText(possibleState);
                 setValidationErrors(prev => ({ ...prev, state: "" }));
@@ -309,10 +336,6 @@ export default function SearchSection({
           }
         }
       }
-    } catch (error) {
-      console.error('Error fetching state:', error);
-    } finally {
-      setLoadingState(false);
     }
   };
 
@@ -327,8 +350,6 @@ export default function SearchSection({
 
     try {
       const query = `${zip}, USA`;
-      console.log('Fetching city and state for ZIP:', zip);
-
       const response = await fetch(
         `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=3`
       );
@@ -336,7 +357,6 @@ export default function SearchSection({
       if (!response.ok) throw new Error('Failed to fetch location data');
 
       const data = await response.json();
-      console.log('City/State data for ZIP:', data);
 
       if (data.length > 0) {
         // Extract city from first result
@@ -344,8 +364,6 @@ export default function SearchSection({
 
         // Extract state from first result
         const stateCode = extractStateFromLocationData([data[0]]);
-
-        console.log('Extracted from ZIP:', { city: cityName, state: stateCode });
 
         return {
           city: cityName || null,
@@ -385,8 +403,6 @@ export default function SearchSection({
       for (const query of queries) {
         if (cityFound) break;
 
-        console.log(`Trying query: ${query}`);
-
         try {
           const response = await fetch(
             `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`
@@ -394,15 +410,12 @@ export default function SearchSection({
 
           // Check if response is OK
           if (!response.ok) {
-            console.warn(`Query failed: ${response.status} ${response.statusText}`);
             continue; // Try next query format
           }
 
           const data = await response.json();
-          console.log('City data received for query:', query, data);
 
           if (!data || !Array.isArray(data) || data.length === 0) {
-            console.log('No data for this query format');
             continue;
           }
 
@@ -419,8 +432,6 @@ export default function SearchSection({
                 !cityName.toUpperCase().includes(state) &&
                 !cityName.includes(zip)) {
 
-                console.log('Valid city found:', cityName);
-
                 // Update the city field
                 onFieldChange({ target: { name: "city", value: cityName } });
                 setValidationErrors(prev => ({ ...prev, city: "" }));
@@ -428,7 +439,6 @@ export default function SearchSection({
                 // Also update state if different
                 const extractedState = extractStateFromLocationData([item]);
                 if (extractedState && extractedState !== state) {
-                  console.log('Also updating state to:', extractedState);
                   onFieldChange({ target: { name: "state", value: extractedState } });
                   setSearchText(extractedState);
                 }
@@ -439,15 +449,12 @@ export default function SearchSection({
             }
           }
         } catch (innerError) {
-          console.warn(`Error with query "${query}":`, innerError);
           // Continue to next query
         }
       }
 
       // If no city found with search API, try reverse geocoding
       if (!cityFound) {
-        console.log('No city found with search API, trying reverse geocoding...');
-
         try {
           // First get coordinates for the ZIP code
           const coordResponse = await fetch(
@@ -466,7 +473,6 @@ export default function SearchSection({
 
               if (reverseResponse.ok) {
                 const reverseData = await reverseResponse.json();
-                console.log('Reverse geocode data:', reverseData);
 
                 if (reverseData.address) {
                   // Extract city from reverse geocode
@@ -483,7 +489,6 @@ export default function SearchSection({
                   }
 
                   if (cityName && cityName.length >= 2) {
-                    console.log('City found via reverse geocoding:', cityName);
                     onFieldChange({ target: { name: "city", value: cityName } });
                     setValidationErrors(prev => ({ ...prev, city: "" }));
                     cityFound = true;
@@ -497,10 +502,6 @@ export default function SearchSection({
         }
       }
 
-      if (!cityFound) {
-        console.warn(`Could not find city for state: ${state}, ZIP: ${zip}`);
-      }
-
     } catch (error) {
       console.error('Error in fetchCityFromStateZip:', error);
     } finally {
@@ -508,9 +509,83 @@ export default function SearchSection({
     }
   };
 
+  // Fetch ZIP codes based on search term
+  const fetchZipCodesBySearch = async (city, state, searchTerm) => {
+    if (!city || !state || city.length < 2) {
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+      return;
+    }
+
+    setLoadingZip(true);
+    try {
+      // Search for ZIP codes for the city and state
+      const query = `${city}, ${state}, USA`;
+      const response = await fetch(
+        `${LOCATIONIQ_SEARCH_URL}?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=10&type=postcode`
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch ZIP codes');
+
+      const data = await response.json();
+
+      // Extract ZIP codes that match the search term
+      const zipCodes = [];
+      data.forEach(item => {
+        if (item.address && item.address.postcode) {
+          const zip = item.address.postcode.split('-')[0];
+          if (zip && /^\d{5}$/.test(zip) && !zipCodes.includes(zip)) {
+            // Show all ZIPs when search term is short, filter when longer
+            if (searchTerm.length <= 2 || zip.startsWith(searchTerm)) {
+              zipCodes.push(zip);
+            }
+          }
+        }
+      });
+
+      // If no ZIP codes from address, try display_name
+      if (zipCodes.length === 0) {
+        data.forEach(item => {
+          const displayName = item.display_name || '';
+          const zipMatch = displayName.match(/\b\d{5}\b/);
+          if (zipMatch && !zipCodes.includes(zipMatch[0])) {
+            // Show all ZIPs when search term is short, filter when longer
+            if (searchTerm.length <= 2 || zipMatch[0].startsWith(searchTerm)) {
+              zipCodes.push(zipMatch[0]);
+            }
+          }
+        });
+      }
+
+      setZipSuggestions(zipCodes);
+      
+      // Show dropdown if we have suggestions
+      if (zipCodes.length > 0) {
+        setShowZipDropdown(true);
+        setActiveZipIndex(-1);
+      } else {
+        setShowZipDropdown(false);
+      }
+    } catch (error) {
+      console.error('Error fetching ZIP codes by search:', error);
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
+    } finally {
+      setLoadingZip(false);
+    }
+  };
+
   // Debounced version of fetchZipCodes to avoid too many API calls
   const debouncedFetchZipCodes = useCallback(
-    debounce((city, state) => fetchZipCodes(city, state), 500),
+    debounce((city, state, searchTerm = "") => {
+      // If there's a search term, fetch based on it
+      if (searchTerm && searchTerm.length >= 1) {
+        fetchZipCodesBySearch(city, state, searchTerm);
+      } else {
+        // Otherwise fetch all ZIP codes for the city/state
+        fetchZipCodes(city, state);
+      }
+    }, 300), // Reduced debounce time for better responsiveness
     []
   );
 
@@ -523,6 +598,7 @@ export default function SearchSection({
     if (fieldName !== 'zip') {
       setZipSuggestions([]);
       setShowZipDropdown(false);
+      setActiveZipIndex(-1);
     }
 
     // If ZIP is 5 digits and a field was cleared, try to refill it
@@ -531,21 +607,19 @@ export default function SearchSection({
         if (fieldName === 'city' && (!address.city || address.city === '')) {
           // City was cleared, try to fetch it if state exists
           if (address.state && address.state.length === 2) {
-            console.log('Refetching city after clear');
             fetchCityFromStateZip(address.state, address.zip);
           }
         } else if (fieldName === 'state' && (!address.state || address.state === '')) {
           // State was cleared, try to fetch it if city exists
           if (address.city && address.city.length >= 2) {
-            console.log('Refetching state after clear');
             fetchStateFromCityZip(address.city, address.zip);
           }
         }
-      }, 300); // Small delay to ensure state is updated
+      }, 300);
     }
   };
 
-  // Handle city change - trigger ZIP code lookup if state is filled
+  // Handle city change
   const handleCityChange = (e) => {
     const value = e.target.value;
 
@@ -563,26 +637,21 @@ export default function SearchSection({
     // Clear ZIP suggestions when city is being edited
     setZipSuggestions([]);
     setShowZipDropdown(false);
+    setActiveZipIndex(-1);
+
+    // If we have a valid ZIP and city is being filled, try to fetch state
+    if (value && value.length >= 2 && address.zip && address.zip.length === 5) {
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        if (!address.state || address.state.length !== 2) {
+          fetchStateFromCityZip(value, address.zip);
+        }
+      }, 300);
+    }
 
     // If field is being cleared
     if (value === '') {
       handleFieldClear('city');
-      return;
-    }
-
-    // If ZIP is already filled and state is missing, try to fetch state
-    if (address.zip && address.zip.length === 5 &&
-      (!address.state || address.state.length !== 2) &&
-      value.length >= 2) {
-      console.log('Fetching state for new city:', value, 'ZIP:', address.zip);
-      fetchStateFromCityZip(value, address.zip);
-    }
-
-    // If state is already filled AND ZIP is NOT already filled, fetch ZIP codes
-    else if (value.length >= 2 && address.state && address.state.length === 2 &&
-      (!address.zip || address.zip.length !== 5)) {
-      // Only fetch ZIP codes if ZIP field is empty or incomplete
-      debouncedFetchZipCodes(value, address.state);
     }
   };
 
@@ -595,7 +664,7 @@ export default function SearchSection({
     zipRef.current?.focus();
   };
 
-  // Handle state change - trigger ZIP code lookup if city is filled
+  // Handle state change
   const handleStateChange = (value) => {
     setSearchText(value.toUpperCase());
     setValidationErrors(prev => ({ ...prev, state: "" }));
@@ -608,88 +677,113 @@ export default function SearchSection({
     // Clear ZIP suggestions when state is being edited
     setZipSuggestions([]);
     setShowZipDropdown(false);
+    setActiveZipIndex(-1);
 
     // If field is being cleared
     if (value === '') {
       handleFieldClear('state');
-      return;
-    }
-
-    // If ZIP is already filled and city is missing, try to fetch city
-    if (address.zip && address.zip.length === 5 &&
-      (!address.city || address.city.length < 2)) {
-      console.log('Auto-fetching city for new state:', value, 'ZIP:', address.zip);
-      fetchCityFromStateZip(value.toUpperCase(), address.zip);
-    }
-
-    // If city is already filled AND ZIP is NOT already filled, fetch ZIP codes
-    else if (value.length === 2 && address.city && address.city.length >= 2 &&
-      (!address.zip || address.zip.length !== 5)) {
-      // Only fetch ZIP codes if ZIP field is empty or incomplete
-      fetchZipCodes(address.city, value.toUpperCase());
     }
   };
 
   // Handle state input change
   const handleStateInputChange = (e) => {
-  const value = e.target.value.toUpperCase();
+    const value = e.target.value.toUpperCase();
 
-  // Allow only letters and maximum 2 characters
-  if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
+    // Allow only letters and maximum 2 characters
+    if (!/^[A-Za-z]*$/.test(value) || value.length > 2) return;
 
-  // Update search text
-  setSearchText(value);
+    // Update search text
+    setSearchText(value);
 
-  // Update state field
-  if (onFieldChange) {
-    onFieldChange({ target: { name: "state", value } });
-  }
+    // Update state field
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "state", value } });
+    }
 
-  // Clear state error
-  setValidationErrors(prev => ({ ...prev, state: "" }));
+    // Clear state error
+    setValidationErrors(prev => ({ ...prev, state: "" }));
 
-  // Show dropdown when typing and there are matches
-  if (value.trim() !== "") {
-    const matches = usStates.filter(st =>
-      st.toLowerCase().startsWith(value.toLowerCase())
-    );
+    // Show dropdown when typing and there are matches
+    if (value.trim() !== "") {
+      const matches = usStates.filter(st =>
+        st.toLowerCase().startsWith(value.toLowerCase())
+      );
 
-    if (matches.length > 0) {
-      setShowDropdown(true);
-      setActiveIndex(0); // Always reset to first item when typing
+      if (matches.length > 0) {
+        setShowDropdown(true);
+        setActiveIndex(-1);
+      } else {
+        setShowDropdown(false);
+        setActiveIndex(-1);
+      }
     } else {
       setShowDropdown(false);
+      setActiveIndex(-1);
     }
-  } else {
-    setShowDropdown(false);
-  }
 
-  // Handle field clearing
-  if (value === '') {
-    handleFieldClear('state');
-  }
-};
+    // Handle field clearing
+    if (value === '') {
+      handleFieldClear('state');
+    }
+  };
+
+  // Handle ZIP code selection from dropdown
+  const handleZipSelect = (zip) => {
+    // Update parent component
+    if (onFieldChange) {
+      onFieldChange({ target: { name: "zip", value: zip } });
+    }
+    setShowZipDropdown(false);
+    setActiveZipIndex(-1);
+    searchWithinRef.current?.focus();
+  };
 
   // Handle ZIP change - trigger city/state lookup if needed
   const handleZipChange = (e) => {
-    const value = e.target.value;
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
 
-    // Update the ZIP value
+    // Update the parent component state immediately
     if (onFieldChange) {
-      onFieldChange(e);
+      const event = {
+        target: {
+          name: "zip",
+          value: value
+        }
+      };
+      onFieldChange(event);
     }
 
     // Clear ZIP error when user starts typing
     setValidationErrors(prev => ({ ...prev, zip: "" }));
 
-    // Clear ZIP suggestions when ZIP is being edited
-    setZipSuggestions([]);
-    setShowZipDropdown(false);
+    // Reset active zip index
+    setActiveZipIndex(-1);
 
     // Handle field clearing
     if (value === '') {
       handleFieldClear('zip');
+      setZipSuggestions([]);
+      setShowZipDropdown(false);
       return;
+    }
+
+    // If city and state are filled, fetch matching ZIP codes
+    if (address.city && address.city.length >= 2 && 
+        address.state && address.state.length === 2) {
+      
+      // Fetch ZIP codes that match what the user is typing
+      debouncedFetchZipCodes(address.city, address.state, value);
+      
+      // Show dropdown if user has typed something and we have suggestions
+      if (value.length >= 1) {
+        // We'll show dropdown when API returns results
+      } else {
+        setShowZipDropdown(false);
+      }
+    } else {
+      // Hide dropdown if city/state aren't filled
+      setShowZipDropdown(false);
+      setZipSuggestions([]);
     }
 
     // If ZIP is 5 digits, try to auto-fill missing fields
@@ -697,44 +791,64 @@ export default function SearchSection({
       const city = address.city || "";
       const state = address.state || "";
 
-      console.log('ZIP changed to 5 digits:', value, 'City:', city, 'State:', state);
-
-      // Logic for auto-filling based on what's missing
-      if (city && city.length >= 2 && (!state || state.length !== 2)) {
-        // Case 1: City is filled but state is missing or incomplete
-        console.log('Fetching state for city:', city, 'ZIP:', value);
-        fetchStateFromCityZip(city, value);
-      }
-      else if (state && state.length === 2 && (!city || city.length < 2)) {
-        // Case 2: State is filled but city is missing
-        console.log('Fetching city for state:', state, 'ZIP:', value);
-        fetchCityFromStateZip(state, value);
-      }
-      else if (!city && !state) {
-        // Case 3: Both city and state are missing - fetch both
-        console.log('Fetching city and state for ZIP:', value);
-
-        // First fetch city and state together
-        fetchCityStateFromZip(value).then(({ city: fetchedCity, state: fetchedState }) => {
-          if (fetchedCity && !address.city) {
-            onFieldChange({ target: { name: "city", value: fetchedCity } });
-          }
-          if (fetchedState && !address.state) {
-            onFieldChange({ target: { name: "state", value: fetchedState } });
-            setSearchText(fetchedState);
-          }
-        });
-      }
+      // Use setTimeout to avoid race conditions with state updates
+      setTimeout(() => {
+        // Logic for auto-filling based on what's missing
+        if (city && city.length >= 2 && (!state || state.length !== 2)) {
+          // Case 1: City is filled but state is missing or incomplete
+          fetchStateFromCityZip(city, value);
+        }
+        else if (state && state.length === 2 && (!city || city.length < 2)) {
+          // Case 2: State is filled but city is missing
+          fetchCityFromStateZip(state, value);
+        }
+        else if (!city && !state) {
+          // Case 3: Both city and state are missing - fetch both
+          fetchCityStateFromZip(value).then(({ city: fetchedCity, state: fetchedState }) => {
+            if (fetchedCity && !address.city) {
+              onFieldChange({ target: { name: "city", value: fetchedCity } });
+            }
+            if (fetchedState && !address.state) {
+              onFieldChange({ target: { name: "state", value: fetchedState } });
+              setSearchText(fetchedState);
+            }
+          });
+        }
+        
+        // Also check if we should fetch state when city is already filled
+        // (this handles the case where user fills city first, then zip)
+        if (city && city.length >= 2) {
+          // Give a small delay to ensure city is fully updated in state
+          setTimeout(() => {
+            if (!state || state.length !== 2) {
+              fetchStateFromCityZip(city, value);
+            }
+          }, 100);
+        }
+      }, 50);
+      
+      // Hide dropdown when ZIP is complete (5 digits)
+      setShowZipDropdown(false);
     }
   };
 
-  // Handle ZIP code selection from dropdown
-  const handleZipSelect = (zip) => {
-    if (onFieldChange) {
-      onFieldChange({ target: { name: "zip", value: zip } });
+  // Toggle ZIP dropdown (for arrow button)
+  const handleZipDropdownToggle = () => {
+    if (!address.city || !address.state) {
+      // Don't show dropdown if city and state aren't filled
+      return;
     }
-    setShowZipDropdown(false);
-    searchWithinRef.current?.focus();
+
+    if (!showZipDropdown) {
+      // Fetch ZIP codes if not already fetched
+      if (zipSuggestions.length === 0) {
+        debouncedFetchZipCodes(address.city, address.state, address.zip || "");
+      }
+      setShowZipDropdown(true);
+    } else {
+      setShowZipDropdown(false);
+      setActiveZipIndex(-1);
+    }
   };
 
   // Close dropdowns when clicking outside
@@ -743,6 +857,7 @@ export default function SearchSection({
       // Handle ZIP dropdown
       if (zipDropdownRef.current && !zipDropdownRef.current.contains(event.target)) {
         setShowZipDropdown(false);
+        setActiveZipIndex(-1);
       }
 
       // Handle state dropdown
@@ -763,9 +878,51 @@ export default function SearchSection({
     };
   }, []);
 
-  // Cleanup debounce on unmount
+  // Handle city and zip coordination
+  useEffect(() => {
+    // Only run when both city and zip are filled, but state is empty
+    if (address.city && 
+        address.city.length >= 2 && 
+        address.zip && 
+        address.zip.length === 5 && 
+        (!address.state || address.state.length !== 2)) {
+      
+      // Debounce this check to avoid excessive API calls
+      const timer = setTimeout(() => {
+        fetchStateFromCityZip(address.city, address.zip);
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [address.city, address.zip, address.state]);
+
+  // Handle when zip changes after city is already filled
+  useEffect(() => {
+    // This specifically handles the case where city was filled first, then zip
+    if (address.city && 
+        address.city.length >= 2 && 
+        address.zip && 
+        address.zip.length === 5) {
+      
+      // Check if we need to fetch state
+      if (!address.state || address.state.length !== 2) {
+        const timer = setTimeout(() => {
+          fetchStateFromCityZip(address.city, address.zip);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [address.zip]); // Only depend on zip changes
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Cancel any pending API call
+      if (pendingApiCallRef.current) {
+        clearTimeout(pendingApiCallRef.current);
+      }
+      // Cancel debounced functions
       debouncedFetchZipCodes.cancel();
     };
   }, [debouncedFetchZipCodes]);
@@ -804,6 +961,11 @@ export default function SearchSection({
         setShowDropdown(false);
         setActiveIndex(-1);
         keepDropdownOpenRef.current = false;
+      }
+      
+      if (currentField === "zip") {
+        setShowZipDropdown(false);
+        setActiveZipIndex(-1);
       }
     }
   };
@@ -881,7 +1043,7 @@ export default function SearchSection({
     if (!address.zip || address.zip.trim() === "") {
       errors.zip = "ZIP code is required";
       isValid = false;
-    } else if (!/^\d{5}(-\d{4})?$/.test(address.zip)) {
+    } else if (!/^\d{5}$/.test(address.zip)) {
       errors.zip = "Please enter a valid 5-digit ZIP code";
       isValid = false;
     }
@@ -911,29 +1073,49 @@ export default function SearchSection({
     }
   };
 
-  // Auto-scroll to active item - improved version with smooth scrolling
-  // Add this useEffect after the other useEffects
-useEffect(() => {
-  if (showDropdown && activeIndex >= 0) {
-    // Simple scroll to active item
-    setTimeout(() => {
-      const selectedElement = document.querySelector(`[data-state-index="${activeIndex}"]`);
-      if (selectedElement && dropdownListRef.current) {
-        const dropdown = dropdownListRef.current;
-        const elementRect = selectedElement.getBoundingClientRect();
-        const dropdownRect = dropdown.getBoundingClientRect();
-        
-        // Check if element is out of view
-        if (elementRect.top < dropdownRect.top || elementRect.bottom > dropdownRect.bottom) {
-          selectedElement.scrollIntoView({ 
-            block: 'nearest', 
-            behavior: 'smooth' 
-          });
+  // Auto-scroll to active item
+  useEffect(() => {
+    if (showDropdown && activeIndex >= 0) {
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-state-index="${activeIndex}"]`);
+        if (selectedElement && dropdownListRef.current) {
+          const dropdown = dropdownListRef.current;
+          const elementRect = selectedElement.getBoundingClientRect();
+          const dropdownRect = dropdown.getBoundingClientRect();
+
+          // Check if element is out of view
+          if (elementRect.top < dropdownRect.top || elementRect.bottom > dropdownRect.bottom) {
+            selectedElement.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }
         }
-      }
-    }, 50);
-  }
-}, [activeIndex, showDropdown]);
+      }, 50);
+    }
+  }, [activeIndex, showDropdown]);
+
+  // Auto-scroll to active ZIP item
+  useEffect(() => {
+    if (showZipDropdown && activeZipIndex >= 0) {
+      setTimeout(() => {
+        const selectedElement = document.querySelector(`[data-zip-index="${activeZipIndex}"]`);
+        if (selectedElement && zipDropdownListRef.current) {
+          const dropdown = zipDropdownListRef.current;
+          const elementRect = selectedElement.getBoundingClientRect();
+          const dropdownRect = dropdown.getBoundingClientRect();
+
+          // Check if element is out of view
+          if (elementRect.top < dropdownRect.top || elementRect.bottom > dropdownRect.bottom) {
+            selectedElement.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }
+        }
+      }, 50);
+    }
+  }, [activeZipIndex, showZipDropdown]);
 
   // Helper function to get caret index from click
   const getCaretIndexFromClick = (input, clickX) => {
@@ -1104,87 +1286,87 @@ useEffect(() => {
                   }
                 }}
                 onKeyDown={(e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
 
-    // If Enter is pressed and we have a selected state
-    if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
-      handleSelect(filteredStates[activeIndex]);
-      setShowDropdown(false);
-    } else if (showDropdown && filteredStates.length > 0) {
-      // Select first item if dropdown is open but no specific item selected
-      handleSelect(filteredStates[0]);
-      setShowDropdown(false);
-    } else {
-      // Otherwise navigate to ZIP field
-      zipRef.current?.focus();
-    }
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (showDropdown && filteredStates.length > 0) {
-      // Move selection down
-      const newIndex = activeIndex < filteredStates.length - 1
-        ? activeIndex + 1
-        : 0;
-      setActiveIndex(newIndex);
-      
-      // Smooth scroll without jump - SIMPLIFIED VERSION
-      setTimeout(() => {
-        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
-        if (selectedElement) {
-          selectedElement.scrollIntoView({ 
-            block: 'nearest', 
-            behavior: 'smooth' 
-          });
-        }
-      }, 10);
-    } else if (filteredStates.length > 0) {
-      // If input has focus and user presses arrow down, show all states
-      setShowDropdown(true);
-      setActiveIndex(0);
-    }
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (showDropdown && filteredStates.length > 0) {
-      // Move selection up
-      const newIndex = activeIndex > 0
-        ? activeIndex - 1
-        : filteredStates.length - 1;
-      setActiveIndex(newIndex);
-      
-      // Smooth scroll without jump - SIMPLIFIED VERSION
-      setTimeout(() => {
-        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
-        if (selectedElement) {
-          selectedElement.scrollIntoView({ 
-            block: 'nearest', 
-            behavior: 'smooth' 
-          });
-        }
-      }, 10);
-    } else if (filteredStates.length > 0) {
-      // If input has focus and user presses arrow up, show all states
-      setShowDropdown(true);
-      setActiveIndex(filteredStates.length - 1);
-    }
-  } else if (e.key === 'Escape') {
-    if (showDropdown) {
-      e.preventDefault();
-      setShowDropdown(false);
-      setActiveIndex(-1);
-      keepDropdownOpenRef.current = false;
-      stateRef.current?.focus();
-    }
-  } else if (e.key === 'Tab') {
-    handleTabNavigation(e, "state", zipRef);
-    // Close dropdown on tab
-    if (showDropdown) {
-      setShowDropdown(false);
-      setActiveIndex(-1);
-      keepDropdownOpenRef.current = false;
-    }
-  }
-}}
+                    // If Enter is pressed and we have a selected state
+                    if (showDropdown && activeIndex >= 0 && filteredStates[activeIndex]) {
+                      handleSelect(filteredStates[activeIndex]);
+                      setShowDropdown(false);
+                    } else if (showDropdown && filteredStates.length > 0) {
+                      // Select first item if dropdown is open but no specific item selected
+                      handleSelect(filteredStates[0]);
+                      setShowDropdown(false);
+                    } else {
+                      // Otherwise navigate to ZIP field
+                      zipRef.current?.focus();
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (showDropdown && filteredStates.length > 0) {
+                      // Move selection down
+                      const newIndex = activeIndex < filteredStates.length - 1
+                        ? activeIndex + 1
+                        : 0;
+                      setActiveIndex(newIndex);
+
+                      // Smooth scroll without jump
+                      setTimeout(() => {
+                        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+                        if (selectedElement) {
+                          selectedElement.scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth'
+                          });
+                        }
+                      }, 10);
+                    } else if (filteredStates.length > 0) {
+                      // If input has focus and user presses arrow down, show all states
+                      setShowDropdown(true);
+                      setActiveIndex(0);
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (showDropdown && filteredStates.length > 0) {
+                      // Move selection up
+                      const newIndex = activeIndex > 0
+                        ? activeIndex - 1
+                        : filteredStates.length - 1;
+                      setActiveIndex(newIndex);
+
+                      // Smooth scroll without jump
+                      setTimeout(() => {
+                        const selectedElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+                        if (selectedElement) {
+                          selectedElement.scrollIntoView({
+                            block: 'nearest',
+                            behavior: 'smooth'
+                          });
+                        }
+                      }, 10);
+                    } else if (filteredStates.length > 0) {
+                      // If input has focus and user presses arrow up, show all states
+                      setShowDropdown(true);
+                      setActiveIndex(filteredStates.length - 1);
+                    }
+                  } else if (e.key === 'Escape') {
+                    if (showDropdown) {
+                      e.preventDefault();
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
+                      stateRef.current?.focus();
+                    }
+                  } else if (e.key === 'Tab') {
+                    handleTabNavigation(e, "state", zipRef);
+                    // Close dropdown on tab
+                    if (showDropdown) {
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                      keepDropdownOpenRef.current = false;
+                    }
+                  }
+                }}
                 placeholder="State"
                 disabled={loadingAddress || loadingState}
                 className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black ${loadingAddress || loadingState ? "opacity-50 cursor-not-allowed" : ""} ${validationErrors.state ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
@@ -1208,43 +1390,49 @@ useEffect(() => {
                   }
                 }}
                 onKeyDown={(e) => {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    handleSelect(state);
-    setShowDropdown(false);
-    keepDropdownOpenRef.current = false;
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
-    setActiveIndex(newIndex);
-    
-    // Smooth scroll for dropdown items - SIMPLIFIED
-    setTimeout(() => {
-      const nextElement = document.querySelector(`[data-state-index="${newIndex}"]`);
-      if (nextElement) {
-        nextElement.scrollIntoView({ 
-          block: 'nearest', 
-          behavior: 'smooth' 
-        });
-      }
-    }, 10);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
-    setActiveIndex(newIndex);
-    
-    // Smooth scroll for dropdown items - SIMPLIFIED
-    setTimeout(() => {
-      const prevElement = document.querySelector(`[data-state-index="${newIndex}"]`);
-      if (prevElement) {
-        prevElement.scrollIntoView({ 
-          block: 'nearest', 
-          behavior: 'smooth' 
-        });
-      }
-    }, 10);
-  }
-}}
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSelect(state);
+                    setShowDropdown(false);
+                    keepDropdownOpenRef.current = false;
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const newIndex = index < filteredStates.length - 1 ? index + 1 : 0;
+                    setActiveIndex(newIndex);
+
+                    // Smooth scroll for dropdown items
+                    setTimeout(() => {
+                      const nextElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+                      if (nextElement) {
+                        nextElement.scrollIntoView({
+                          block: 'nearest',
+                          behavior: 'smooth'
+                        });
+                      }
+                    }, 10);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const newIndex = index > 0 ? index - 1 : filteredStates.length - 1;
+                    setActiveIndex(newIndex);
+
+                    // Smooth scroll for dropdown items
+                    setTimeout(() => {
+                      const prevElement = document.querySelector(`[data-state-index="${newIndex}"]`);
+                      if (prevElement) {
+                        prevElement.scrollIntoView({
+                          block: 'nearest',
+                          behavior: 'smooth'
+                        });
+                      }
+                    }, 10);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowDropdown(false);
+                    setActiveIndex(-1);
+                    keepDropdownOpenRef.current = false;
+                    stateRef.current?.focus();
+                  }
+                }}
                 tabIndex={0}
                 role="button"
                 aria-label="Toggle state dropdown"
@@ -1324,7 +1512,6 @@ useEffect(() => {
                       data-state-index={index}
                       ref={el => {
                         // Only focus if this is the active item AND it's not already focused
-                        // This prevents the abrupt jump
                         if (activeIndex === index && showDropdown && el) {
                           const isFocused = document.activeElement === el;
                           if (!isFocused) {
@@ -1363,7 +1550,7 @@ useEffect(() => {
                 ref={zipRef}
                 type="text"
                 name="zip"
-                value={address.zip}
+                value={address.zip || ""}
                 onChange={handleZipChange}
                 onClick={(e) => {
                   if (e.detail === 1) {
@@ -1382,52 +1569,165 @@ useEffect(() => {
                     e.preventDefault();
                   }
                 }}
-                placeholder="ZIP code"
-                disabled={loadingAddress || loadingZip}
                 onFocus={() => {
-                  // Only show dropdown if ZIP is not already 5 digits and there are suggestions
-                  if (!address.zip || address.zip.length !== 5) {
-                    if (zipSuggestions.length > 0) {
-                      setShowZipDropdown(true);
-                    }
+                  // Select text on focus
+                  if (zipRef.current) {
+                    zipRef.current.select();
+                  }
+                  // Show existing suggestions when focusing
+                  if (zipSuggestions.length > 0) {
+                    setShowZipDropdown(true);
                   }
                 }}
+                placeholder="ZIP code"
+                disabled={loadingAddress || loadingZip}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    handleEnterNavigation("zip", searchWithinRef)(e);
-                  }
-                  if (e.key === "Tab") {
-                    handleTabNavigation(e, "zip", searchWithinRef);
-                  }
-                  if (showZipDropdown && zipSuggestions.length > 0) {
-                    if (e.key === "Escape") {
-                      setShowZipDropdown(false);
+                    e.preventDefault();
+                    
+                    // If dropdown is open and there's an active selection
+                    if (showZipDropdown && activeZipIndex >= 0 && zipSuggestions[activeZipIndex]) {
+                      handleZipSelect(zipSuggestions[activeZipIndex]);
+                    } else if (showZipDropdown && zipSuggestions.length > 0) {
+                      // Select first suggestion if dropdown is open
+                      handleZipSelect(zipSuggestions[0]);
+                    } else {
+                      // Otherwise navigate to searchWithin field
+                      handleEnterNavigation("zip", searchWithinRef)(e);
                     }
+                    
+                    // Close dropdown on Enter
+                    if (showZipDropdown) {
+                      setShowZipDropdown(false);
+                      setActiveZipIndex(-1);
+                    }
+                  }
+                  
+                  // Handle arrow keys for ZIP dropdown navigation
+                  if (showZipDropdown && zipSuggestions.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      const newIndex = activeZipIndex < zipSuggestions.length - 1 
+                        ? activeZipIndex + 1 
+                        : 0;
+                      setActiveZipIndex(newIndex);
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      const newIndex = activeZipIndex > 0 
+                        ? activeZipIndex - 1 
+                        : zipSuggestions.length - 1;
+                      setActiveZipIndex(newIndex);
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setShowZipDropdown(false);
+                      setActiveZipIndex(-1);
+                      zipRef.current?.focus();
+                    }
+                  }
+                  
+                  if (e.key === "Tab") {
+                    // Close dropdown on Tab
+                    if (showZipDropdown) {
+                      setShowZipDropdown(false);
+                      setActiveZipIndex(-1);
+                    }
+                    handleTabNavigation(e, "zip", searchWithinRef);
                   }
                 }}
                 className={`w-full border rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:outline-none transition-all duration-200 bg-white/50 shadow-sm hover:shadow-md text-black placeholder-gray-400 ${loadingAddress || loadingZip ? "opacity-50 cursor-not-allowed" : ""
                   } ${validationErrors.zip ? "border-red-500 focus:border-red-500 focus:ring-red-400" : "border-gray-200"}`}
               />
 
+              {/* ZIP dropdown toggle button */}
+              <div
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:bg-indigo-50 p-1 rounded-lg transition-colors"
+                onClick={handleZipDropdownToggle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleZipDropdownToggle();
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label="Toggle ZIP code dropdown"
+                aria-expanded={showZipDropdown}
+              >
+                <svg
+                  className={`w-5 h-5 text-gray-600 transition-transform ${showZipDropdown ? 'rotate-180' : ''
+                    }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+
               {loadingZip && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
                 </div>
               )}
 
-              {/* Only show ZIP dropdown if ZIP is not already 5 digits */}
-              {showZipDropdown && zipSuggestions.length > 0 && (!address.zip || address.zip.length !== 5) && (
-                <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                  <li className="px-4 py-2 text-sm text-gray-500 bg-gray-50 border-b">
-                    ZIP Codes for {address.city}, {address.state}
-                  </li>
+              {/* ZIP code dropdown - shows when user types or clicks arrow */}
+              {showZipDropdown && zipSuggestions.length > 0 && (
+                <ul 
+                  ref={zipDropdownListRef}
+                  className="absolute z-20 mt-1 w-full max-h-56  bg-white border-gray-200 rounded-xl shadow-lg"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowZipDropdown(false);
+                      setActiveZipIndex(-1);
+                      zipRef.current?.focus();
+                    }
+                  }}
+                  tabIndex={-1}
+                >
                   {zipSuggestions.map((zip, index) => (
                     <li
                       key={zip}
                       onClick={() => handleZipSelect(zip)}
-                      className="px-4 py-2.5 cursor-pointer text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                      onMouseEnter={() => setActiveZipIndex(index)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleZipSelect(zip);
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          const newIndex = index < zipSuggestions.length - 1 ? index + 1 : 0;
+                          setActiveZipIndex(newIndex);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          const newIndex = index > 0 ? index - 1 : zipSuggestions.length - 1;
+                          setActiveZipIndex(newIndex);
+                        }
+                      }}
+                      className={`px-4 py-2.5 cursor-pointer text-gray-700 transition-colors duration-150  border-gray-100
+                        ${activeZipIndex === index ? 'bg-gray-300' : 'hover:bg-gray-100'}
+                      `}
+                      tabIndex={0}
+                      role="option"
+                      aria-selected={activeZipIndex === index}
+                      data-zip-index={index}
+                      ref={el => {
+                        // Focus the active item
+                        if (activeZipIndex === index && showZipDropdown && el) {
+                          const isFocused = document.activeElement === el;
+                          if (!isFocused) {
+                            setTimeout(() => {
+                              if (activeZipIndex === index && showZipDropdown) {
+                                el.focus();
+                              }
+                            }, 10);
+                          }
+                        }
+                      }}
                     >
-                      {zip}
+                      <div className={`font-medium ${activeZipIndex === index ? 'text-indigo-700' : 'text-gray-800'}`}>
+                        {zip}
+                      </div>
                     </li>
                   ))}
                 </ul>
