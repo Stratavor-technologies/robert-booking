@@ -12,16 +12,17 @@ export const AppDataProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
 
   const fetchAllData = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const base = process.env.NEXT_PUBLIC_BASE_URL;
 
       const [providersRes, eventsRes, locationsRes, clientsRes, categoriesRes] = await Promise.all([
-        fetch(`${base}/api/providers`, { cache: "no-store" }),
-        fetch(`${base}/api/events`, { cache: "no-store" }),
-        fetch(`${base}/api/locations`, { cache: "no-store" }),
-        fetch(`${base}/api/clients`, { cache: "no-store" }),
-        fetch(`${base}/api/categories`, { cache: "no-store" }),
+        fetch(`${base}/api/providers`),
+        fetch(`${base}/api/events`),
+        fetch(`${base}/api/locations`),
+        fetch(`${base}/api/clients`),
+        fetch(`${base}/api/categories`),
       ]);
 
       const [providersJson, eventsJson, locationsJson, clientsJson, categoriesJson] = await Promise.all([
@@ -61,27 +62,27 @@ export const AppDataProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
-  useEffect(() => {   
-    console.log("Provider updated :", providers);
-  }, [providers]);
+  // useEffect(() => {   
+  //   console.log("Provider updated :", providers);
+  // }, [providers]);
 
-  useEffect(()=>{
-    console.log("events updated:", events);
-  },[events]);
+  // useEffect(()=>{
+  //   console.log("events updated:", events);
+  // },[events]);
 
-  useEffect(()=>{
-    console.log("categories updated:", categories);
-  },[categories]);
+  // useEffect(()=>{
+  //   console.log("categories updated:", categories);
+  // },[categories]);
 
-  useEffect(()=>{
-    console.log("location updated:", locations);
-  },[locations]);
+  // useEffect(()=>{
+  //   console.log("location updated:", locations);
+  // },[locations]);
 
-  useEffect(()=>{
-    console.log("clients updated:", clients);
-  },[clients]);
+  // useEffect(()=>{
+  //   console.log("clients updated:", clients);
+  // },[clients]);
 
   return (
     <AppDataContext.Provider

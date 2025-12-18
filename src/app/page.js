@@ -18,9 +18,10 @@ export default function Home() {
   // ✅ Fetch all global data when the page loads (only once)
   useEffect(() => {
     fetchAllData();
-  }, [fetchAllData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  console.log("events: ", events);
+  // console.log("events: ", events);
 
   return (
     <>
