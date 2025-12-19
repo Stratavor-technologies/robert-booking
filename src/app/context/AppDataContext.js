@@ -18,11 +18,11 @@ export const AppDataProvider = ({ children }) => {
       const base = process.env.NEXT_PUBLIC_BASE_URL;
 
       const [providersRes, eventsRes, locationsRes, clientsRes, categoriesRes] = await Promise.all([
-        fetch(`${base}/api/providers`),
-        fetch(`${base}/api/events`),
-        fetch(`${base}/api/locations`),
-        fetch(`${base}/api/clients`),
-        fetch(`${base}/api/categories`),
+        fetch(`/api/providers`),
+        fetch(`/api/events`),
+        fetch(`/api/locations`),
+        fetch(`/api/clients`),
+        fetch(`/api/categories`),
       ]);
 
       const [providersJson, eventsJson, locationsJson, clientsJson, categoriesJson] = await Promise.all([
