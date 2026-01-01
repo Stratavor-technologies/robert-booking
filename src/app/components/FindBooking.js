@@ -24,16 +24,7 @@ const dayMap = {
 export default function FindBooking({ providers, events, locations, clients, categories }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
-  const [userFlow, setUserFlow] = useState("entry");
-  const [loginData, setLoginData] = useState({
-    email: "",
-    phonenumber: ""
-  });
-  const [otp, setOtp] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpError, setOtpError] = useState("");
-  const [currentEmail, setCurrentEmail] = useState(false);
+   const [userFlow, setUserFlow] = useState("entry"); 
 
   const [currentView, setCurrentView] = useState('providers');
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
@@ -43,7 +34,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [showDatePickerSection, setShowDatePickerSection] = useState(true);
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
-  const [isUnverifiedUser, setIsUnverifiedUser] = useState(false);
   const [resetForm, setResetForm] = useState(false);
   // Add this function inside the FindBooking component, after all the useState declarations
   const saveBookingState = () => {
@@ -121,6 +111,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setShowServicesSection(true);
   };
 
+  // REPLACE THE ENTIRE useEffect (lines 87-128) WITH:
   useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
@@ -129,17 +120,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
           try {
             const parsed = JSON.parse(savedAuth);
             if (parsed.isAuthenticated) {
-              /* console.log('✅ Restoring auth state:', parsed); */
-
-              // Set UI state
-              setUserFlow("new-user");
-              setOtpVerified(true);
-              setLoginData({
-                email: parsed.userEmail,
-                phonenumber: parsed.loginData.phonenumber
-              });
-              setCurrentEmail(true);
-
               // Set booking hook state
               setUserEmail(parsed.userEmail);
               setFormData(prev => ({ ...prev, email: parsed.userEmail }));
@@ -174,7 +154,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
     };
 
     loadAuthState();
-
   }, []);
 
 
@@ -302,15 +281,11 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   // 🔥 AUTH PERSISTENCE: Enhanced reset that clears session storage
+  // REPLACE THE handleFullReset function (lines 238-259) WITH:
   const handleFullReset = () => {
     resetBooking();
     setShowSuccess(false);
     setBookingDetails(null);
-    setUserFlow("entry");
-    setOtpVerified(false);
-    setOtp("");
-    setLoginData({ email: "", phonenumber: "" });
-    setIsUnverifiedUser(false);
     setResetForm(true); // Trigger form reset in SearchSection
 
     // Reset all section visibility states
@@ -330,13 +305,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
   // NEW: Handler for "No Thanks" that goes back to ENTRY point
   const handleNoThanks = () => {
-    // Reset everything and go back to the entry point with two buttons
-    resetBooking();
-    sessionStorage.clear();
-    window.dispatchEvent(new CustomEvent('reset-booking-form'));
-    setUserFlow("entry");
-    console.log('🔙 Returning to entry point (Find Door-to-Door Services)');
-  };
+  // Reset everything
+  resetBooking();
+  sessionStorage.clear();
+  window.dispatchEvent(new CustomEvent('reset-booking-form'));
+  console.log('🔙 Resetting booking form');
+};
 
   // Handle OTP send for returning clients with redirect on failure
   const handleSendOTP = async (e) => {
@@ -797,17 +771,15 @@ export default function FindBooking({ providers, events, locations, clients, cat
     );
   };
 
-
-
   // Entry Point - Two Buttons
   if (userFlow === "entry") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-        {/* Background Decorative Elements */}
+        
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-        {/* Header Section */}
+      
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -822,9 +794,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
-        {/* Two Button Selection */}
+ 
         <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto py-8">
-          {/* Find Door-To-Door Services */}
+      
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -854,7 +826,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </button>
           </div>
 
-          {/* Client Login */}
+    
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -873,17 +845,17 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  }
+  } 
 
   // Returning Client Login Form
-  if (userFlow === "returning-client") {
+   if (userFlow === "returning-client") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-        {/* Background Decorative Elements */}
+       
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-        {/* Header Section */}
+      
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -898,10 +870,10 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
-        {/* Login Form */}
+  
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
           <form onSubmit={handleSendOTP} className="space-y-6">
-            {/* Email Field */}
+          
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Email Address
@@ -917,7 +889,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
               />
             </div>
 
-            {/* Phone Field */}
+         
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Phone Number
@@ -942,14 +914,14 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
             </div>
 
-            {/* Error Message */}
+        
             {otpError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
                 {otpError}
               </div>
             )}
 
-            {/* Buttons */}
+         
             <div className="flex gap-4">
               <button
                 type="button"
@@ -970,17 +942,17 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  }
+  } 
 
   // OTP Verification
-  if (userFlow === "otp-verification") {
+   if (userFlow === "otp-verification") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-        {/* Background Decorative Elements */}
+      
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-        {/* Header Section */}
+        
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -995,7 +967,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
-        {/* OTP Form */}
+  
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
           <form onSubmit={handleVerifyOTP} className="space-y-6">
             <div>
@@ -1043,7 +1015,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  }
+  } 
 
   // Main Booking Flow (for both new users and returning clients)
   return (
@@ -1093,8 +1065,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
               await getLatLngFromAddress();
             }}
             loadingAddress={loadingAddress}
-            currentEmail={currentEmail}
-            onBackToHome={handleFullReset} // Add this line
+            onBackToHome={handleFullReset}
             resetForm={resetForm}
           />
 
@@ -1114,56 +1085,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
               </div>
             </div>
           )}
-
-          {/* Results Header - Only show when not loading */}
-          {/*  {isSearchedAddress && !loadingAddress && !loadingProviders && (
-            <div className="my-12 max-w-4xl mx-auto">
-              <div className="relative bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 shadow-lg border border-indigo-100">
-                
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                  <div className="bg-white rounded-full p-3 shadow-lg border border-indigo-100">
-                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-             
-                <div className="text-center space-y-4 pt-4">
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    {filteredProviders.length} Service Provider{filteredProviders.length !== 1 ? 's' : ''} Found Near You
-                  </h2>
-
-                
-                  <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                    {filteredProviders.length > 0 ? (
-                      <>We found the perfect professionals ready to serve you in your area</>
-                    ) : (
-                      <>No providers found within your search area. Try expanding your search radius.</>
-                    )}
-                  </p>
-
-                  
-                  {filteredProviders.length > 0 && (
-                    <div className="flex justify-center items-center gap-6 pt-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span>Available now</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        </svg>
-                        <span>Within {searchWithin} miles</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )} */}
 
 
           {isSearchedAddress && !loadingAddress && !loadingProviders && filteredProviders.length === 0 && (
@@ -1257,7 +1178,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Date Picker Section */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
+          { filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
             <DatePickerSection
               selectedDate={selectedDate}
               workCalandar={workCalandar}
@@ -1271,7 +1192,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if DatePickerSection is closed but conditions are met */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
+          { filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenDatePickerSection}
@@ -1285,7 +1206,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
           {/* Time Slots Section with Loading */}
           {/* Time Slots Section with Loading */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
+          { filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
             <div className="relative">
               {loadingTimeSlots ? (
                 <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
@@ -1309,7 +1230,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if TimeSlotsSection is closed but conditions are met */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
+          {filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenTimeSlotsSection}
@@ -1323,7 +1244,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
           {/* Booking Summary & Form with Loading */}
           {/* Booking Summary & Form with Loading */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedTime && showBookingSummary && (
+          {filteredProviders.length > 0 && selectedTime && showBookingSummary && (
             <BookingSummary
               selectedEvent={selectedEvent}
               selectedProvider={selectedProvider}
@@ -1337,13 +1258,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
               onChange={handleChange}
               getSelectedServiceNames={getSelectedServiceNames}
               submittingBooking={submittingBooking}
-              currentEmail={currentEmail}
               onClose={handleCloseBookingSummary}
             />
           )}
 
           {/* Show reopen button if BookingSummary is closed but conditions are met */}
-          {!isUnverifiedUser && filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
+          {filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
             <div className="text-center">
               <button
                 onClick={handleReopenBookingSummary}

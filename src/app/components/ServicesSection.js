@@ -12,6 +12,7 @@ export default function ServicesSection({
   const [selectedCount, setSelectedCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [availableServices, setAvailableServices] = useState([]);
+  const [showAllServices, setShowAllServices] = useState(false); // New state for showing all services
 
   // Get the provider's available services
   useEffect(() => {
@@ -60,12 +61,18 @@ export default function ServicesSection({
       return [];
     }
 
+    // Determine which services to show based on showAllServices state
+    const servicesToShow = showAllServices 
+      ? availableServices 
+      : availableServices.slice(0, 5);
+
     return [
       {
         title: "Available Services",
         icon: "💅",
         description: `Select the services you'd like from ${providers?.find(p => p.id === selectedProvider)?.name || 'this provider'}`,
-        services: availableServices
+        services: servicesToShow,
+        showAllButton: availableServices.length > 5 && !showAllServices
       }
     ];
   };
@@ -86,6 +93,11 @@ export default function ServicesSection({
     if (onClose) {
       onClose();
     }
+  };
+
+  // Toggle show all services
+  const toggleShowAllServices = () => {
+    setShowAllServices(!showAllServices);
   };
 
   return (
@@ -164,14 +176,45 @@ export default function ServicesSection({
                   ))}
                 </div>
 
-                {/* Services Count */}
-                {group.services.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm text-gray-500 text-center">
-                      {group.services.length} service{group.services.length !== 1 ? 's' : ''} available
-                    </p>
+                {/* Show All Services Button */}
+                {group.showAllButton && (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={toggleShowAllServices}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 font-medium rounded-xl border border-purple-200 hover:border-purple-300 hover:from-purple-100 hover:to-pink-100 transition-all duration-200 group"
+                    >
+                      <span>View All {availableServices.length} Services</span>
+                      <svg 
+                        className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
                 )}
+
+                {/* Show Less Button (when all services are shown) */}
+                {showAllServices && availableServices.length > 5 && (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={toggleShowAllServices}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 font-medium rounded-xl border border-gray-200 hover:border-gray-300 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 group"
+                    >
+                      <svg 
+                        className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                      <span>Show Less</span>
+                    </button>
+                  </div>
+                )}  
               </div>
             ))}
           </div>
