@@ -1,6 +1,5 @@
-import DatePicker from "react-datepicker";
-import { Loader2, Calendar, CheckCircle, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Loader2, Calendar, CheckCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function DatePickerSection({
   selectedDate,
@@ -9,12 +8,14 @@ export default function DatePickerSection({
   onDateSelect,
   onTimeReset,
   onMonthChange,
-  onClose // Add this prop for cross functionality
+  onClose
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [availableDatesCount, setAvailableDatesCount] = useState(0);
+  const [weeks, setWeeks] = useState([]);
+  const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
 
-  // Calculate available dates for current month
+  // Calculate available dates and generate weeks
   useEffect(() => {
     if (!workCalandar) return;
     
@@ -22,45 +23,147 @@ export default function DatePickerSection({
     const month = currentMonth.getMonth() + 1;
     let count = 0;
     
-    // Count available dates in the current month
-    Object.keys(workCalandar).forEach(key => {
-      const [y, m, d] = key.split('-').map(Number);
-      if (y === year && m === month && parseInt(workCalandar[key].is_day_off) === 0) {
-        count++;
-      }
-    });
+    // Generate all dates for current month
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
     
+    // Start from Monday of the week containing the 1st
+    const startDate = new Date(firstDay);
+    const dayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    startDate.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    
+    // Go to Sunday of the week containing the last day
+    const endDate = new Date(lastDay);
+    const endDayOfWeek = endDate.getDay();
+    endDate.setDate(endDate.getDate() + (endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek));
+    
+    // Generate all dates in the calendar view
+    const currentDate = new Date(startDate);
+    const tempWeeks = [];
+    let currentWeek = [];
+    let dayCount = 0;
+    
+    while (currentDate <= endDate) {
+      const date = new Date(currentDate);
+      const y = date.getFullYear();
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+      const key = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      
+      const isCurrentMonth = y === year && m === month;
+      const isAvailable = isCurrentMonth && 
+                         workCalandar?.[key] && 
+                         parseInt(workCalandar[key].is_day_off) === 0;
+      
+      if (isAvailable) count++;
+      
+      // Check if date is in past
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isPast = date < today;
+      
+      currentWeek.push({
+        date,
+        day: date.getDate(),
+        month: m,
+        year: y,
+        isCurrentMonth,
+        isAvailable: isAvailable && !isPast,
+        isPast,
+        isToday: date.toDateString() === new Date().toDateString(),
+        isSelected: selectedDate && date.toDateString() === selectedDate.toDateString(),
+        monthName: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+      });
+      
+      dayCount++;
+      
+      if (dayCount % 7 === 0) {
+        tempWeeks.push(currentWeek);
+        currentWeek = [];
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    if (currentWeek.length > 0) {
+      tempWeeks.push(currentWeek);
+    }
+    
+    setWeeks(tempWeeks);
     setAvailableDatesCount(count);
-  }, [workCalandar, currentMonth]);
+    
+    // Find current week index
+    if (selectedDate) {
+      const selectedWeekIndex = tempWeeks.findIndex(week => 
+        week.some(day => 
+          day.date.toDateString() === selectedDate.toDateString()
+        )
+      );
+      if (selectedWeekIndex !== -1) {
+        setCurrentWeekIndex(selectedWeekIndex);
+      }
+    } else if (tempWeeks.length > 0) {
+      // Find week containing today
+      const todayWeekIndex = tempWeeks.findIndex(week => 
+        week.some(day => day.isToday)
+      );
+      if (todayWeekIndex !== -1) {
+        setCurrentWeekIndex(todayWeekIndex);
+      }
+    }
+  }, [workCalandar, currentMonth, selectedDate]);
 
-  const handleMonthChange = (date) => {
-    setCurrentMonth(date);
-    onMonthChange(date);
+  const handleMonthChange = (direction) => {
+    const newDate = new Date(currentMonth);
+    if (direction === 'prev') {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentMonth(newDate);
+    setCurrentWeekIndex(0);
+    onMonthChange(newDate);
   };
 
-  const getDayAvailability = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const key = `${y}-${m}-${d}`;
+  const handleWeekChange = (direction) => {
+    if (direction === 'prev' && currentWeekIndex > 0) {
+      setCurrentWeekIndex(currentWeekIndex - 1);
+    } else if (direction === 'next' && currentWeekIndex < weeks.length - 1) {
+      setCurrentWeekIndex(currentWeekIndex + 1);
+    }
+  };
 
-    // Disable all past dates
+  const handleDateSelect = (date) => {
+    // Don't allow selection of past dates or unavailable dates
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const isPast = date < today;
+    if (date < today) return;
+    
+    onDateSelect(date);
+    onTimeReset();
+  };
 
-    if (isPast) return false; // ❌ past days disabled
+  const getWeekRange = (week) => {
+    if (!week || week.length === 0) return '';
+    const first = week[0].date;
+    const last = week[6].date;
+    
+    const firstMonth = first.toLocaleDateString('en-US', { month: 'short' });
+    const lastMonth = last.toLocaleDateString('en-US', { month: 'short' });
+    
+    if (firstMonth === lastMonth) {
+      return `${firstMonth} ${first.getDate()} - ${last.getDate()}`;
+    } else {
+      return `${firstMonth} ${first.getDate()} - ${lastMonth} ${last.getDate()}`;
+    }
+  };
 
-    // Check if the date exists in workCalendar and is not a day off
-    return workCalandar?.[key] && parseInt(workCalandar[key].is_day_off) === 0;
+  const getDayAbbreviation = (date) => {
+    return date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative ">
-      
-      
-      
-      
+    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
       {/* Cross Button */}
       {onClose && (
         <button
@@ -68,14 +171,7 @@ export default function DatePickerSection({
           className="absolute top-6 right-6 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors duration-200 group"
           aria-label="Close date picker section"
         >
-          <svg 
-            className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
         </button>
       )}
       
@@ -113,7 +209,7 @@ export default function DatePickerSection({
         
         {/* Calendar Stats */}
         {!loadingCalendar && workCalandar && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl border border-green-200">
+          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl border border-green-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -136,118 +232,192 @@ export default function DatePickerSection({
           </div>
         )}
 
-        <div className={`border-2 border-gray-200 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 bg-white ${
-          loadingCalendar ? 'opacity-50' : ''
-        }`}>
-          <DatePicker
-            selected={selectedDate}
-            onChange={(date) => {
-              onDateSelect(date);
-              onTimeReset();
-            }}
-            inline
-            calendarClassName="max-w-full !border-0 !shadow-none bg-transparent"
-            wrapperClassName="w-full"
-            filterDate={getDayAvailability}
-            onMonthChange={handleMonthChange}
-            disabled={loadingCalendar}
-            renderCustomHeader={({
-              date,
-              decreaseMonth,
-              increaseMonth,
-              prevMonthButtonDisabled,
-              nextMonthButtonDisabled,
-            }) => (
-              <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-green-50 to-teal-50 border-b border-gray-200">
-                <button
-                  onClick={decreaseMonth}
-                  disabled={prevMonthButtonDisabled || loadingCalendar}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
-                >
-                  <svg className="w-5 h-5 text-gray-600 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-green-600" />
-                  <span className="text-lg font-semibold text-gray-800">
-                    {date.toLocaleString('default', { month: 'long' })} {date.getFullYear()}
-                  </span>
-                </div>
-                
-                <button
-                  onClick={increaseMonth}
-                  disabled={nextMonthButtonDisabled || loadingCalendar}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
-                >
-                  <svg className="w-5 h-5 text-gray-600 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+        {/* Month and Week Navigation */}
+        <div className="space-y-4 mb-6">
+          {/* Month Navigation */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => handleMonthChange('prev')}
+              disabled={loadingCalendar}
+              className="text-gray-700 px-4 py-2 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous Month</span>
+            </button>
+            
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-800">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </div>
-            )}
-            dayClassName={(date) => {
-              const isAvailable = getDayAvailability(date);
-              const isToday = date.toDateString() === new Date().toDateString();
-              
-              const baseClasses = "!w-12 !h-12 rounded-xl border-2 font-medium transition-all duration-200 relative";
-              
-              if (date.getTime() === selectedDate?.getTime()) {
-                return `${baseClasses} bg-gradient-to-br from-green-500 to-teal-600 !text-white border-green-500 shadow-lg transform scale-105`;
-              }
-              
-              if (!isAvailable) {
-                return `${baseClasses} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed`;
-              }
-              
-              if (isToday) {
-                return `${baseClasses} bg-blue-50 text-blue-700 border-blue-300 hover:border-green-400 hover:bg-green-50 hover:text-green-700 hover:shadow-md`;
-              }
-              
-              return `${baseClasses} bg-white text-gray-700 border-gray-300 hover:border-green-400 hover:bg-green-50 hover:text-green-700 hover:shadow-md`;
-            }}
-            renderDayContents={(day, date) => {
-              const isAvailable = getDayAvailability(date);
-              const isToday = date.toDateString() === new Date().toDateString();
-              
+            </div>
+            
+            <button
+              onClick={() => handleMonthChange('next')}
+              disabled={loadingCalendar}
+              className="text-gray-700 px-4 py-2 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            >
+              <span>Next Month</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Week Range Display */}
+          {weeks[currentWeekIndex] && (
+            <div className="text-center">
+              <div className="text-lg font-medium text-gray-700">
+                {getWeekRange(weeks[currentWeekIndex])}
+              </div>
+            </div>
+          )}
+
+          {/* Week Navigation */}
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => handleWeekChange('prev')}
+              disabled={currentWeekIndex === 0 || loadingCalendar}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-700" />
+            </button>
+            
+            <div className="text-center">
+              <div className="text-sm font-medium text-gray-700">
+                Week {currentWeekIndex + 1} of {weeks.length}
+              </div>
+            </div>
+            
+            <button
+              onClick={() => handleWeekChange('next')}
+              disabled={currentWeekIndex === weeks.length - 1 || loadingCalendar}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
+        </div>
+
+        {/* Vertical Week Calendar - Compact Design */}
+        <div className="space-y-2 mb-6">
+          {weeks[currentWeekIndex]?.map((day, index) => {
+            const dayAbbr = getDayAbbreviation(day.date);
+            const dayName = day.date.toLocaleDateString('en-US', { weekday: 'long' });
+            const isToday = day.isToday;
+            
+            // Base classes for the day container
+            const baseContainerClasses = "flex items-center justify-between p-4 rounded-2xl transition-all duration-200";
+            
+            if (day.isSelected) {
               return (
-                <div className="w-full h-full flex flex-col items-center justify-center relative">
-                  <span className="text-sm font-medium">{day}</span>
-                  {isToday && !selectedDate && (
-                    <div className="absolute bottom-1 w-1 h-1 bg-blue-500 rounded-full"></div>
-                  )}
-                  {!isAvailable && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <X className="w-3 h-3 text-gray-400" />
+                <div
+                  key={index}
+                  className={`${baseContainerClasses} bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center min-w-[60px]">
+                      <div className="text-sm font-medium opacity-90">{dayAbbr}</div>
+                      <div className="text-2xl font-bold">{day.day}</div>
+                      {!day.isCurrentMonth && (
+                        <div className="text-xs opacity-80">{day.monthName}</div>
+                      )}
                     </div>
-                  )}
+                    <div className="text-lg font-semibold">{dayName}</div>
+                  </div>
+                  <CheckCircle className="w-6 h-6" />
                 </div>
               );
-            }}
-          />
+            }
+            
+            if (!day.isAvailable || day.isPast) {
+              return (
+                <div
+                  key={index}
+                  className={`${baseContainerClasses} bg-gray-100 text-gray-400`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center min-w-[60px]">
+                      <div className="text-sm font-medium">{dayAbbr}</div>
+                      <div className="text-2xl font-medium">{day.day}</div>
+                      {!day.isCurrentMonth && (
+                        <div className="text-xs">{day.monthName}</div>
+                      )}
+                    </div>
+                    <div className="text-lg font-medium">{dayName}</div>
+                  </div>
+                  <X className="w-5 h-5" />
+                </div>
+              );
+            }
+            
+            // For today's date - use different styling but no "Today" badge
+            if (isToday) {
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleDateSelect(day.date)}
+                  className={`${baseContainerClasses} bg-blue-50 hover:bg-blue-100 cursor-pointer border-2 border-blue-200`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center min-w-[60px]">
+                      <div className="text-sm font-bold text-blue-700">{dayAbbr}</div>
+                      <div className="text-2xl font-bold text-blue-700">{day.day}</div>
+                      {!day.isCurrentMonth && (
+                        <div className="text-xs text-blue-600">{day.monthName}</div>
+                      )}
+                    </div>
+                    <div className="text-lg font-semibold text-blue-700">{dayName}</div>
+                  </div>
+                  <div className="w-6 h-6 rounded-full border-2 border-blue-400 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  </div>
+                </button>
+              );
+            }
+            
+            // Regular available dates
+            return (
+              <button
+                key={index}
+                onClick={() => handleDateSelect(day.date)}
+                className={`${baseContainerClasses} ${day.isCurrentMonth ? 'bg-white text-gray-800' : 'bg-gray-50 text-gray-500'} hover:bg-green-50 hover:border-green-200 cursor-pointer border-2 border-transparent hover:border-green-300`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-center min-w-[60px]">
+                    <div className="text-sm font-medium group-hover:font-semibold group-hover:text-green-700">{dayAbbr}</div>
+                    <div className="text-2xl font-medium group-hover:font-bold group-hover:text-green-700">{day.day}</div>
+                    {!day.isCurrentMonth && (
+                      <div className="text-xs group-hover:text-green-600">{day.monthName}</div>
+                    )}
+                  </div>
+                  <div className="text-lg font-medium group-hover:font-semibold group-hover:text-green-700">{dayName}</div>
+                </div>
+                <div className="w-6 h-6 rounded-full border-2 border-gray-300 group-hover:border-green-400 group-hover:bg-green-100 flex items-center justify-center">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full group-hover:bg-green-500"></div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Legend */}
-      <div className="mt-6 flex items-center justify-center gap-4 flex-wrap text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-gradient-to-br from-green-500 to-teal-600"></div>
-          <span className="text-gray-600">Selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-white border-2 border-gray-300"></div>
-          <span className="text-gray-600">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-blue-50 border-2 border-blue-300"></div>
-          <span className="text-gray-600">Today</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded bg-gray-100 border-2 border-gray-200 relative">
-            <X className="w-2 h-2 text-gray-400 absolute inset-0 m-auto" />
+        {/* Legend - Compact Grid */}
+        <div className="mt-6 grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+            <div className="w-2 h-2 rounded bg-gradient-to-br from-green-500 to-teal-600"></div>
+            <span className="text-gray-600">Selected</span>
           </div>
-          <span className="text-gray-600">Unavailable</span>
+          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+            <div className="w-2 h-2 rounded bg-white border border-gray-400"></div>
+            <span className="text-gray-600">Available</span>
+          </div>
+          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+            <div className="w-2 h-2 rounded bg-blue-100 border border-blue-300"></div>
+            <span className="text-gray-600">Today</span>
+          </div>
+          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+            <div className="w-2 h-2 rounded bg-gray-100 border border-gray-300 relative">
+              <X className="w-1.5 h-1.5 text-gray-400 absolute inset-0 m-auto" />
+            </div>
+            <span className="text-gray-600">Unavailable</span>
+          </div>
         </div>
       </div>
 

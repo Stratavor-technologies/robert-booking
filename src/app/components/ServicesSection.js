@@ -7,12 +7,16 @@ export default function ServicesSection({
   selectedProvider,
   providers,
   events,
-  onClose 
+  onClose,
+  onTreatmentSelect
 }) {
   const [selectedCount, setSelectedCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [availableServices, setAvailableServices] = useState([]);
-  const [showAllServices, setShowAllServices] = useState(false); // New state for showing all services
+  const [showAllServices, setShowAllServices] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [showTreatmentOptions, setShowTreatmentOptions] = useState(false);
+  const [selectedTreatment, setSelectedTreatment] = useState(null);
 
   // Get the provider's available services
   useEffect(() => {
@@ -23,7 +27,6 @@ export default function ServicesSection({
           .map(serviceId => {
             const service = events.find(event => event.id === serviceId.toString());
             if (service) {
-              // Create consistent key from service name
               const serviceKey = service.name
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '_')
@@ -35,18 +38,13 @@ export default function ServicesSection({
                 price: service.price || "0.00",
                 currency: service.currency || "USD",
                 key: serviceKey,
-                description: service.description
+                description: service.description,
+                duration: service.duration || 60
               };
             }
             return null;
           })
           .filter(service => service !== null);
-
-        console.log('Available services for provider:', {
-          provider: provider.name,
-          services: providerServices,
-          currentServicesState: services
-        });
 
         setAvailableServices(providerServices);
       }
@@ -61,7 +59,6 @@ export default function ServicesSection({
       return [];
     }
 
-    // Determine which services to show based on showAllServices state
     const servicesToShow = showAllServices 
       ? availableServices 
       : availableServices.slice(0, 5);
@@ -100,6 +97,46 @@ export default function ServicesSection({
     setShowAllServices(!showAllServices);
   };
 
+  // Handle service selection - show treatment options
+  const handleServiceSelect = (service) => {
+    setSelectedService(service);
+    setShowTreatmentOptions(true);
+  };
+
+  // Handle treatment selection
+  const handleTreatmentSelect = (treatmentData) => {
+    // Update local state
+    setSelectedTreatment(treatmentData.treatmentType || treatmentData.treatment?.id);
+    
+    // Pass to parent component
+    if (onTreatmentSelect) {
+      onTreatmentSelect(treatmentData);
+    }
+    
+    // Also mark the service as selected
+    if (selectedService && onCheckboxChange) {
+      const serviceKey = selectedService.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/(^_+|_+$)/g, '');
+      
+      const syntheticEvent = {
+        target: {
+          name: serviceKey,
+          checked: true
+        }
+      };
+      onCheckboxChange(syntheticEvent);
+    }
+  };
+
+  // Go back to service selection
+  const handleBackToServices = () => {
+    setShowTreatmentOptions(false);
+    setSelectedService(null);
+    setSelectedTreatment(null);
+  };
+
   return (
     <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border border-gray-100 relative">
       {/* Cross Button */}
@@ -125,15 +162,30 @@ export default function ServicesSection({
         </div>
         <div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-            Select Services
+            {showTreatmentOptions ? "Select Treatment" : "Select Services"}
           </h2>
           <p className="text-gray-600 mt-1">
-            {availableServices.length > 0 
-              ? `Choose from ${availableServices.length} available service${availableServices.length !== 1 ? 's' : ''}`
-              : "No services available for this provider"}
+            {showTreatmentOptions 
+              ? `Choose treatment type for ${selectedService?.name}`
+              : availableServices.length > 0 
+                ? `Choose from ${availableServices.length} available service${availableServices.length !== 1 ? 's' : ''}`
+                : "No services available for this provider"}
           </p>
         </div>
       </div>
+
+      {/* Back button when in treatment selection */}
+      {showTreatmentOptions && (
+        <button
+          onClick={handleBackToServices}
+          className="mb-6 flex items-center gap-2 text-purple-600 hover:text-purple-700 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to services</span>
+        </button>
+      )}
 
       {/* Loading State */}
       {loadingServices ? (
@@ -144,6 +196,12 @@ export default function ServicesSection({
           <h3 className="text-xl font-semibold text-gray-800 mb-2">Loading Services</h3>
           <p className="text-gray-600">Preparing available services for your selection...</p>
         </div>
+      ) : showTreatmentOptions ? (
+        <TreatmentOptions 
+          service={selectedService}
+          onTreatmentSelect={handleTreatmentSelect}
+          selectedTreatment={selectedTreatment}
+        />
       ) : (
         <>
           {/* Services Grid */}
@@ -167,11 +225,11 @@ export default function ServicesSection({
                 {/* Services List */}
                 <div className="space-y-4">
                   {group.services.map((service) => (
-                    <ServiceCheckbox
+                    <ServiceCard
                       key={service.id}
                       service={service}
                       isChecked={services[service.key] || false}
-                      onChange={onCheckboxChange}
+                      onSelect={handleServiceSelect}
                     />
                   ))}
                 </div>
@@ -294,11 +352,12 @@ export default function ServicesSection({
   );
 }
 
-function ServiceCheckbox({ service, isChecked, onChange }) {
+// Service Card Component
+function ServiceCard({ service, isChecked, onSelect }) {
   const [isRecentlyChanged, setIsRecentlyChanged] = useState(false);
 
-  const handleChange = (e) => {
-    onChange(e);
+  const handleClick = () => {
+    onSelect(service);
     setIsRecentlyChanged(true);
     setTimeout(() => setIsRecentlyChanged(false), 300);
   };
@@ -317,7 +376,8 @@ function ServiceCheckbox({ service, isChecked, onChange }) {
   };
 
   return (
-    <label 
+    <div 
+      onClick={handleClick}
       className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group relative overflow-hidden
         ${isChecked 
           ? "border-purple-500 bg-purple-50 shadow-md" 
@@ -332,13 +392,6 @@ function ServiceCheckbox({ service, isChecked, onChange }) {
       <div className="relative z-10 flex items-center justify-between w-full">
         <div className="flex items-center gap-4 flex-1">
           <div className="relative">
-            <input
-              type="checkbox"
-              name={service.key}
-              checked={isChecked}
-              onChange={handleChange}
-              className="sr-only"
-            />
             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all relative
               ${isChecked
                 ? "border-purple-500 bg-purple-500 shadow-sm"
@@ -372,13 +425,198 @@ function ServiceCheckbox({ service, isChecked, onChange }) {
           </div>
         </div>
 
-        {/* Price */}
-        <div className={`text-sm font-semibold px-3 py-1 rounded-lg transition-colors
-          ${isChecked ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}
-        `}>
-          {formatPrice(service.price, service.currency)}
+        {/* Price and Duration */}
+        <div className="text-right">
+          <div className={`text-sm font-semibold px-3 py-1 rounded-lg transition-colors mb-1
+            ${isChecked ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}
+          `}>
+            {formatPrice(service.price, service.currency)}
+          </div>
+          <div className="text-xs text-gray-500">
+            {service.duration} min
+          </div>
         </div>
       </div>
-    </label>
+    </div>
+  );
+}
+
+// Treatment Options Component
+function TreatmentOptions({ service, onTreatmentSelect, selectedTreatment }) {
+  const treatments = [
+    {
+      id: 'express',
+      name: 'Express Manicure',
+      description: 'Quick and efficient treatment',
+      duration: 30,
+      price: parseFloat(service.price) * 0.8,
+      originalPrice: parseFloat(service.price),
+      icon: '⚡'
+    },
+    {
+      id: 'classic',
+      name: 'Classic Manicure',
+      description: 'Standard treatment with full service',
+      duration: service.duration || 60,
+      price: parseFloat(service.price),
+      icon: '✨'
+    },
+    {
+      id: 'deluxe',
+      name: 'Deluxe Manicure',
+      description: 'Premium treatment with extras',
+      duration: (service.duration || 60) * 1.5,
+      price: parseFloat(service.price) * 1.5,
+      icon: '🌟'
+    }
+  ];
+
+  // FIXED: Removed setSelectedTreatment from here
+  const handleTreatmentClick = (treatment) => {
+    // Pass the treatment object to parent
+    onTreatmentSelect({
+      service: service,
+      treatment: treatment,
+      treatmentType: treatment.id,
+      treatmentName: treatment.name
+    });
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: service.currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(price);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Treatment Edition Header */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+            ✨
+          </div>
+          <div>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-purple-700 to-pink-700 bg-clip-text text-transparent">
+              TREATMENT EDITION
+            </h3>
+            <p className="text-gray-600">Choose your preferred treatment type</p>
+          </div>
+        </div>
+        
+        {/* Treatment Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          {treatments.map((treatment, index) => (
+            <div key={treatment.id} className="text-center">
+              <div className="text-lg font-bold text-gray-800">
+                {treatment.id === 'express' ? '30/13' : 
+                 treatment.id === 'classic' ? '15/16' : '6/17'}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                {treatment.name.split(' ')[0]}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Available Treatments */}
+      <div>
+        <h4 className="text-lg font-semibold text-gray-800 mb-4">Available Treatments</h4>
+        <div className="space-y-4">
+          {treatments.map((treatment) => (
+            <div
+              key={treatment.id}
+              onClick={() => handleTreatmentClick(treatment)}
+              className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg relative overflow-hidden group
+                ${selectedTreatment === treatment.id 
+                  ? 'border-purple-500 bg-purple-50 shadow-md' 
+                  : 'border-gray-200 bg-white hover:border-purple-300'
+                }`}
+            >
+              {/* Selected indicator */}
+              {selectedTreatment === treatment.id && (
+                <div className="absolute top-4 right-4 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4">
+                {/* Icon */}
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl transition-all duration-300
+                  ${selectedTreatment === treatment.id 
+                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 text-white' 
+                    : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600'
+                  }`}>
+                  {treatment.icon}
+                </div>
+
+                {/* Treatment Info */}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-semibold text-gray-800 text-lg">{treatment.name}</h5>
+                      <p className="text-gray-600 text-sm mt-1">{treatment.description}</p>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${selectedTreatment === treatment.id ? 'text-purple-700' : 'text-gray-800'}`}>
+                        {formatPrice(treatment.price)}
+                      </div>
+                      {treatment.originalPrice && treatment.price < treatment.originalPrice && (
+                        <div className="text-sm text-gray-500 line-through">
+                          {formatPrice(treatment.originalPrice)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Duration */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-gray-600 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>{treatment.duration} minutes</span>
+                    </div>
+                    
+                    <div className={`px-4 py-2 rounded-lg font-medium transition-all duration-300
+                      ${selectedTreatment === treatment.id
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700'
+                      }`}>
+                      {selectedTreatment === treatment.id ? 'Selected ✓' : 'Select'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Next Step Guidance */}
+      <div className="mt-8 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm text-green-700 font-medium">
+              {selectedTreatment 
+                ? `Selected: ${treatments.find(t => t.id === selectedTreatment)?.name || 'Treatment'}. Continue to date selection.`
+                : 'Select a treatment type to proceed to date selection'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

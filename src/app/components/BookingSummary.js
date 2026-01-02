@@ -16,7 +16,8 @@ export default function BookingSummary({
   getSelectedServiceNames,
   submittingBooking = false,
   currentEmail,
-  onClose // Add this prop for cross functionality
+  onClose,
+  selectedTreatment = null
 }) {
   const providerArray = Array.isArray(providers) ? providers : Object.values(providers || {});
   const eventArray = Array.isArray(events) ? events : Object.values(events || {});
@@ -102,6 +103,7 @@ export default function BookingSummary({
             providerArray={providerArray}
             dayMap={dayMap}
             getSelectedServiceNames={getSelectedServiceNames}
+            selectedTreatment={selectedTreatment}
           />
         </div>
 
@@ -143,8 +145,31 @@ export default function BookingSummary({
   );
 }
 
-function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedTime, eventArray, providerArray, dayMap, getSelectedServiceNames }) {
+function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedTime, eventArray, providerArray, dayMap, getSelectedServiceNames, selectedTreatment  }) {
   const provider = providerArray.find((provider) => selectedProvider == provider.id);
+   const servicesDisplay = () => {
+  const serviceNames = getSelectedServiceNames();
+  if (!selectedTreatment) return serviceNames;
+  
+  return (
+    <div>
+      <div className="font-semibold text-gray-800">{serviceNames}</div>
+      <div className="text-sm text-purple-600 mt-1">
+        Treatment: {selectedTreatment.treatment?.name || selectedTreatment.treatmentName || selectedTreatment.treatmentType || 'N/A'}
+      </div>
+      {selectedTreatment.treatment && (
+        <div className="text-xs text-gray-500 mt-1">
+          {selectedTreatment.treatment.duration} minutes • 
+          Price: {new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2
+          }).format(selectedTreatment.treatment.price)}
+        </div>
+      )}
+    </div>
+  );
+};
 
   const summaryItems = [
     {
@@ -153,7 +178,9 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
       iconColor: "text-purple-600",
       label: "Services",
       value: getSelectedServiceNames(),
-      description: "Selected services for your appointment"
+       description: selectedTreatment 
+      ? "Selected service with treatment type" 
+      : "Selected services for your appointment"
     },
     {
       icon: User,
@@ -161,7 +188,9 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
       iconColor: "text-blue-600",
       label: "Provider",
       value: provider?.name || "N/A",
-      description: "Your service professional"
+      description: selectedTreatment 
+      ? "Selected service with treatment type" 
+      : "Selected services for your appointment"
     },
     {
       icon: Calendar,
@@ -173,7 +202,9 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
         day: 'numeric',
         year: 'numeric'
       })}`,
-      description: "Appointment date"
+       description: selectedTreatment 
+      ? "Selected service with treatment type" 
+      : "Selected services for your appointment"
     },
     {
       icon: Clock,
@@ -181,7 +212,9 @@ function SummaryTable({ selectedEvent, selectedProvider, selectedDate, selectedT
       iconColor: "text-orange-600",
       label: "Time",
       value: selectedTime,
-      description: "Appointment time"
+       description: selectedTreatment 
+      ? "Selected service with treatment type" 
+      : "Selected services for your appointment"
     }
   ];
 

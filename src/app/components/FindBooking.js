@@ -25,7 +25,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
    const [userFlow, setUserFlow] = useState("entry"); 
-
+  const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [currentView, setCurrentView] = useState('providers');
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
@@ -818,7 +818,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                   target: { name: "fullAddress", value: "" }
                 });
                 setUserFlow("new-user");
-                setIsUnverifiedUser(true); // Add this line
+                /* setIsUnverifiedUser(true); // Add this line */
               }}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
@@ -1259,6 +1259,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
               getSelectedServiceNames={getSelectedServiceNames}
               submittingBooking={submittingBooking}
               onClose={handleCloseBookingSummary}
+              selectedTreatment={selectedTreatment}
             />
           )}
 
