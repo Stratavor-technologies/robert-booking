@@ -501,7 +501,7 @@ function TreatmentOptions({ service, onTreatmentSelect, selectedTreatment }) {
           </div>
           <div>
             <h3 className="text-xl font-bold bg-gradient-to-r from-purple-700 to-pink-700 bg-clip-text text-transparent">
-              TREATMENT EDITION
+              TREATMENT OPTION
             </h3>
             <p className="text-gray-600">Choose your preferred treatment type</p>
           </div>
