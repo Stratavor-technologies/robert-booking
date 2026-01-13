@@ -7,8 +7,8 @@ export async function GET(req) {
 
     if (!clientId) {
       return new Response(
-        JSON.stringify({ error: "Missing required params (clientId)" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, data: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -21,9 +21,12 @@ export async function GET(req) {
     });
   } catch (err) {
     // console.log("err: ", err)
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+   return new Response(
+      JSON.stringify({ success: false, data: [] }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

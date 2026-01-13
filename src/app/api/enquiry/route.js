@@ -36,8 +36,8 @@ export async function GET(request) {
   } catch (error) {
     console.error("❌ Error fetching enquiries:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }
@@ -63,8 +63,8 @@ export async function POST(request) {
 
     if (!email && !phoneNumber && !city && !state && !pincode) {
       return NextResponse.json(
-        { success: false, error: "At least one field is required" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -92,8 +92,8 @@ export async function POST(request) {
   } catch (error) {
     console.error("❌ Error creating enquiry:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }
@@ -131,9 +131,9 @@ export async function DELETE(request) {
       const deletedEnquiry = await Enquiry.findByIdAndDelete(id);
 
       if (!deletedEnquiry) {
-        return NextResponse.json(
-          { success: false, error: "Enquiry not found" },
-          { status: 404 }
+         return NextResponse.json(
+          { success: false, data: [] },
+          { status: 200 }
         );
       }
 
@@ -142,16 +142,16 @@ export async function DELETE(request) {
         { status: 200 }
       );
     } else {
-      return NextResponse.json(
-        { success: false, error: "No enquiry ID(s) provided" },
-        { status: 400 }
-      );
+       return NextResponse.json(
+          { success: false, data: [] },
+          { status: 200 }
+        );
     }
   } catch (error) {
     console.error("❌ Error deleting enquiry:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+     return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }

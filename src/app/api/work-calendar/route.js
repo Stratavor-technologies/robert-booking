@@ -9,8 +9,8 @@ export async function GET(req) {
 
     if (!year || !month || !performerId) {
       return new Response(
-        JSON.stringify({ error: "Missing required params" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, data: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -21,9 +21,12 @@ export async function GET(req) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+     return new Response(
+      JSON.stringify({ success: false, data: [] }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

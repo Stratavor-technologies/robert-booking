@@ -12,8 +12,11 @@ export async function GET() {
   } catch (err) {
     // console.log("err: ", err)
     return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, data: [] }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

@@ -9,10 +9,10 @@ export async function POST(request) {
     const { email, phonenumber, otp } = await request.json();
 
     // Validation
-    if (!email || !phonenumber || !otp) {
+      if (!email || !phonenumber || !otp) {
       return NextResponse.json(
-        { error: "Email, phone number and OTP are required" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -21,31 +21,31 @@ export async function POST(request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
     // Check if OTP exists and is not expired
     if (!user.otp || !user.otpExpires) {
       return NextResponse.json(
-        { error: "OTP not found or expired" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
     if (user.otpExpires < new Date()) {
       return NextResponse.json(
-        { error: "OTP has expired" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
     // Verify OTP (for testing, 1234 is accepted)
     if (user.otp !== otp) {
       return NextResponse.json(
-        { error: "Invalid OTP. Use 1234 for testing" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -78,9 +78,9 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error("Error verifying OTP:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+   return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }

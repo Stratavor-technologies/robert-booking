@@ -9,8 +9,8 @@ export async function POST(req) {
 
     if (!email || !providerId) {
       return NextResponse.json(
-        { success: false, message: "Missing email or providerId" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -44,8 +44,8 @@ export async function POST(req) {
   } catch (error) {
     console.error("POST /blacklist Error:", error);
     return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }
@@ -58,8 +58,8 @@ export async function GET(req) {
 
     if (!email) {
       return NextResponse.json(
-        { success: false, message: "Email required" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -73,9 +73,9 @@ export async function GET(req) {
     });
   } catch (error) {
     console.error("GET /blacklist Error:", error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
+     return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }
@@ -87,10 +87,10 @@ export async function DELETE(req) {
     const email = searchParams.get("email");
     const providerId = searchParams.get("providerId");
 
-    if (!email || !providerId) {
+   if (!email || !providerId) {
       return NextResponse.json(
-        { success: false, message: "Missing email or providerId" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -100,8 +100,8 @@ export async function DELETE(req) {
 
     if (!userBlacklist) {
       return NextResponse.json(
-        { success: false, message: "No blacklist found for this user" },
-        { status: 404 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -119,9 +119,9 @@ export async function DELETE(req) {
     });
   } catch (error) {
     console.error("DELETE /blacklist Error:", error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
+   return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }

@@ -29,9 +29,9 @@ export async function GET(request) {
     );
   } catch (error) {
     console.error("Error fetching bookings:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+   return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }
@@ -64,9 +64,9 @@ export async function POST(request) {
       !clientaddress?.lat ||
       !clientaddress?.lon
     ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        return NextResponse.json(
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -149,13 +149,13 @@ export async function POST(request) {
           email: user.email,
         },
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error) {
     console.error("Error creating booking:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+     return NextResponse.json(
+      { success: false, data: [] },
+      { status: 200 }
     );
   }
 }

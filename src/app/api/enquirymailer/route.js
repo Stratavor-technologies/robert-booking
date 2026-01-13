@@ -6,8 +6,8 @@ export async function POST(req) {
 
     if (!recipient || !Array.isArray(enquiries) || enquiries.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, message: "Recipient and enquiries are required" }),
-        { status: 400 }
+        JSON.stringify({ success: false, data: [] }),
+        { status: 200 }
       );
     }
 
@@ -69,9 +69,9 @@ export async function POST(req) {
     );
   } catch (error) {
     console.error("Error sending email:", error);
-    return new Response(
-      JSON.stringify({ success: false, message: "Failed to send email" }),
-      { status: 500 }
+     return new Response(
+      JSON.stringify({ success: false, data: [] }),
+      { status: 200 }
     );
   }
 }

@@ -10,11 +10,11 @@ export async function POST(request) {
 
     const { email, phonenumber } = await request.json();
 
-    // Validation
+     // Validation
     if (!email || !phonenumber) {
       return NextResponse.json(
-        { error: "Email and phone number are required" },
-        { status: 400 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -23,8 +23,8 @@ export async function POST(request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found with provided email and phone number" },
-        { status: 404 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -41,10 +41,11 @@ export async function POST(request) {
     const emailSent = await sendOTPEmail(email, otp);
     await sendOTPSMS(phonenumber, otp);
 
+    
     if (!emailSent) {
       return NextResponse.json(
-        { success: false, error: "Failed to send OTP email" },
-        { status: 500 }
+        { success: false, data: [] },
+        { status: 200 }
       );
     }
 
@@ -60,9 +61,13 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error("Error sending OTP:", error);
+     // 🚨 ALWAYS RETURN 200
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+      {
+        success: false,
+        data: []
+      },
+      { status: 200 }
     );
   }
 }
