@@ -135,9 +135,31 @@ export default function TimeSlotsSection({
 }
 
 function TimeSlotButton({ slot, isSelected, onSelect }) {
-  const isMorning = slot.includes("AM");
-  const isAfternoon = slot.includes("PM") && parseInt(slot) < 5;
-  const isEvening = slot.includes("PM") && parseInt(slot) >= 5;
+  // Extract the hour from the time slot (e.g., "09:00 AM" -> 9, "05:30 PM" -> 5)
+  const timeParts = slot.split(' ');
+  const time = timeParts[0];
+  const period = timeParts[1];
+  const hour = parseInt(time.split(':')[0]);
+  
+  // Convert to 24-hour format for easier comparison
+  let hour24 = hour;
+  if (period === "PM" && hour !== 12) {
+    hour24 = hour + 12;
+  } else if (period === "AM" && hour === 12) {
+    hour24 = 0; // 12 AM is 0 in 24-hour format
+  }
+  
+  // Determine time period based on 24-hour format
+  const isMorning = hour24 >= 5 && hour24 < 12;
+  const isAfternoon = hour24 >= 12 && hour24 < 17;
+  const isEvening = hour24 >= 17 || hour24 < 5;
+
+  // Get the time period label
+  const getTimePeriod = () => {
+    if (isMorning) return "Morning";
+    if (isAfternoon) return "Afternoon";
+    return "Evening";
+  };
 
   return (
     <button
@@ -160,12 +182,12 @@ function TimeSlotButton({ slot, isSelected, onSelect }) {
         <div className={`text-lg font-semibold transition-colors
           ${isSelected ? "text-white" : "text-gray-800"}
         `}>
-          {slot}
+          {time}
         </div>
         <div className={`text-xs font-medium transition-colors
           ${isSelected ? "text-orange-100" : "text-gray-500"}
         `}>
-          {isMorning ? "Morning" : isAfternoon ? "Afternoon" : "Evening"}
+          {period} • {getTimePeriod()}
         </div>
       </div>
 

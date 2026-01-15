@@ -296,15 +296,15 @@ export default function DatePickerSection({
           </div>
         </div>
 
-        {/* Vertical Week Calendar - Compact Design */}
+        {/* Vertical Week Calendar - Full Width Design */}
         <div className="space-y-2 mb-6">
           {weeks[currentWeekIndex]?.map((day, index) => {
             const dayAbbr = getDayAbbreviation(day.date);
             const dayName = day.date.toLocaleDateString('en-US', { weekday: 'long' });
             const isToday = day.isToday;
             
-            // Base classes for the day container
-            const baseContainerClasses = "flex items-center justify-between p-4 rounded-2xl transition-all duration-200";
+            // Base classes for the day container - ALWAYS FULL WIDTH
+            const baseContainerClasses = "flex items-center justify-between p-4 rounded-2xl transition-all duration-200 w-full";
             
             if (day.isSelected) {
               return (
@@ -348,7 +348,7 @@ export default function DatePickerSection({
               );
             }
             
-            // For today's date - use different styling but no "Today" badge
+            // For today's date
             if (isToday) {
               return (
                 <button
@@ -373,12 +373,12 @@ export default function DatePickerSection({
               );
             }
             
-            // Regular available dates
+            // Regular available dates - MAKE THEM BUTTONS AND FULL WIDTH
             return (
               <button
                 key={index}
                 onClick={() => handleDateSelect(day.date)}
-                className={`${baseContainerClasses} ${day.isCurrentMonth ? 'bg-white text-gray-800' : 'bg-gray-50 text-gray-500'} hover:bg-green-50 hover:border-green-200 cursor-pointer border-2 border-transparent hover:border-green-300`}
+                className={`${baseContainerClasses} ${day.isCurrentMonth ? 'bg-white text-gray-800' : 'bg-gray-50 text-gray-500'} hover:bg-green-50 hover:border-green-200 cursor-pointer border-2 border-transparent hover:border-green-300 hover:shadow-sm`}
               >
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-center min-w-[60px]">
@@ -398,27 +398,51 @@ export default function DatePickerSection({
           })}
         </div>
 
-        {/* Legend - Compact Grid */}
-        <div className="mt-6 grid grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-            <div className="w-2 h-2 rounded bg-gradient-to-br from-green-500 to-teal-600"></div>
-            <span className="text-gray-600">Selected</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-            <div className="w-2 h-2 rounded bg-white border border-gray-400"></div>
-            <span className="text-gray-600">Available</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-            <div className="w-2 h-2 rounded bg-blue-100 border border-blue-300"></div>
-            <span className="text-gray-600">Today</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-            <div className="w-2 h-2 rounded bg-gray-100 border border-gray-300 relative">
-              <X className="w-1.5 h-1.5 text-gray-400 absolute inset-0 m-auto" />
+        {/* Legend - More Descriptive */}
+       {/*  <div className="mt-6 mb-4">
+          <div className="text-sm font-semibold text-gray-700 mb-3">Legend</div>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-teal-600">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-800">Selected Date</p>
+                <p className="text-xs text-gray-500">Currently chosen appointment date</p>
+              </div>
             </div>
-            <span className="text-gray-600">Unavailable</span>
+            
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white border-2 border-gray-300">
+                <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-800">Available Date</p>
+                <p className="text-xs text-gray-500">Click to select this date</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 border-2 border-blue-300">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-800">Today</p>
+                <p className="text-xs text-gray-500">Current date</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 border-2 border-gray-300">
+                <X className="w-5 h-5 text-gray-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-800">Unavailable</p>
+                <p className="text-xs text-gray-500">Booked or past date</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Selected Date Display */}

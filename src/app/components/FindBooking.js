@@ -31,7 +31,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [unblacklisting, setUnblacklisting] = useState(null);
   const [showServicesSection, setShowServicesSection] = useState(false);
-  const [showDatePickerSection, setShowDatePickerSection] = useState(true);
+  const [showDatePickerSection, setShowDatePickerSection] = useState(false);
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
   const [resetForm, setResetForm] = useState(false);
