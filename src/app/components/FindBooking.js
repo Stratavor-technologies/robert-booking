@@ -1156,6 +1156,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
                   selectedProvider={selectedProvider}
                   providers={providers}
                   events={events}
+                  categories={categories}
                   onClose={handleCloseServicesSection}
                 />
               )}
