@@ -24,18 +24,30 @@ const dayMap = {
 export default function FindBooking({ providers, events, locations, clients, categories }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
-   const [userFlow, setUserFlow] = useState("entry"); 
+  const [userFlow, setUserFlow] = useState("entry");
   const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [currentView, setCurrentView] = useState('providers');
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [unblacklisting, setUnblacklisting] = useState(null);
   const [showServicesSection, setShowServicesSection] = useState(false);
-  const [showDatePickerSection, setShowDatePickerSection] = useState(false);
+  const [showDatePickerSection, setShowDatePickerSection] = useState(true);
   const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
   const [showBookingSummary, setShowBookingSummary] = useState(true);
   const [resetForm, setResetForm] = useState(false);
-  // Add this function inside the FindBooking component, after all the useState declarations
+  // Add state for selected services
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [currentEmail, setCurrentEmail] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [loginData, setLoginData] = useState({
+    email: "",
+    phonenumber: ""
+  });
+
+  // Save booking state function
   const saveBookingState = () => {
     const bookingState = {
       clientLocation,
@@ -103,15 +115,16 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setFormData
   } = useBooking({ providers, events, locations, clients, categories });
 
-
   // Custom handler for provider selection that automatically opens services section
   const handleProviderSelect = (providerId) => {
     setSelectedProvider(providerId);
+    // Reset selected services when selecting a new provider
+    setSelectedServices([]);
     // Automatically open services section when provider is selected
     setShowServicesSection(true);
   };
 
-  // REPLACE THE ENTIRE useEffect (lines 87-128) WITH:
+  // Load auth state from session storage
   useEffect(() => {
     const loadAuthState = () => {
       if (typeof window !== 'undefined') {
@@ -156,9 +169,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
     loadAuthState();
   }, []);
 
-
-
-  // Add this useEffect to listen for reset events from Header and NoProvidersSection
+  // Listen for reset events from Header and NoProvidersSection
   useEffect(() => {
     const handleResetBookingForm = () => {
       console.log('🔄 Received reset request from header/no-thanks');
@@ -173,6 +184,19 @@ export default function FindBooking({ providers, events, locations, clients, cat
     };
   }, []);
 
+  // Handler function for service selection
+  const handleServiceSelection = (serviceId) => {
+    setSelectedServices(prev => {
+      if (prev.includes(serviceId)) {
+        // Remove service if already selected
+        return prev.filter(id => id !== serviceId);
+      } else {
+        // Add service if not selected
+        return [...prev, serviceId];
+      }
+    });
+  };
+
   // Add this handler function
   const handleCloseServicesSection = () => {
     console.log('Closing ServicesSection');
@@ -183,7 +207,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const handleReopenServicesSection = () => {
     setShowServicesSection(true);
   };
-
 
   // Add these handler functions
   const handleCloseDatePickerSection = () => {
@@ -205,7 +228,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setShowTimeSlotsSection(true);
   };
 
-
   // Add these handler functions
   const handleCloseBookingSummary = () => {
     console.log('Closing BookingSummary');
@@ -216,8 +238,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setShowBookingSummary(true);
   };
 
-
-  // 🔥 ADD THESE PHONE UTILITY FUNCTIONS HERE
+  // Phone utility functions
   const formatPhoneNumber = (value) => {
     // Remove all non-digit characters
     const phoneNumber = value.replace(/\D/g, '');
@@ -244,17 +265,17 @@ export default function FindBooking({ providers, events, locations, clients, cat
     return formattedNumber.replace(/\D/g, '').substring(0, 10);
   };
 
-
-
   const currentStep = selectedTime
     ? 4
     : selectedDate
       ? 3
-      : selectedProvider
+      : selectedServices.length > 0 // Changed from selectedProvider to selectedServices
         ? 2
-        : selectedEvent
+        : selectedProvider
           ? 1
-          : 0;
+          : selectedEvent
+            ? 0
+            : 0;
 
   // Enhanced handleSubmit that shows success notification
   const handleSubmitWithNotification = async (e) => {
@@ -280,13 +301,13 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setBookingDetails(null);
   };
 
-  // 🔥 AUTH PERSISTENCE: Enhanced reset that clears session storage
-  // REPLACE THE handleFullReset function (lines 238-259) WITH:
+  // Enhanced reset that clears session storage
   const handleFullReset = () => {
     resetBooking();
     setShowSuccess(false);
     setBookingDetails(null);
     setResetForm(true); // Trigger form reset in SearchSection
+    setSelectedServices([]); // Reset selected services
 
     // Reset all section visibility states
     setShowServicesSection(false);
@@ -303,14 +324,15 @@ export default function FindBooking({ providers, events, locations, clients, cat
     console.log('🗑️ Cleared auth state from session storage');
   };
 
-  // NEW: Handler for "No Thanks" that goes back to ENTRY point
+  // Handler for "No Thanks" that goes back to ENTRY point
   const handleNoThanks = () => {
-  // Reset everything
-  resetBooking();
-  sessionStorage.clear();
-  window.dispatchEvent(new CustomEvent('reset-booking-form'));
-  console.log('🔙 Resetting booking form');
-};
+    // Reset everything
+    resetBooking();
+    setSelectedServices([]);
+    sessionStorage.clear();
+    window.dispatchEvent(new CustomEvent('reset-booking-form'));
+    console.log('🔙 Resetting booking form');
+  };
 
   // Handle OTP send for returning clients with redirect on failure
   const handleSendOTP = async (e) => {
@@ -349,7 +371,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
       if (result.success) {
         setUserFlow("otp-verification");
       } else {
-        // 🔥 REDIRECT TO MAIN BOOKING FLOW ON FAILURE
+        // Redirect to main booking flow on failure
         const errorMsg = result.error || "Unable to verify client account";
         setOtpError(`${errorMsg}. Taking you to service search...`);
 
@@ -359,13 +381,13 @@ export default function FindBooking({ providers, events, locations, clients, cat
           setUserFlow("new-user");
           setUserEmail(loginData.email);
           setFormData(prev => ({ ...prev, email: loginData.email }));
-          // 🔥 IMPORTANT: Don't set currentEmail to true so email remains editable
+          // Don't set currentEmail to true so email remains editable
           setCurrentEmail(false);
         }, 2500);
       }
     } catch (error) {
       console.error('OTP send error:', error);
-      // 🔥 REDIRECT TO MAIN BOOKING FLOW ON NETWORK ERROR TOO
+      // Redirect to main booking flow on network error too
       setOtpError("Network issue. Taking you to service search...");
 
       // Redirect to main booking flow on network errors too
@@ -374,14 +396,13 @@ export default function FindBooking({ providers, events, locations, clients, cat
         setUserFlow("new-user");
         setUserEmail(loginData.email);
         setFormData(prev => ({ ...prev, email: loginData.email }));
-        // 🔥 IMPORTANT: Don't set currentEmail to true so email remains editable
+        // Don't set currentEmail to true so email remains editable
         setCurrentEmail(false);
       }, 2500);
     } finally {
       setOtpLoading(false);
     }
   };
-
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
@@ -394,7 +415,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
       setOtpLoading(false);
       return;
     }
-
 
     try {
       const response = await fetch('/api/auth/verify-otp', {
@@ -417,7 +437,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
         setOtpVerified(true);
         setUserFlow("new-user");
 
-        // 🔥 SAVE AUTH STATE TO SESSION STORAGE
+        // Save auth state to session storage
         const authData = {
           isAuthenticated: true,
           userEmail: result.user.email,
@@ -440,8 +460,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
           target: { name: "state", value: "" }
         });
 
-
-
         handleFieldChange({
           target: { name: "fullAddress", value: "" }
         });
@@ -451,7 +469,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
         if (!currentEmail) {
           setCurrentEmail(true);
         }
-
 
         // Auto-fill address if available
         if (result.user.lastAddress) {
@@ -490,7 +507,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
     }
   };
 
-
   // loadBlacklistedProviders management
   const loadBlacklistedProviders = async (email) => {
     if (!email) return;
@@ -526,7 +542,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   // Function to unblacklist a provider
-  // Function to unblacklist a provider
   const handleUnblacklist = async (providerId) => {
     if (!userEmail) return;
 
@@ -544,11 +559,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
         // Remove from local state
         setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
 
-        // 🔥 REFRESH PROVIDERS DATA - Trigger a re-fetch of providers
+        // Refresh providers data
         if (clientLocation && searchWithin) {
           console.log("Refreshing providers after unblacklist...");
-          // You might need to add a refresh function to your useBooking hook
-          // or trigger the search again
           getLatLngFromAddress(); // This will re-fetch providers with updated blacklist
         }
 
@@ -567,13 +580,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const handleSearchWithReset = async () => {
     // Reset provider selection when doing a new search
     setSelectedProvider("");
+    setSelectedServices([]); // Reset selected services
     setShowServicesSection(false);
 
     // Then perform the address search
     await getLatLngFromAddress();
   };
-
-
 
   // Function to unblacklist all providers
   const handleUnblacklistAll = async () => {
@@ -606,7 +618,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   // Blacklisted Providers View Component
-
   const BlacklistedProvidersView = () => {
     // Get provider details from the providers prop
     const getProviderDetails = (providerId) => {
@@ -775,11 +786,10 @@ export default function FindBooking({ providers, events, locations, clients, cat
   if (userFlow === "entry") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-        
+
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-      
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -794,9 +804,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
- 
         <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto py-8">
-      
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -818,7 +826,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
                   target: { name: "fullAddress", value: "" }
                 });
                 setUserFlow("new-user");
-                /* setIsUnverifiedUser(true); // Add this line */
               }}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
             >
@@ -826,7 +833,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </button>
           </div>
 
-    
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100 text-center hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -845,17 +851,16 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  } 
+  }
 
   // Returning Client Login Form
-   if (userFlow === "returning-client") {
+  if (userFlow === "returning-client") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-       
+
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-      
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -870,10 +875,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
-  
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
           <form onSubmit={handleSendOTP} className="space-y-6">
-          
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Email Address
@@ -889,7 +892,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
               />
             </div>
 
-         
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Phone Number
@@ -914,14 +916,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
             </div>
 
-        
             {otpError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
                 {otpError}
               </div>
             )}
 
-         
             <div className="flex gap-4">
               <button
                 type="button"
@@ -942,17 +942,16 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  } 
+  }
 
   // OTP Verification
-   if (userFlow === "otp-verification") {
+  if (userFlow === "otp-verification") {
     return (
       <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
-      
+
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
 
-        
         <div className="relative text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -967,7 +966,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
           </p>
         </div>
 
-  
         <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-gray-100">
           <form onSubmit={handleVerifyOTP} className="space-y-6">
             <div>
@@ -1015,7 +1013,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
         </div>
       </div>
     );
-  } 
+  }
 
   // Main Booking Flow (for both new users and returning clients)
   return (
@@ -1061,6 +1059,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
             onSearchClick={async () => {
               // Reset provider selection and close services section
               setSelectedProvider("");
+              setSelectedServices([]);
               setShowServicesSection(false);
               await getLatLngFromAddress();
             }}
@@ -1086,7 +1085,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </div>
           )}
 
-
           {isSearchedAddress && !loadingAddress && !loadingProviders && filteredProviders.length === 0 && (
             <NoProvidersSection
               address={address}
@@ -1096,7 +1094,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
               onNoThanks={handleNoThanks}
             />
           )}
-
 
           {isSearchedAddress && clientLocation && !loadingAddress && (
             <div className="relative">
@@ -1137,7 +1134,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </div>
           )}
 
-
           {/* Services Section - Only show when provider is selected AND services section is open */}
           {filteredProviders.length > 0 && selectedProvider && showServicesSection && (
             <div className="relative">
@@ -1152,7 +1148,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
               ) : (
                 <ServicesSection
                   services={services}
-                  onCheckboxChange={handleCheckboxChange}
+                  onCheckboxChange={(serviceId) => {
+                    // Call the original handler
+                    handleCheckboxChange(serviceId);
+                    // Also call your new handler to track selections
+                    handleServiceSelection(serviceId);
+                  }}
                   selectedProvider={selectedProvider}
                   providers={providers}
                   events={events}
@@ -1178,8 +1179,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </div>
           )}
 
-          {/* Date Picker Section */}
-          { filteredProviders.length > 0 && selectedProvider && showDatePickerSection && (
+          {/* Date Picker Section - Only show when services are selected */}
+          {filteredProviders.length > 0 && selectedProvider && selectedServices.length > 0 && showDatePickerSection && (
             <DatePickerSection
               selectedDate={selectedDate}
               workCalandar={workCalandar}
@@ -1193,7 +1194,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Show reopen button if DatePickerSection is closed but conditions are met */}
-          { filteredProviders.length > 0 && selectedProvider && !showDatePickerSection && (
+          {filteredProviders.length > 0 && selectedProvider && selectedServices.length > 0 && !showDatePickerSection && (
             <div className="text-center">
               <button
                 onClick={handleReopenDatePickerSection}
@@ -1206,8 +1207,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
           )}
 
           {/* Time Slots Section with Loading */}
-          {/* Time Slots Section with Loading */}
-          { filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
+          {filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
             <div className="relative">
               {loadingTimeSlots ? (
                 <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
@@ -1243,7 +1243,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </div>
           )}
 
-          {/* Booking Summary & Form with Loading */}
           {/* Booking Summary & Form with Loading */}
           {filteredProviders.length > 0 && selectedTime && showBookingSummary && (
             <BookingSummary
