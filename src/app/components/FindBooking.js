@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import SearchSection from "./SearchSection";
 import ProvidersSection from "./ProvidersSection";
+import ProvidersMap from "./ProvidersMap";
 import ServicesSection from "./ServicesSection";
 import DatePickerSection from "./DatePickerSection";
 import TimeSlotsSection from "./TimeSlotsSection";
@@ -9,7 +10,10 @@ import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
-import { Calendar, Clock, CheckCircle } from "lucide-react";
+import ServiceCategorySection from "./ServiceCategorySection";
+import ServiceSelectionSection from "./ServiceSelectionSection";
+import AvailabilitySection from "./AvailabilitySection";
+import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
 
 const dayMap = {
   0: "Sunday",
@@ -21,31 +25,44 @@ const dayMap = {
   6: "Saturday",
 };
 
+function StepLocked({ title, message }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 px-6">
+      <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+        🔒
+      </div>
+      <h4 className="font-semibold text-gray-700 mb-1">{title}</h4>
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+
 export default function FindBooking({ providers, events, locations, clients, categories }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
   const [userFlow, setUserFlow] = useState("entry");
+  const [calendarMonth, setCalendarMonth] = useState(new Date()); // 👈 Parent controls month
   const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [currentView, setCurrentView] = useState('providers');
   const [blacklistedProviders, setBlacklistedProviders] = useState([]);
   const [loadingBlacklist, setLoadingBlacklist] = useState(false);
   const [unblacklisting, setUnblacklisting] = useState(null);
-  const [showServicesSection, setShowServicesSection] = useState(false);
-  const [showDatePickerSection, setShowDatePickerSection] = useState(true);
-  const [showTimeSlotsSection, setShowTimeSlotsSection] = useState(true);
-  const [showBookingSummary, setShowBookingSummary] = useState(true);
   const [resetForm, setResetForm] = useState(false);
-  // Add state for selected services
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentEmail, setCurrentEmail] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [loginData, setLoginData] = useState({
     email: "",
     phonenumber: ""
   });
+
+  // New state for horizontal flow
+  const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
 
   // Save booking state function
   const saveBookingState = () => {
@@ -115,13 +132,76 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setFormData
   } = useBooking({ providers, events, locations, clients, categories });
 
-  // Custom handler for provider selection that automatically opens services section
+  // Custom handler for provider selection that automatically moves to next step
   const handleProviderSelect = (providerId) => {
     setSelectedProvider(providerId);
-    // Reset selected services when selecting a new provider
-    setSelectedServices([]);
-    // Automatically open services section when provider is selected
-    setShowServicesSection(true);
+    setSelectedServices([]); // Reset selected services
+    setActiveStep(2); // Move to Services step
+  };
+
+  // Custom handler for service selection - THIS IS THE KEY FIX
+  const handleServiceSelection = (serviceId) => {
+    setSelectedServices(prev => {
+      let newSelectedServices;
+      if (prev.includes(serviceId)) {
+        // Remove service if already selected
+        newSelectedServices = prev.filter(id => id !== serviceId);
+      } else {
+        // Add service if not selected
+        newSelectedServices = [...prev, serviceId];
+      }
+
+      return newSelectedServices;
+    });
+  };
+
+  // Effect to automatically move to date step when services are selected
+  useEffect(() => {
+    if (selectedServices.length > 0 && activeStep === 2) {
+      // If services are selected and we're still on step 2, move to step 3
+      console.log('Services selected, moving to date step');
+      setActiveStep(3);
+    }
+  }, [selectedServices, activeStep]);
+
+  // Custom handler for date selection
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setSelectedTime(""); // Reset time when date changes
+    setActiveStep(4); // Move to Time step
+  };
+
+  // Custom handler for time selection
+  const handleTimeSelect = (time) => {
+    setSelectedTime(time);
+    setActiveStep(5); // Move to Booking step
+  };
+
+  // Go back to previous step - SIMPLIFIED VERSION
+  const handleBackStep = () => {
+    if (activeStep > 1) {
+      setActiveStep(activeStep - 1);
+    }
+  };
+
+  // Go to specific step - UPDATED VERSION
+  const handleGoToStep = (step) => {
+    // Always allow going back to previous steps
+    if (step < activeStep) {
+      // Going back - always allowed
+      setActiveStep(step);
+    } else if (step > activeStep) {
+      // Going forward - check conditions
+      if (step === 2 && selectedProvider) {
+        setActiveStep(step);
+      } else if (step === 3 && selectedServices.length > 0) {
+        setActiveStep(step);
+      } else if (step === 4 && selectedDate) {
+        setActiveStep(step);
+      } else if (step === 5 && selectedTime) {
+        setActiveStep(step);
+      }
+    }
   };
 
   // Load auth state from session storage
@@ -133,14 +213,11 @@ export default function FindBooking({ providers, events, locations, clients, cat
           try {
             const parsed = JSON.parse(savedAuth);
             if (parsed.isAuthenticated) {
-              // Set booking hook state
               setUserEmail(parsed.userEmail);
               setFormData(prev => ({ ...prev, email: parsed.userEmail }));
 
-              // Restore address if available
               if (parsed.userData?.lastAddress) {
                 const addr = parsed.userData.lastAddress;
-
                 if (addr.fullAddress) {
                   handleFieldChange({
                     target: { name: "fullAddress", value: addr.fullAddress }
@@ -176,106 +253,39 @@ export default function FindBooking({ providers, events, locations, clients, cat
       handleFullReset();
     };
 
-    // Listen for the custom reset event
     window.addEventListener('reset-booking-form', handleResetBookingForm);
-
     return () => {
       window.removeEventListener('reset-booking-form', handleResetBookingForm);
     };
   }, []);
 
-  // Handler function for service selection
-  const handleServiceSelection = (serviceId) => {
-    setSelectedServices(prev => {
-      if (prev.includes(serviceId)) {
-        // Remove service if already selected
-        return prev.filter(id => id !== serviceId);
-      } else {
-        // Add service if not selected
-        return [...prev, serviceId];
-      }
-    });
-  };
-
-  // Add this handler function
-  const handleCloseServicesSection = () => {
-    console.log('Closing ServicesSection');
-    setShowServicesSection(false);
-  };
-
-  // Add this function to reopen if needed
-  const handleReopenServicesSection = () => {
-    setShowServicesSection(true);
-  };
-
-  // Add these handler functions
-  const handleCloseDatePickerSection = () => {
-    console.log('Closing DatePickerSection');
-    setShowDatePickerSection(false);
-  };
-
-  const handleReopenDatePickerSection = () => {
-    setShowDatePickerSection(true);
-  };
-
-  // Add these handler functions
-  const handleCloseTimeSlotsSection = () => {
-    console.log('Closing TimeSlotsSection');
-    setShowTimeSlotsSection(false);
-  };
-
-  const handleReopenTimeSlotsSection = () => {
-    setShowTimeSlotsSection(true);
-  };
-
-  // Add these handler functions
-  const handleCloseBookingSummary = () => {
-    console.log('Closing BookingSummary');
-    setShowBookingSummary(false);
-  };
-
-  const handleReopenBookingSummary = () => {
-    setShowBookingSummary(true);
-  };
-
   // Phone utility functions
   const formatPhoneNumber = (value) => {
-    // Remove all non-digit characters
     const phoneNumber = value.replace(/\D/g, '');
-
-    // Remove leading "1" if it's the first digit (US country code)
     let processedNumber = phoneNumber;
     if (phoneNumber.length > 0 && phoneNumber[0] === '1') {
       processedNumber = phoneNumber.substring(1);
     }
-
-    // Limit to 10 digits
     const limitedNumber = processedNumber.substring(0, 10);
-
-    // Apply formatting
     if (limitedNumber.length === 0) return '';
     if (limitedNumber.length <= 3) return `(${limitedNumber}`;
     if (limitedNumber.length <= 6) return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3)}`;
-
     return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3, 6)}-${limitedNumber.substring(6)}`;
   };
 
   const normalizePhoneNumber = (formattedNumber) => {
-    // Remove all formatting and return just the 10 digits
     return formattedNumber.replace(/\D/g, '').substring(0, 10);
   };
 
   const currentStep = selectedTime
-    ? 4
+    ? 5
     : selectedDate
-      ? 3
-      : selectedServices.length > 0 // Changed from selectedProvider to selectedServices
-        ? 2
+      ? 4
+      : selectedServices.length > 0
+        ? 3
         : selectedProvider
-          ? 1
-          : selectedEvent
-            ? 0
-            : 0;
+          ? 2
+          : 1;
 
   // Enhanced handleSubmit that shows success notification
   const handleSubmitWithNotification = async (e) => {
@@ -288,7 +298,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
         services: getSelectedServiceNames(),
       });
       setShowSuccess(true);
-
       setTimeout(() => {
         setShowSuccess(false);
         setBookingDetails(null);
@@ -301,24 +310,15 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setBookingDetails(null);
   };
 
-  // Enhanced reset that clears session storage
+  // Enhanced reset that clears everything
   const handleFullReset = () => {
     resetBooking();
     setShowSuccess(false);
     setBookingDetails(null);
-    setResetForm(true); // Trigger form reset in SearchSection
-    setSelectedServices([]); // Reset selected services
-
-    // Reset all section visibility states
-    setShowServicesSection(false);
-    setShowDatePickerSection(true);
-    setShowTimeSlotsSection(true);
-    setShowBookingSummary(true);
-
-    // Reset the form reset flag after a short delay
+    setResetForm(true);
+    setSelectedServices([]);
+    setActiveStep(1);
     setTimeout(() => setResetForm(false), 100);
-
-    // Clear auth state from session storage
     sessionStorage.removeItem('userAuth');
     sessionStorage.removeItem('bookingState');
     console.log('🗑️ Cleared auth state from session storage');
@@ -326,9 +326,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
   // Handler for "No Thanks" that goes back to ENTRY point
   const handleNoThanks = () => {
-    // Reset everything
     resetBooking();
     setSelectedServices([]);
+    setActiveStep(1);
     sessionStorage.clear();
     window.dispatchEvent(new CustomEvent('reset-booking-form'));
     console.log('🔙 Resetting booking form');
@@ -340,7 +340,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
     setOtpError("");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!loginData.email || !emailRegex.test(loginData.email)) {
       setOtpError("Please enter a valid email address.");
       return;
@@ -353,7 +352,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
     }
 
     setOtpLoading(true);
-
     try {
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
@@ -367,36 +365,27 @@ export default function FindBooking({ providers, events, locations, clients, cat
       });
 
       const result = await response.json();
-
       if (result.success) {
         setUserFlow("otp-verification");
       } else {
-        // Redirect to main booking flow on failure
         const errorMsg = result.error || "Unable to verify client account";
         setOtpError(`${errorMsg}. Taking you to service search...`);
-
-        // Redirect to main booking flow after showing message
         setTimeout(() => {
           console.log('🔀 Redirecting to new-user flow due to OTP failure');
           setUserFlow("new-user");
           setUserEmail(loginData.email);
           setFormData(prev => ({ ...prev, email: loginData.email }));
-          // Don't set currentEmail to true so email remains editable
           setCurrentEmail(false);
         }, 2500);
       }
     } catch (error) {
       console.error('OTP send error:', error);
-      // Redirect to main booking flow on network error too
       setOtpError("Network issue. Taking you to service search...");
-
-      // Redirect to main booking flow on network errors too
       setTimeout(() => {
         console.log('🔀 Redirecting to new-user flow due to network error');
         setUserFlow("new-user");
         setUserEmail(loginData.email);
         setFormData(prev => ({ ...prev, email: loginData.email }));
-        // Don't set currentEmail to true so email remains editable
         setCurrentEmail(false);
       }, 2500);
     } finally {
@@ -433,11 +422,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
       console.log('OTP verification result:', result);
 
       if (result.success) {
-        console.log(result.user)
         setOtpVerified(true);
         setUserFlow("new-user");
-
-        // Save auth state to session storage
         const authData = {
           isAuthenticated: true,
           userEmail: result.user.email,
@@ -455,11 +441,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
         handleFieldChange({
           target: { name: "city", value: "" }
         });
-
         handleFieldChange({
           target: { name: "state", value: "" }
         });
-
         handleFieldChange({
           target: { name: "fullAddress", value: "" }
         });
@@ -470,7 +454,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
           setCurrentEmail(true);
         }
 
-        // Auto-fill address if available
         if (result.user.lastAddress) {
           handleFieldChange({
             target: {
@@ -510,14 +493,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
   // loadBlacklistedProviders management
   const loadBlacklistedProviders = async (email) => {
     if (!email) return;
-
     setLoadingBlacklist(true);
     try {
       console.log("Fetching blacklist for email:", email);
       const response = await fetch(`/api/blacklist?email=${email}`);
       const data = await response.json();
       console.log("Blacklist API response:", data);
-
       if (data.success) {
         setBlacklistedProviders(data.blockedProviderIds || []);
       } else {
@@ -544,27 +525,20 @@ export default function FindBooking({ providers, events, locations, clients, cat
   // Function to unblacklist a provider
   const handleUnblacklist = async (providerId) => {
     if (!userEmail) return;
-
     setUnblacklisting(providerId);
     try {
       console.log("Unblacklisting provider:", providerId);
       const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
         method: "DELETE",
       });
-
       const result = await res.json();
       console.log("Unblacklist response:", result);
-
       if (result.success) {
-        // Remove from local state
         setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
-
-        // Refresh providers data
         if (clientLocation && searchWithin) {
           console.log("Refreshing providers after unblacklist...");
-          getLatLngFromAddress(); // This will re-fetch providers with updated blacklist
+          getLatLngFromAddress();
         }
-
         alert("Provider has been unblacklisted successfully!");
       } else {
         alert(result.message || "Failed to unblacklist provider.");
@@ -578,26 +552,20 @@ export default function FindBooking({ providers, events, locations, clients, cat
   };
 
   const handleSearchWithReset = async () => {
-    // Reset provider selection when doing a new search
     setSelectedProvider("");
-    setSelectedServices([]); // Reset selected services
-    setShowServicesSection(false);
-
-    // Then perform the address search
+    setSelectedServices([]);
+    setActiveStep(1);
     await getLatLngFromAddress();
   };
 
   // Function to unblacklist all providers
   const handleUnblacklistAll = async () => {
     if (!userEmail) return;
-
     if (!confirm("Are you sure you want to unblacklist all providers?")) {
       return;
     }
-
     setLoadingBlacklist(true);
     try {
-      // Unblacklist each provider one by one
       for (const providerId of blacklistedProviders) {
         console.log("Unblacklisting provider:", providerId);
         const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
@@ -606,7 +574,6 @@ export default function FindBooking({ providers, events, locations, clients, cat
         const result = await res.json();
         console.log(`Unblacklist result for ${providerId}:`, result);
       }
-
       setBlacklistedProviders([]);
       alert("All providers have been unblacklisted successfully!");
     } catch (error) {
@@ -616,6 +583,63 @@ export default function FindBooking({ providers, events, locations, clients, cat
       setLoadingBlacklist(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    // Clear all previously selected services
+    Object.keys(services).forEach((key) => {
+      if (services[key]) {
+        handleCheckboxChange({
+          target: {
+            name: key,
+            checked: false,
+          },
+        });
+      }
+    });
+
+    setSelectedDate(null);
+    setSelectedTime("");
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (!selectedProvider) return;
+
+    // reset downstream
+    setSelectedCategory(null);
+
+    // clear all selected services
+    Object.keys(services).forEach((key) => {
+      if (services[key]) {
+        handleCheckboxChange({
+          target: { name: key, checked: false },
+        });
+      }
+    });
+
+    setSelectedDate(null);
+    setSelectedTime("");
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    const hasService = Object.values(services).some(Boolean);
+
+    if (!hasService) {
+      setSelectedDate(null);
+      setSelectedTime("");
+    }
+  }, [services]);
+
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setSelectedTime("");
+    }
+  }, [selectedDate]);
+
+
+
 
   // Blacklisted Providers View Component
   const BlacklistedProvidersView = () => {
@@ -782,10 +806,181 @@ export default function FindBooking({ providers, events, locations, clients, cat
     );
   };
 
+
+
+  // Main horizontal flow content - FIXED VERSION
+  const renderHorizontalFlow = () => {
+    return (
+      <div className="space-y-8">
+        {/* MAP */}
+        <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl" />
+
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl shadow-lg"
+          >
+            Home
+          </button>
+
+          <h3 className="text-lg font-semibold mb-2">Provider Locations</h3>
+          <p className="mb-4">View all available providers in your area</p>
+
+          <ProvidersMap
+            providers={filteredProviders}
+            locations={locations}
+            userLocation={clientLocation}
+            searchWithin={searchWithin}
+          />
+        </div>
+
+        {/* STEPS GRID */}
+        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+
+          {/* STEP 1 – PROVIDER */}
+          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+            <div className="px-4 py-3 bg-indigo-50">
+              <h3 className="text-lg font-bold">Service Provider</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <ProvidersSection
+                providers={filteredProviders}
+                locations={locations}
+                clientLocation={clientLocation}
+                searchWithin={searchWithin}
+                selectedProvider={selectedProvider}
+                userEmail={userEmail}
+                onProviderSelect={handleProviderSelect}
+                onBlacklist={handleBlacklist}
+                events={events}
+                categories={categories}
+                compactMode
+              />
+            </div>
+          </div>
+
+          {/* STEP 2 – CATEGORY */}
+          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+            <div className="px-4 py-3 bg-purple-50">
+              <h3 className="text-lg font-bold">Service Type</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {selectedProvider ? (
+                <ServiceCategorySection
+                  selectedProvider={selectedProvider}
+                  providers={providers}
+                  events={events}
+                  categories={categories}
+                  selectedCategory={selectedCategory}
+                  onCategorySelect={setSelectedCategory}
+                  loading={loadingServices}
+                />
+              ) : (
+                <StepLocked
+                  title="Select a Provider"
+                  message="Please choose a provider to view service categories"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* STEP 3 – SERVICE */}
+          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+            <div className="px-4 py-3 bg-pink-50">
+              <h3 className="text-lg font-bold">Treatment Option</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {selectedCategory ? (
+                <ServiceSelectionSection
+                  selectedCategory={selectedCategory}
+                  services={services}
+                  onCheckboxChange={(e) => {
+                    handleCheckboxChange(e);
+                    handleServiceSelection(e.target.name);
+                  }}
+                />
+              ) : (
+                <StepLocked
+                  title="Select Service Type"
+                  message="Choose a service category to see available services"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* STEP 4 – AVAILABILITY */}
+          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+            <div className="px-4 py-3 bg-green-50">
+              <h3 className="text-lg font-bold">Days Availability</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {Object.values(services).some(Boolean) ? (
+                <AvailabilitySection
+                  workCalandar={workCalandar}
+                  selectedDate={selectedDate}
+                  selectedTime={selectedTime}
+                  slots={slots}
+                  onDateSelect={(date) => {
+                    setSelectedDate(date);
+                    setSelectedTime("");
+                  }}
+                  onTimeSelect={setSelectedTime}
+                  loadingCalendar={loadingCalendar}
+                  loadingTimeSlots={loadingTimeSlots}
+                />
+              ) : (
+                <StepLocked
+                  title="Select a Service"
+                  message="Choose at least one service to view availability"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* STEP 5 – SUMMARY */}
+          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+            <div className="px-4 py-3 bg-blue-50">
+              <h3 className="text-lg font-bold">Complete Booking</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {selectedTime ? (
+                <BookingSummary
+                  selectedEvent={selectedEvent}
+                  selectedProvider={selectedProvider}
+                  selectedDate={selectedDate}
+                  selectedTime={selectedTime}
+                  events={events}
+                  providers={providers}
+                  dayMap={dayMap}
+                  formData={formData}
+                  onSubmit={handleSubmitWithNotification}
+                  onChange={handleChange}
+                  getSelectedServiceNames={getSelectedServiceNames}
+                  submittingBooking={submittingBooking}
+                  selectedTreatment={selectedTreatment}
+                  currentEmail={currentEmail}
+                />
+              ) : (
+                <StepLocked
+                  title="Select Time Slot"
+                  message="Choose a date and time to complete booking"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
   // Entry Point - Two Buttons
   if (userFlow === "entry") {
     return (
-      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+      <div className="w-full  mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
 
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
@@ -856,7 +1051,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   // Returning Client Login Form
   if (userFlow === "returning-client") {
     return (
-      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+      <div className="w-full  mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
 
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
@@ -947,7 +1142,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   // OTP Verification
   if (userFlow === "otp-verification") {
     return (
-      <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+      <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
 
         <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div>
@@ -1017,7 +1212,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
 
   // Main Booking Flow (for both new users and returning clients)
   return (
-    <div className="w-full max-w-6xl mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
+    <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative overflow-hidden">
       {/* Success Notification */}
       {showSuccess && bookingDetails && (
         <SuccessNotification
@@ -1057,10 +1252,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
             onSearchWithinChange={setSearchWithin}
             onUserEmailChange={setUserEmail}
             onSearchClick={async () => {
-              // Reset provider selection and close services section
               setSelectedProvider("");
               setSelectedServices([]);
-              setShowServicesSection(false);
+              setActiveStep(1);
               await getLatLngFromAddress();
             }}
             loadingAddress={loadingAddress}
@@ -1095,185 +1289,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
             />
           )}
 
-          {isSearchedAddress && clientLocation && !loadingAddress && (
-            <div className="relative">
-              {loadingProviders ? (
-                <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  <h3 className="text-2xl font-semibold text-gray-800 mb-3">Finding Providers</h3>
-                  <p className="text-gray-600 text-lg">Searching for the best professionals near you...</p>
-                  <div className="mt-4 flex justify-center">
-                    <div className="w-32 h-1 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full animate-pulse"></div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                filteredProviders.length > 0 && (
-                  currentView === 'providers' ? (
-                    <ProvidersSection
-                      providers={filteredProviders}
-                      locations={locations}
-                      clientLocation={clientLocation}
-                      searchWithin={searchWithin}
-                      selectedProvider={selectedProvider}
-                      userEmail={userEmail}
-                      onProviderSelect={handleProviderSelect}
-                      onBlacklist={handleBlacklist}
-                      events={events}
-                      categories={categories}
-                      onManageHidden={showBlacklistedProviders}
-                    />
-                  ) : (
-                    <BlacklistedProvidersView />
-                  )
-                )
-              )}
-            </div>
-          )}
-
-          {/* Services Section - Only show when provider is selected AND services section is open */}
-          {filteredProviders.length > 0 && selectedProvider && showServicesSection && (
-            <div className="relative">
-              {loadingServices ? (
-                <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-800 mb-3">Loading Services</h3>
-                  <p className="text-gray-600 text-lg">Preparing available services for your selection...</p>
-                </div>
-              ) : (
-                <ServicesSection
-                  services={services}
-                  onCheckboxChange={(serviceId) => {
-                    // Call the original handler
-                    handleCheckboxChange(serviceId);
-                    // Also call your new handler to track selections
-                    handleServiceSelection(serviceId);
-                  }}
-                  selectedProvider={selectedProvider}
-                  providers={providers}
-                  events={events}
-                  categories={categories}
-                  onClose={handleCloseServicesSection}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Show "Select Services" button when provider is selected but services section is closed */}
-          {filteredProviders.length > 0 && selectedProvider && !showServicesSection && (
-            <div className="text-center">
-              <button
-                onClick={handleReopenServicesSection}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-                </svg>
-                Select Services
-              </button>
-            </div>
-          )}
-
-          {/* Date Picker Section - Only show when services are selected */}
-          {filteredProviders.length > 0 && selectedProvider && selectedServices.length > 0 && showDatePickerSection && (
-            <DatePickerSection
-              selectedDate={selectedDate}
-              workCalandar={workCalandar}
-              loadingCalendar={loadingCalendar}
-              selectedProvider={selectedProvider}
-              onDateSelect={setSelectedDate}
-              onTimeReset={() => setSelectedTime("")}
-              onMonthChange={handleMonthChange}
-              onClose={handleCloseDatePickerSection}
-            />
-          )}
-
-          {/* Show reopen button if DatePickerSection is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedProvider && selectedServices.length > 0 && !showDatePickerSection && (
-            <div className="text-center">
-              <button
-                onClick={handleReopenDatePickerSection}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <Calendar className="w-5 h-5" />
-                Show Date Picker
-              </button>
-            </div>
-          )}
-
-          {/* Time Slots Section with Loading */}
-          {filteredProviders.length > 0 && selectedDate && showTimeSlotsSection && (
-            <div className="relative">
-              {loadingTimeSlots ? (
-                <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-12 border border-gray-100 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                  <h3 className="text-2xl font-semibold text-gray-800 mb-3">Loading Time Slots</h3>
-                  <p className="text-gray-600 text-lg">Calculating available appointment times...</p>
-                </div>
-              ) : (
-                <TimeSlotsSection
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  slots={slots}
-                  dayMap={dayMap}
-                  onTimeSelect={setSelectedTime}
-                  onClose={handleCloseTimeSlotsSection}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Show reopen button if TimeSlotsSection is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedDate && !showTimeSlotsSection && (
-            <div className="text-center">
-              <button
-                onClick={handleReopenTimeSlotsSection}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <Clock className="w-5 h-5" />
-                Show Time Slots
-              </button>
-            </div>
-          )}
-
-          {/* Booking Summary & Form with Loading */}
-          {filteredProviders.length > 0 && selectedTime && showBookingSummary && (
-            <BookingSummary
-              selectedEvent={selectedEvent}
-              selectedProvider={selectedProvider}
-              selectedDate={selectedDate}
-              selectedTime={selectedTime}
-              events={events}
-              providers={providers}
-              dayMap={dayMap}
-              formData={formData}
-              onSubmit={handleSubmitWithNotification}
-              onChange={handleChange}
-              getSelectedServiceNames={getSelectedServiceNames}
-              submittingBooking={submittingBooking}
-              onClose={handleCloseBookingSummary}
-              selectedTreatment={selectedTreatment}
-            />
-          )}
-
-          {/* Show reopen button if BookingSummary is closed but conditions are met */}
-          {filteredProviders.length > 0 && selectedTime && !showBookingSummary && (
-            <div className="text-center">
-              <button
-                onClick={handleReopenBookingSummary}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <CheckCircle className="w-5 h-5" />
-                Show Booking Summary
-              </button>
-            </div>
+          {isSearchedAddress && clientLocation && !loadingAddress && filteredProviders.length > 0 && (
+            renderHorizontalFlow()
           )}
         </>
       ) : (

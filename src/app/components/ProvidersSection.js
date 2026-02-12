@@ -16,6 +16,7 @@ export default function ProvidersSection({
   categories = [],
   onManageHidden,
   onClose,
+  compactMode = false, // 👈 New prop for column display
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
 
@@ -59,6 +60,42 @@ export default function ProvidersSection({
     }
   };
 
+  // Compact mode - just show provider cards without map
+  if (compactMode) {
+    return (
+      <div className="space-y-2">
+        {loadingProviders && (
+          <div className="text-center py-4 text-xs text-gray-500">
+            Loading…
+          </div>
+        )}
+
+        {!loadingProviders &&
+          filteredProviders.map((provider) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              isSelected={selectedProvider === provider.id}
+              onSelect={onProviderSelect}
+              onBlacklist={handleBlacklist}
+              isBlacklisting={blacklistingProvider === provider.id}
+              userEmail={userEmail}
+              categories={categories}
+              compact
+            />
+          ))}
+
+        {!loadingProviders && filteredProviders.length === 0 && (
+          <div className="text-center py-4 text-sm text-gray-500">
+            No providers found
+          </div>
+        )}
+      </div>
+    );
+  }
+
+
+  // Full mode - show map and provider list
   return (
     <div className="space-y-8">
       {/* MAP CONTAINER */}
@@ -110,9 +147,8 @@ export default function ProvidersSection({
             <p className="text-gray-600">
               {loadingProviders
                 ? "Loading providers..."
-                : `Choose from ${filteredProviders.length} available professional${
-                    filteredProviders.length !== 1 ? "s" : ""
-                  }`}
+                : `Choose from ${filteredProviders.length} available professional${filteredProviders.length !== 1 ? "s" : ""
+                }`}
             </p>
           </div>
 
@@ -204,9 +240,10 @@ function ProviderCard({
   isBlacklisting,
   userEmail,
   categories = [],
+  compact = false, // 👈 New prop for compact display
 }) {
 
-     // ---- GET PROVIDER CATEGORIES ----
+  // ---- GET PROVIDER CATEGORIES ----
   const getProviderCategories = () => {
     if (!categories?.length || !provider?.services?.length) return [];
 
@@ -229,6 +266,13 @@ function ProviderCard({
 
   const providerCategories = getProviderCategories();
 
+  const cleanName = (name = "") =>
+  name
+    // remove leading "03a) ", "10b) ", etc.
+    .replace(/^\d+[a-z]\)\s*/i, "")
+    // remove schedule suffixes
+    .replace(/\s*,?\s*(DTD|Salon)\s*Schedule/i, "");
+
 
   const getLocationDisplay = () => {
     if (!provider.nearestLocation) return "";
@@ -242,11 +286,76 @@ function ProviderCard({
     return provider.nearestLocation.city || "";
   };
 
+  // Compact mode for column display
+  if (compact) {
+    return (
+      <div
+        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected
+            ? "border-indigo-500 bg-indigo-50"
+            : "border-gray-200 hover:border-indigo-300"
+          }`}
+        onClick={() => !isBlacklisting && onSelect(provider.id)}
+      >
+        <div className="flex items-start gap-3">
+          <img
+            src={
+              provider.picture_path
+                ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
+                : "/images/placeholder.jpg"
+            }
+            className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+            alt={provider.name}
+          />
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-gray-800 truncate">{cleanName(provider.name)}</h4>
+
+            {provider.nearestLocation && (
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                {getLocationDisplay()}
+              </p>
+            )}
+
+            {provider.distance != null && (
+              <p className="text-xs text-green-600 mt-0.5">
+                {provider.distance.toFixed(1)} mi away
+              </p>
+            )}
+
+            {/* {providerCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {providerCategories.slice(0, 2).map((cat) => (
+                  <span
+                    key={cat.id}
+                    className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs"
+                  >
+                    {cat.name}
+                  </span>
+                ))}
+                {providerCategories.length > 2 && (
+                  <span className="text-xs text-gray-500">
+                    +{providerCategories.length - 2}
+                  </span>
+                )}
+              </div>
+            )} */}
+          </div>
+
+          {isSelected && (
+            <svg className="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Full mode for regular display
   return (
     <div
-      className={`p-6 rounded-2xl border cursor-pointer transition ${
-        isSelected ? "border-indigo-500" : "border-gray-200"
-      }`}
+      className={`p-6 rounded-2xl border cursor-pointer transition ${isSelected ? "border-indigo-500" : "border-gray-200"
+        }`}
       onClick={() => !isBlacklisting && onSelect(provider.id)}
     >
       <div className="flex gap-4">
@@ -267,28 +376,28 @@ function ProviderCard({
           )}
 
           {/* ---- CATEGORY TAGS BELOW NAME + ADDRESS ---- */}
-{providerCategories.length > 0 && (
-  <div className="mt-3">
-    
-    {/* Label on FIRST LINE */}
-    <span className="text-xs font-semibold text-gray-600 block mb-1">
-      Category
-    </span>
+          {providerCategories.length > 0 && (
+            <div className="mt-3">
 
-    {/* Tags on SECOND LINE */}
-    <div className="flex flex-wrap gap-2">
-      {providerCategories.map((cat) => (
-        <span
-          key={cat.id}
-          className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium"
-        >
-          {cat.name}
-        </span>
-      ))}
-    </div>
+              {/* Label on FIRST LINE */}
+              <span className="text-xs font-semibold text-gray-600 block mb-1">
+                Category
+              </span>
 
-  </div>
-)}
+              {/* Tags on SECOND LINE */}
+              <div className="flex flex-wrap gap-2">
+                {providerCategories.map((cat) => (
+                  <span
+                    key={cat.id}
+                    className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium"
+                  >
+                    {cat.name}
+                  </span>
+                ))}
+              </div>
+
+            </div>
+          )}
 
 
 
@@ -303,9 +412,8 @@ function ProviderCard({
         {/* ACTIONS */}
         <div className="flex flex-col gap-2 text-black">
           <button
-            className={`px-4 py-2 rounded-xl ${
-              isSelected ? "bg-indigo-500 text-black" : "bg-gray-300"
-            }`}
+            className={`px-4 py-2 rounded-xl ${isSelected ? "bg-indigo-500 text-black" : "bg-gray-300"
+              }`}
           >
             {isSelected ? "Selected" : "View Services"}
           </button>

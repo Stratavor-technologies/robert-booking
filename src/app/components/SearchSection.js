@@ -46,6 +46,7 @@ export default function SearchSection({
   const zipDropdownRef = useRef(null);
   const dropdownListRef = useRef(null);
   const zipDropdownListRef = useRef(null);
+  const zipCaretRef = useRef(null);
 
   const [validationErrors, setValidationErrors] = useState({
     city: "",
@@ -59,6 +60,7 @@ export default function SearchSection({
   const zipRef = useRef(null);
   const searchWithinRef = useRef(null);
   const searchButtonRef = useRef(null);
+  const isTypingZipRef = useRef(false);
 
   // Track if dropdown should stay open (when user clicks dropdown arrow)
   const keepDropdownOpenRef = useRef(false);
@@ -740,26 +742,31 @@ export default function SearchSection({
 
   // Handle ZIP change - trigger city/state lookup if needed
   const handleZipChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    isTypingZipRef.current = true;
 
-    // Update the parent component state immediately
-    if (onFieldChange) {
-      const event = {
-        target: {
-          name: "zip",
-          value: value
-        }
-      };
-      onFieldChange(event);
+    const value = e.target.value.replace(/\D/g, '');
+
+    if (!isValidZipPrefix(value, zipSuggestions)) {
+      return;
     }
 
-    // Clear ZIP error when user starts typing
+    // Update ZIP in parent state
+    if (onFieldChange) {
+      onFieldChange({
+        target: {
+          name: "zip",
+          value
+        }
+      });
+    }
+
+    // Clear ZIP error
     setValidationErrors(prev => ({ ...prev, zip: "" }));
 
-    // Reset active zip index
+    // Reset dropdown navigation index
     setActiveZipIndex(-1);
 
-    // Handle field clearing
+    // Handle clearing ZIP
     if (value === '') {
       handleFieldClear('zip');
       setZipSuggestions([]);
@@ -767,43 +774,35 @@ export default function SearchSection({
       return;
     }
 
-    // If city and state are filled, fetch matching ZIP codes
-    if (address.city && address.city.length >= 2 && 
-        address.state && address.state.length === 2) {
-      
-      // Fetch ZIP codes that match what the user is typing
+    // Fetch ZIP suggestions when city + state exist
+    if (
+      address.city &&
+      address.city.length >= 2 &&
+      address.state &&
+      address.state.length === 2
+    ) {
       debouncedFetchZipCodes(address.city, address.state, value);
-      
-      // Show dropdown if user has typed something and we have suggestions
-      if (value.length >= 1) {
-        // We'll show dropdown when API returns results
-      } else {
-        setShowZipDropdown(false);
-      }
     } else {
-      // Hide dropdown if city/state aren't filled
-      setShowZipDropdown(false);
       setZipSuggestions([]);
+      setShowZipDropdown(false);
     }
 
-    // If ZIP is 5 digits, try to auto-fill missing fields
+    // Autofill logic ONLY when ZIP is complete
     if (value.length === 5) {
       const city = address.city || "";
       const state = address.state || "";
 
-      // Use setTimeout to avoid race conditions with state updates
       setTimeout(() => {
-        // Logic for auto-filling based on what's missing
+        // City → ZIP → State
         if (city && city.length >= 2 && (!state || state.length !== 2)) {
-          // Case 1: City is filled but state is missing or incomplete
           fetchStateFromCityZip(city, value);
         }
+        // State → ZIP → City
         else if (state && state.length === 2 && (!city || city.length < 2)) {
-          // Case 2: State is filled but city is missing
           fetchCityFromStateZip(state, value);
         }
+        // ZIP only → City + State
         else if (!city && !state) {
-          // Case 3: Both city and state are missing - fetch both
           fetchCityStateFromZip(value).then(({ city: fetchedCity, state: fetchedState }) => {
             if (fetchedCity && !address.city) {
               onFieldChange({ target: { name: "city", value: fetchedCity } });
@@ -814,23 +813,19 @@ export default function SearchSection({
             }
           });
         }
-        
-        // Also check if we should fetch state when city is already filled
-        // (this handles the case where user fills city first, then zip)
-        if (city && city.length >= 2) {
-          // Give a small delay to ensure city is fully updated in state
-          setTimeout(() => {
-            if (!state || state.length !== 2) {
-              fetchStateFromCityZip(city, value);
-            }
-          }, 100);
+
+        // Safety re-check (city first → zip later)
+        if (city && city.length >= 2 && (!state || state.length !== 2)) {
+          fetchStateFromCityZip(city, value);
         }
       }, 50);
-      
-      // Hide dropdown when ZIP is complete (5 digits)
+
+      // Close dropdown ONLY after completion
       setShowZipDropdown(false);
+      isTypingZipRef.current = false;
     }
   };
+
 
   // Toggle ZIP dropdown (for arrow button)
   const handleZipDropdownToggle = () => {
@@ -1143,6 +1138,31 @@ export default function SearchSection({
 
     return input.value.length;
   };
+
+  const isValidZipPrefix = (value, zipList) => {
+    if (!value) return true;
+    if (!zipList || zipList.length === 0) return true;
+    return zipList.some(zip => zip.startsWith(value));
+  };
+
+  useEffect(() => {
+    if (!isTypingZipRef.current) return;
+    if (!zipRef.current) return;
+
+    const input = zipRef.current;
+    const caret = zipCaretRef.current;
+
+    // Focus WITHOUT scrolling or selecting
+    input.focus({ preventScroll: true });
+
+    // Restore caret if we have one
+    if (caret && caret.start !== null && caret.end !== null) {
+      requestAnimationFrame(() => {
+        input.setSelectionRange(caret.start, caret.end);
+      });
+    }
+  }, [zipSuggestions, address.city, address.state]);
+
 
   return (
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-8 space-y-8 border border-white/20 relative">
@@ -1551,11 +1571,32 @@ export default function SearchSection({
                 type="text"
                 name="zip"
                 value={address.zip || ""}
+                onBlur={() => {
+                  isTypingZipRef.current = false;
+                }}
                 onChange={handleZipChange}
                 onClick={(e) => {
                   if (e.detail === 1) {
                     e.target.select();
                   }
+                }}
+                onSelect={(e) => {
+                  zipCaretRef.current = {
+                    start: e.target.selectionStart,
+                    end: e.target.selectionEnd,
+                  };
+                }}
+                onKeyUp={(e) => {
+                  zipCaretRef.current = {
+                    start: e.target.selectionStart,
+                    end: e.target.selectionEnd,
+                  };
+                }}
+                onMouseUp={(e) => {
+                  zipCaretRef.current = {
+                    start: e.target.selectionStart,
+                    end: e.target.selectionEnd,
+                  };
                 }}
                 onDoubleClick={(e) => {
                   e.preventDefault();
@@ -1571,6 +1612,10 @@ export default function SearchSection({
                 }}
                 onFocus={() => {
                   // Select text on focus
+                  if (!isTypingZipRef.current) {
+                    zipRef.current.select();
+                  }
+
                   if (zipRef.current) {
                     zipRef.current.select();
                   }

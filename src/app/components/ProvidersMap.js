@@ -25,6 +25,14 @@ export default function ProvidersMap({
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
+  const cleanName = (name = "") =>
+  name
+    // remove leading "03a) ", "10b) ", etc.
+    .replace(/^\d+[a-z]\)\s*/i, "")
+    // remove schedule suffixes
+    .replace(/\s*,?\s*(DTD|Salon)\s*Schedule/i, "");
+
+
   useEffect(() => {
     import("leaflet").then((L) => {
       const mapContainer = document.getElementById("map");
@@ -132,7 +140,7 @@ export default function ProvidersMap({
           )
             .addTo(map)
             .bindPopup(
-              `<b>${loc.providerName}</b>` +
+              `<b>${loc.providerName ? cleanName(loc.providerName) : ""}</b>` +
                `<br/>📍 ${loc.city}${loc.address2 && loc.address2 !== "0" ? ` ${loc.address2}` : ''}, ${extractStateFromTitle(loc.title)}` +
     (userLocation ? `<br/>${dist.toFixed(1)} miles away` : "")
             );
